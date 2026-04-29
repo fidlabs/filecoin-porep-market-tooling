@@ -3,6 +3,7 @@ import click
 from cli import utils
 from cli.commands.sp._sp import sp_organization_address
 from cli.services.contracts.sp_registry import SPRegistry
+from cli.services.web3_service import ActorId
 
 
 @click.command()
@@ -14,7 +15,7 @@ def get_registered_info(provider_id: str | None = None):
     PROVIDER_ID - Storage Provider id to query. [default: all providers under current SP organization]
     """
 
-    _provider_id = utils.f0_str_id_to_int(provider_id) if provider_id else None
+    _provider_id = ActorId(provider_id) if provider_id else None
 
     click.echo(utils.json_pretty(
         [SPRegistry().get_provider_info(_provider_id)] if _provider_id else

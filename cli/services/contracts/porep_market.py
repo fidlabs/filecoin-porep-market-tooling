@@ -6,7 +6,7 @@ from eth_account.types import PrivateKeyType
 from cli import utils
 from cli.services.contracts.contract_service import ContractService
 from cli.services.contracts.sp_registry import SPRegistrySLIThresholds
-from cli.services.web3_service import Address
+from cli.services.web3_service import Address, ActorId
 
 
 # @notice DealState enum
@@ -78,7 +78,7 @@ class PoRepMarketDealRequest:
 class PoRepMarketDealProposal(PoRepMarketDealRequest):
     deal_id: int
     client_address: Address
-    provider_id: int
+    provider_id: ActorId
     validator_address: Address
     state: PoRepMarketDealState
     rail_id: int
@@ -100,7 +100,7 @@ class PoRepMarketDealProposal(PoRepMarketDealRequest):
         return PoRepMarketDealProposal(
             deal_id=int(data[0]),
             client_address=Address(data[1]),
-            provider_id=int(data[2]),
+            provider_id=ActorId(data[2]),
             requirements=SPRegistrySLIThresholds(
                 retrievability_bps=int(data[3][0]),
                 bandwidth_mbps=int(data[3][1]),

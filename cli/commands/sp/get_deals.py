@@ -5,6 +5,7 @@ from cli.commands import utils as commands_utils
 from cli.commands.sp._sp import sp_organization_address
 from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarket
 from cli.services.contracts.sp_registry import SPRegistry
+from cli.services.web3_service import ActorId
 
 
 @click.command()
@@ -23,7 +24,7 @@ def get_deals(state: str | None = None, provider_id: str | None = None, deal_id:
         result = [_result]
     else:
         _state = PoRepMarketDealState.from_string(state)
-        _provider_id = utils.f0_str_id_to_int(provider_id) if provider_id else None
+        _provider_id = ActorId(provider_id) if provider_id else None
 
         if _provider_id:
             provider_info = SPRegistry().get_provider_info(_provider_id)

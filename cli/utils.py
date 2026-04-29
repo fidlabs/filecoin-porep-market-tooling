@@ -99,7 +99,9 @@ def json_pretty(json_data, sort_keys: bool = False):
             return [_json_pretty(item) for item in data]
         if isinstance(data, dict) and data:
             return {key: _json_pretty(value) for key, value in data.items()}
-
+        if type(data) is not int and isinstance(data, int):
+            return str(data)
+            
         return data
 
     return json.dumps(_json_pretty(json_data), indent=4, sort_keys=sort_keys)
@@ -172,24 +174,3 @@ def private_str_to_log_str(private_str) -> str:
         return "*" * len(_private_str)
 
     return "*" * 5
-
-
-# converts Filecoin ID "f01234" to integer ID 1234
-def f0_str_id_to_int(f_id: str) -> int:
-    if f_id.startswith("f0"):
-        result = int(f_id[2:])
-    else:
-        result = int(f_id)
-
-    if result < 1000:
-        raise ValueError(f"Invalid f_id: {f_id}")
-
-    return result
-
-
-# converts integer ID 1234 to Filecoin ID "f01234"
-def int_id_to_f0_str(int_id: int) -> str:
-    if int_id < 0:
-        raise ValueError(f"Invalid int_id: {int_id}")
-
-    return f"f0{int_id}"

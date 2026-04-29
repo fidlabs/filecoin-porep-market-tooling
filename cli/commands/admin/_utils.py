@@ -7,14 +7,14 @@ from cli.services.contracts.porep_market import PoRepMarket
 from cli.services.contracts.sp_registry import SPRegistryProvider, SPRegistrySLIThresholds
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.sp_registry_db import SPRegistryDB
-from cli.services.web3_service import Address
+from cli.services.web3_service import Address, ActorId
 
 
 def get_db_sps(db_url: str,
                kyc_status: str | None = None,
                organization_id: int | None = None,
                indexing_pct: int = 0,
-               miner_id: int | None = None,
+               miner_id: ActorId | None = None,
                organization_address: str | None = None) -> list[SPRegistryProvider]:
     #
     def retrievability_guarantees_to_bps(guarantees: list[str]) -> int:
