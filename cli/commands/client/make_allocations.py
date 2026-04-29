@@ -7,7 +7,7 @@ from cli.commands import utils as commands_utils
 from cli.commands.client._client import client_address, client_private_key
 from cli.services.contracts.client_contract import ClientContract, TransferParams
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
-from cli.services.web3_service import Web3Service
+from cli.services.web3_service import Web3Service, ActorId
 
 EPOCHS_PER_DAY = 60 * 24 * 2
 EPOCHS_PER_MONTH = EPOCHS_PER_DAY * 30
@@ -117,7 +117,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
     click.echo("\nAll done!")
 
 
-def _build_operator_data_batch(provider_id: int, batch: list[tuple[str, int]], term_min: int, term_max: int, expiration: int) -> bytes:
+def _build_operator_data_batch(provider_id: ActorId, batch: list[tuple[str, int]], term_min: int, term_max: int, expiration: int) -> bytes:
     def format_cid_to_cbor_universal(cid_str: str) -> cbor2.CBORTag:
         cid_bytes = bytes(multibase.decode(cid_str))
         cid_with_prefix = b"\x00" + cid_bytes

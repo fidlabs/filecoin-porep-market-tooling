@@ -7,6 +7,7 @@ from cli import utils
 from cli.commands.sp import _utils as sp_utils
 from cli.services.contracts.client_contract import ClientContract
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealProposal
+from cli.services.web3_service import FilAddress
 
 
 def _get_curio_path() -> str:
@@ -31,7 +32,7 @@ def _get_curio_path() -> str:
 
 
 def _build_allocation_command_curio(curio_path: str,
-                                    client_contract_filecoin_address: str,
+                                    client_contract_filecoin_address: FilAddress,
                                     allocation_id: int,
                                     deal: PoRepMarketDealProposal) -> list[str]:
     return [
@@ -39,7 +40,7 @@ def _build_allocation_command_curio(curio_path: str,
         "market",
         "ddo",
         "--actor",
-        utils.int_id_to_f0_str(deal.provider_id),
+        deal.provider_id,
         client_contract_filecoin_address,
         str(allocation_id),
     ]

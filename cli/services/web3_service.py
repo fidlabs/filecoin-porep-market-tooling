@@ -8,17 +8,62 @@ from hexbytes import HexBytes
 from web3 import Web3
 from web3.contract import Contract
 from web3.exceptions import Web3RPCError
-from web3.types import BlockIdentifier, TxData, TxReceipt, RPCEndpoint, TxParams
+from web3.types import TxParams, BlockIdentifier, TxData, TxReceipt, RPCEndpoint
 
 from cli import utils
 
+class FilAddress(str):
+    _PREFIXES = ("f0", "f1", "f2", "f3", "f4", "f5", "t")
 
+    def __new__(cls, addr: str) -> "FilAddress":
+        if not isinstance(addr, str) or not addr.startswith(cls._PREFIXES):
+            raise ValueError(f"Invalid Filecoin address format: {addr!r}")
+        return super().__new__(cls, addr)
+
+    @classmethod
+    def try_parse(cls, addr: str) -> "FilAddress | None":
+        try:
+            return cls(addr)
+        except ValueError:
+            return None
+        
+class ActorId(int):
+    _PREFIXES = ("f0", "t0")
+
+    def __new__(cls, actor_id: int | str) -> "ActorId":
+        if isinstance(actor_id, str):
+            if actor_id.startswith(cls._PREFIXES):
+                actor_id = actor_id[2:]
+            try:
+                actor_id = int(actor_id)
+            except ValueError:
+                raise ValueError(f"Invalid ActorId format: {actor_id!r}")
+
+        if not isinstance(actor_id, int) or actor_id < 1000:
+            raise ValueError(f"Invalid ActorId: {actor_id!r}")
+
+        return super().__new__(cls, actor_id)
+
+    def __str__(self) -> str:
+        return f"f0{int(self)}"
+        
+    def __repr__(self) -> str:
+        return f"ActorId({int(self)})"
+
+    @classmethod
+    def try_parse(cls, actor_id: str | int) -> "ActorId | None":
+        try:
+            return cls(actor_id)
+        except (ValueError, TypeError):
+            return None
+        
 class Address(str):
     ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
     def __new__(cls, addr: str) -> "Address":
         # noinspection PyTypeChecker
         return super().__new__(cls, str(Web3.to_checksum_address(addr)))
+
 
     def __eq__(self, other):
         # noinspection PyBroadException
@@ -44,7 +89,7 @@ class Address(str):
     def __hash__(self):
         return super().__hash__()
 
-    def to_filecoin_address(self) -> str:
+    def to_filecoin_address(self) -> FilAddress:
         response = Web3Service().w3().provider.make_request(
             RPCEndpoint("Filecoin.EthAddressToFilecoinAddress"),
             [self]
@@ -53,9 +98,9 @@ class Address(str):
         if "error" in response:
             raise RuntimeError(response["error"])
 
-        return response["result"]
+        return FilAddress(response["result"])
 
-    def to_actor_id(self) -> int:
+    def to_actor_id(self) -> ActorId:
         f_address = self.to_filecoin_address()
 
         response = Web3Service().w3().provider.make_request(
@@ -69,11 +114,11 @@ class Address(str):
         if not response["result"]:
             raise RuntimeError(f"Failed to get actor ID for address {f_address}: empty result")
 
-        return utils.f0_str_id_to_int(response["result"])
+        return ActorId(response["result"])
 
     @staticmethod
     def is_filecoin_address(addr: str) -> bool:
-        return addr.startswith(("f0", "f1", "f2", "f3", "f4", "f5", "t"))
+        return isinstance(addr, FilAddress)
 
     @staticmethod
     def from_filecoin_address(addr: str) -> "Address":
@@ -131,7 +176,7 @@ class Web3Service:
         return self._w3.keccak(text=text)
 
     def call(self, tx_params: TxParams, block_identifier: BlockIdentifier = "latest") -> str:
-        return self._w3.eth.call(tx_params, block_identifier=block_identifier).to_0x_hex()
+        return self._w3.eth.call(tx_params, block_identifier).to_0x_hex()
 
     def contract(self, address: Address, abi: list[dict]) -> Contract:
         return self._w3.eth.contract(address=address, abi=abi)
@@ -154,10 +199,10 @@ class Web3Service:
     def sign_transaction(self, tx_params: dict, from_private_key: PrivateKeyType) -> SignedTransaction:
         return self._w3.eth.account.sign_transaction(tx_params, from_private_key)
 
-    def state_get_allocations(self, actor_id: int) -> Dict[str, dict]:
+    def state_get_allocations(self, actor_id: ActorId) -> Dict[str, dict]:
         response = self._w3.provider.make_request(
             RPCEndpoint("Filecoin.StateGetAllocations"),
-            [utils.int_id_to_f0_str(actor_id), None]
+            [str(actor_id), None]
         )
 
         if "error" in response:

@@ -3,14 +3,14 @@ from datetime import datetime
 import psycopg
 
 from cli import utils
-from cli.services.web3_service import Address
+from cli.services.web3_service import Address, ActorId
 
 
 @utils.json_dataclass()
 class SPRegistryDBOrganization:
     id: int
     name: str
-    miner_ids: list[int]
+    miner_ids: list[ActorId]
     accepted_client_geographies: list[str]
     payment_types: list[str]
     retrievability_guarantees: list[str]
@@ -39,7 +39,7 @@ class SPRegistryDBOrganization:
 
     @staticmethod
     def from_db(data) -> "SPRegistryDBOrganization":
-        miner_ids = [utils.f0_str_id_to_int(miner_id) for miner_id in data[2]]
+        miner_ids = [ActorId(miner_id) for miner_id in data[2]]
         db_id = int(data[0])
 
         if any(miner_id is None for miner_id in miner_ids):
@@ -85,7 +85,7 @@ class SPRegistryDB:
     def get_organizations(self,
                           kyc_status: str | None = None,
                           organization_id: int | None = None,
-                          miner_id: int | None = None,
+                          miner_id: ActorId | None = None,
                           organization_address: str | None = None) -> list[SPRegistryDBOrganization]:
         #
         # this is confusing but organizations are called providers in the SPRegistry database
@@ -107,7 +107,7 @@ class SPRegistryDB:
             params.append(organization_id)
 
         if miner_id is not None:
-            _miner_id = utils.int_id_to_f0_str(miner_id)
+            _miner_id = ActorId(miner_id)
             query += " AND %s = ANY(miner_ids)"
             params.append(_miner_id)
 
