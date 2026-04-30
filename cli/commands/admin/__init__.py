@@ -6,9 +6,11 @@ from .get_devnet_sps import get_devnet_sps
 from .get_registered_sps import get_registered_sps
 from .pause_sp import pause_sp
 from .register_sps import register_db_sps, register_devnet_sps
+from .terminate_deal import terminate_deal
 from .unblock_sp import unblock_sp
 from .unpause_sp import unpause_sp
 
+admin.add_command(terminate_deal)
 admin.add_command(block_sp)
 admin.add_command(unblock_sp)
 admin.add_command(pause_sp)

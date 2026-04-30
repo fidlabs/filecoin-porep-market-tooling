@@ -13,7 +13,7 @@ from cli.services.web3_service import Address, Web3Service
 @click.argument("months", type=click.IntRange(min=1), default=1)
 def deposit_for_all_deals(months: int):
     """
-    Deposit USDC funds to FileCoinPay account for all accepted deals.
+    Deposit USDC funds to FileCoinPay account for all ACCEPTED deals.
 
     MONTHS - Number of months to calculate required deposit amount for. [default: 1; x>=1]
     """
@@ -51,7 +51,7 @@ def _deposit_for_all_deals(deals: list[PoRepMarketDealProposal], months: int):
                                        f"less than required deposit {deposit_amount_str} for {len(deals)} deals")
 
         click.confirm(
-            f"\nDeposit {deposit_amount_str} {token_name} to FileCoinPay account for {len(deals)} deals from address {client_address()}\n"
+            f"\nDeposit {deposit_amount_str} {token_name} to {client_address()} FileCoinPay account for {len(deals)} deals\n"
             f"  Current token balance: {token_balance_str} {token_name}\n"
             f"  Current FileCoinPay account available funds: {filecoinpay_available_funds_str} {token_name}\n"
             f"  Total required funds for {len(deals)} deals for {months} months: {total_required_amount_str} {token_name}", abort=True)
@@ -69,5 +69,5 @@ def _deposit_for_all_deals(deals: list[PoRepMarketDealProposal], months: int):
         return tx_hash
     else:
         click.echo(
-            f"Existing FileCoinPay funds {filecoinpay_available_funds_str} {token_name} is "
-            f"sufficient for total required deposit amount {total_required_amount_str} {token_name}")
+            f"Existing FileCoinPay funds: {filecoinpay_available_funds_str} {token_name} is "
+            f"sufficient for total required amount for all {len(deals)} ACCEPTED deals: {total_required_amount_str} {token_name}")

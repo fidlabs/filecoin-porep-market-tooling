@@ -17,3 +17,10 @@ class FileCoinPayValidator(ContractService):
     # @param token The ERC20 token to use for the payment rail
     def create_rail(self, token_address: Address, from_private_key: PrivateKeyType) -> str:
         return self.sign_and_send_tx(self.contract.functions.createRail(token_address), from_private_key)
+
+    # @notice Disables future payments for a payment rail by terminating the rail
+    # @dev Only callable by POREP_SERVICE bot
+    # @dev After calling this method, the lockup period cannot be changed, and the rail's rate and fixed lockup may only be reduced
+    # @param railId The ID of the rail to terminate
+    def disable_future_rail_payments(self, rail_id: int, from_private_key: PrivateKeyType) -> str:
+        return self.sign_and_send_tx(self.contract.functions.disableFutureRailPayments(rail_id), from_private_key)

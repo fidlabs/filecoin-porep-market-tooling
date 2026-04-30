@@ -34,11 +34,15 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
     4. IMPORTANT: mark deal as completed in the last batch to allow SP to submit the proof and receive payment.
     """
 
+    # TODO improve click.echo here
     Web3Service().wait_for_pending_transactions(client_address())
     deal = PoRepMarket().get_deal_proposal(deal_id)
 
     if deal.state != PoRepMarketDealState.ACCEPTED:
         raise click.ClickException(f"Deal id {deal_id} is not in ACCEPTED state")
+
+    if deal.rail_id == 0:
+        raise click.ClickException(f"Deal id {deal_id} does not have a FileCoinPay rail set")
 
     manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False)
     pieces = manifest[0]["pieces"]
