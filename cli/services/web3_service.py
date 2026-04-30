@@ -64,7 +64,6 @@ class Address(str):
         # noinspection PyTypeChecker
         return super().__new__(cls, str(Web3.to_checksum_address(addr)))
 
-
     def __eq__(self, other):
         # noinspection PyBroadException
         try:

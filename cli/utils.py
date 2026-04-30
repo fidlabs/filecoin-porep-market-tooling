@@ -99,7 +99,7 @@ def json_pretty(json_data, sort_keys: bool = False):
             return [_json_pretty(item) for item in data]
         if isinstance(data, dict) and data:
             return {key: _json_pretty(value) for key, value in data.items()}
-        if type(data) is not int and isinstance(data, int):
+        if not isinstance(data, bool) and type(data) is not int and isinstance(data, int):
             return str(data)
             
         return data

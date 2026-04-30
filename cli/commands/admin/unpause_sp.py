@@ -15,9 +15,9 @@ def unpause_sp(provider_id: str):
     PROVIDER_ID - Storage Provider ID to unpause.
     """
 
-    providerActorId = ActorId(provider_id)
+    provider_actor_id = ActorId(provider_id)
     Web3Service().wait_for_pending_transactions(admin_address())
-    provider = SPRegistry().get_provider_info(providerActorId)
+    provider = SPRegistry().get_provider_info(provider_actor_id)
 
     if not provider.paused:
         raise click.ClickException(f"Storage Provider {provider.provider_id} is not paused")
