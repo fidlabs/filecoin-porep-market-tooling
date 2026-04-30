@@ -96,7 +96,7 @@ class SPRegistry(ContractService):
     # @notice Get all registered providers
     # @return Array of all registered provider actor IDs
     def get_providers(self) -> list[ActorId]:
-        return self.contract.functions.getProviders().call()
+        return [ActorId(pid) for pid in self.contract.functions.getProviders().call()]
 
     def get_providers_info(self) -> list[SPRegistryProviderInfo]:
         return [self.get_provider_info(provider_id) for provider_id in self.get_providers()]
@@ -111,7 +111,7 @@ class SPRegistry(ContractService):
     # @param organization_address The organization address
     # @return Array of provider actor IDs belonging to the organization
     def get_providers_by_organization(self, organization_address: Address) -> list[ActorId]:
-        return self.contract.functions.getProvidersByOrganization(organization_address).call()
+        return [ActorId(pid) for pid in self.contract.functions.getProvidersByOrganization(organization_address).call()]
 
     def get_providers_info_by_organization(self, organization_address: Address) -> list[SPRegistryProviderInfo]:
         return [self.get_provider_info(provider_id) for provider_id in self.get_providers_by_organization(organization_address)]

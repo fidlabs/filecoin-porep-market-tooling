@@ -40,7 +40,7 @@ def _build_allocation_command_curio(curio_path: str,
         "market",
         "ddo",
         "--actor",
-        deal.provider_id,
+        str(deal.provider_id),
         client_contract_filecoin_address,
         str(allocation_id),
     ]
