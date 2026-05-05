@@ -60,9 +60,11 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
    The Market then uses controller status to verify that the command sender is authorised to send commands on behalf of your miner. \
    Follow the steps here:
    [https://lotus.filecoin.io/storage-providers/operate/addresses/#control-addresses](https://lotus.filecoin.io/storage-providers/operate/addresses/#control-addresses)
-2. Export the private key of your newly created wallet:
+2. Export the private key of your newly created wallet. The value you store in `SP_PRIVATE_KEY`
+   must be this exported private key in 32-byte hex format with a `0x` prefix — **not** the wallet
+   address you pass to `lotus wallet export`:
    ```bash
-   lotus wallet export <your-wallet-address-from-above> | xxd -r -p | jq -r '.PrivateKey' | base64 -d | xxd -p -c 32
+   lotus wallet export <your-wallet-address-from-above> | xxd -r -p | jq -r '.PrivateKey' | base64 -d | xxd -p -c 32 | sed 's/^/0x/'
    ```
 
 3. Clone this repo to download our CLI tool that will allow you to pull outstanding deals and onboard them:
