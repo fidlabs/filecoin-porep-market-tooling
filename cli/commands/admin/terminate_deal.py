@@ -11,8 +11,9 @@ from cli.services.web3_service import Web3Service
 def terminate_completed_deal(deal: PoRepMarketDealProposal) -> str:
     assert deal.state == PoRepMarketDealState.COMPLETED
 
-    if result := ValidatorFactory().get_instance(deal.deal_id) != deal.validator_address:
-        raise click.ClickException(f"Validator address {result} does not match expected {deal.validator_address} for deal id {deal.deal_id}")
+    validator_address = ValidatorFactory().get_instance(deal.deal_id)
+    if validator_address != deal.validator_address:
+        raise click.ClickException(f"Validator address {validator_address} does not match expected {deal.validator_address} for deal id {deal.deal_id}")
 
     return FileCoinPayValidator(deal.validator_address).disable_future_rail_payments(deal.rail_id, admin_private_key())
 
@@ -42,6 +43,7 @@ def terminate_deal(deal_id: int):
     if deal.state == PoRepMarketDealState.COMPLETED:
         tx_hash = terminate_completed_deal(deal)
     elif deal.state == PoRepMarketDealState.ACCEPTED:
+        # pylint: disable=assignment-from-no-return
         tx_hash = terminate_accepted_deal(deal)
     else:
         raise click.ClickException(f"Deal id {deal_id} is not in a state that can be terminated. Current state: {deal.state.name}")
