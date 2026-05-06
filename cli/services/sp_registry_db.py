@@ -109,7 +109,7 @@ class SPRegistryDB:
         if miner_id is not None:
             _miner_id = ActorId(miner_id)
             query += " AND %s = ANY(miner_ids)"
-            params.append(_miner_id)
+            params.append(str(_miner_id))
 
         with psycopg.connect(self.db_url) as conn:
             # noinspection PyTypeChecker

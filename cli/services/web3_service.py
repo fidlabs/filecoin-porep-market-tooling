@@ -117,16 +117,15 @@ class Address(str):
 
     @staticmethod
     def is_filecoin_address(addr: str) -> bool:
-        return isinstance(addr, FilAddress)
+        return FilAddress.try_parse(addr) is not None
 
     @staticmethod
     def from_filecoin_address(addr: str) -> "Address":
-        if not Address.is_filecoin_address(addr):
-            raise ValueError(f"Invalid Filecoin address format: {addr}")
+        fil_address = FilAddress(addr)
 
         response = Web3Service().w3().provider.make_request(
             RPCEndpoint("Filecoin.FilecoinAddressToEthAddress"),
-            [addr]
+            [fil_address]
         )
 
         if "error" in response:
