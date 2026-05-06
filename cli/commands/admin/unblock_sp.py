@@ -15,9 +15,8 @@ def unblock_sp(provider_id: str):
     PROVIDER_ID - Storage Provider ID to unblock.
     """
 
-    provider_actor_id = ActorId(provider_id)
     Web3Service().wait_for_pending_transactions(admin_address())
-    provider = SPRegistry().get_provider_info(provider_actor_id)
+    provider = SPRegistry().get_provider_info(ActorId(provider_id))
 
     if not provider.blocked:
         raise click.ClickException(f"Storage Provider {provider.provider_id} is not blocked")

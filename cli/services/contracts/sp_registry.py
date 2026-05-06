@@ -4,7 +4,7 @@ from eth_account.types import PrivateKeyType
 
 from cli import utils
 from cli.services.contracts.contract_service import ContractService
-from cli.services.web3_service import Address, ActorId
+from cli.services.web3_service import EthAddress, ActorId
 
 
 @utils.json_dataclass()
@@ -18,17 +18,18 @@ class SPRegistrySLIThresholds:
 @utils.json_dataclass()
 class SPRegistryProvider:
     provider_id: ActorId  # f0-id of the SP in Filecoin network
-    organization_address: Address
+    organization_address: EthAddress
     capabilities: SPRegistrySLIThresholds
     available_bytes: int
     price_per_sector_per_month: int
-    payee_address: Address
+    payee_address: EthAddress
     min_deal_duration_days: int
     max_deal_duration_days: int
 
     def __post_init__(self):
-        self.organization_address = Address(self.organization_address)
-        self.payee_address = Address(self.payee_address)
+        self.organization_address = EthAddress(self.organization_address)
+        self.payee_address = EthAddress(self.payee_address)
+        self.provider_id = ActorId(self.provider_id)
 
 
 @utils.json_dataclass()
@@ -40,14 +41,14 @@ class SPRegistryProviderInfo(SPRegistryProvider):
 
     @staticmethod
     def from_web3(provider_id: ActorId, data) -> "SPRegistryProviderInfo":
-        if not Address(data[0]):
+        if not EthAddress(data[0]):
             raise RuntimeError("Provider not found")
 
         # noinspection PyArgumentList
         return SPRegistryProviderInfo(
             provider_id=ActorId(provider_id),
-            organization_address=Address(data[0]),
-            payee_address=Address(data[1]),
+            organization_address=EthAddress(data[0]),
+            payee_address=EthAddress(data[1]),
             paused=bool(data[2]),
             blocked=bool(data[3]),
             capabilities=SPRegistrySLIThresholds(
@@ -66,8 +67,8 @@ class SPRegistryProviderInfo(SPRegistryProvider):
 
 
 class SPRegistry(ContractService):
-    def __init__(self, contract_address: Address | None = None):
-        super().__init__(contract_address or utils.get_env_required("SP_REGISTRY", required_type=Address),
+    def __init__(self, contract_address: EthAddress | None = None):
+        super().__init__(contract_address or utils.get_env_required("SP_REGISTRY", required_type=EthAddress),
                          os.path.dirname(os.path.realpath(__file__)) + "/abi/SPRegistry.json")
 
     # @notice Register a provider with full configuration in one call
@@ -110,10 +111,10 @@ class SPRegistry(ContractService):
     # @notice Get all providers registered under an organization
     # @param organization_address The organization address
     # @return Array of provider actor IDs belonging to the organization
-    def get_providers_by_organization(self, organization_address: Address) -> list[ActorId]:
+    def get_providers_by_organization(self, organization_address: EthAddress) -> list[ActorId]:
         return [ActorId(pid) for pid in self.contract.functions.getProvidersByOrganization(organization_address).call()]
 
-    def get_providers_info_by_organization(self, organization_address: Address) -> list[SPRegistryProviderInfo]:
+    def get_providers_info_by_organization(self, organization_address: EthAddress) -> list[SPRegistryProviderInfo]:
         return [self.get_provider_info(provider_id) for provider_id in self.get_providers_by_organization(organization_address)]
 
     # @notice Set the acceptable deal duration range for a provider
@@ -166,7 +167,7 @@ class SPRegistry(ContractService):
     # @notice Set the payment recipient address for a provider
     # @param provider_id The provider to update
     # @param payee_address The address that will receive payments for this provider
-    def set_payee(self, provider_id: ActorId, payee_address: Address, from_private_key: PrivateKeyType) -> str:
+    def set_payee(self, provider_id: ActorId, payee_address: EthAddress, from_private_key: PrivateKeyType) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.setPayee(
                 provider_id,
@@ -178,7 +179,7 @@ class SPRegistry(ContractService):
     # @param caller Address to check
     # @param provider Provider to check against
     # @return True if caller is authorized for provider
-    def is_authorized_for_provider(self, caller: Address, provider_id: ActorId) -> bool:
+    def is_authorized_for_provider(self, caller: EthAddress, provider_id: ActorId) -> bool:
         return self.contract.functions.isAuthorizedForProvider(caller, provider_id).call()
 
     # @notice Block a provider (admin only, excluded from matching)

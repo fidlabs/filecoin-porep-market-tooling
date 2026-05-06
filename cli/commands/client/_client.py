@@ -4,7 +4,7 @@ from web3.auto import w3
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.services.web3_service import Address, Web3Service
+from cli.services.web3_service import EthAddress, Web3Service
 
 CLIENT_ADDRESS: str | None = None
 CLIENT_PRIVATE_KEY: str | None = None
@@ -33,7 +33,7 @@ def client(address: str | None = None, private_key: str | None = None, confirm_i
 
 
 # lazy initialization
-def client_address() -> Address:
+def client_address() -> EthAddress:
     global CLIENT_ADDRESS
 
     if not CLIENT_ADDRESS:
@@ -43,7 +43,7 @@ def client_address() -> Address:
             raise click.ClickException("Neither client address nor private key is set")
 
     assert CLIENT_ADDRESS
-    return Address(CLIENT_ADDRESS)
+    return EthAddress(CLIENT_ADDRESS)
 
 
 # lazy initialization

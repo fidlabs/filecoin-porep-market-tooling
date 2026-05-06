@@ -11,7 +11,7 @@ from web3.exceptions import ContractCustomError, Web3RPCError
 
 from cli import utils
 from cli._cli import is_dry_run
-from cli.services.web3_service import Web3Service, Address
+from cli.services.web3_service import Web3Service, EthAddress
 
 
 def _tx_to_log_string(transaction, tx_params: dict | None) -> str:
@@ -38,7 +38,7 @@ class ContractService:
     def __new__(cls, *args, **kwargs):
         return object.__new__(cls)
 
-    def __init__(self, contract_address: Address, contract_abi_path: str):
+    def __init__(self, contract_address: EthAddress, contract_abi_path: str):
         super().__init__()
         self.logger = logging.getLogger(self._get_class_name())
         self.web3 = Web3Service()
@@ -46,13 +46,13 @@ class ContractService:
         with open(contract_abi_path, "r", encoding="utf-8") as abi_file:
             contract_abi = json.load(abi_file)
 
-            self.contract = self.web3.contract(Address(str(contract_address)), contract_abi)
+            self.contract = self.web3.contract(EthAddress(str(contract_address)), contract_abi)
 
     def _get_class_name(self):
         return self.__class__.__name__
 
-    def address(self) -> Address:
-        return Address(self.contract.address)
+    def address(self) -> EthAddress:
+        return EthAddress(self.contract.address)
 
     def __decode_contract_error_name(self, err: ContractCustomError) -> str:
         def find_error_in_abi(selector: bytes) -> ABIElement | None:
@@ -141,7 +141,7 @@ class ContractService:
     def sign_and_send_tx(self, transaction, from_private_key: PrivateKeyType) -> str:
         # transaction.args is sensitive info, should never be logged
 
-        from_address = Address.from_private_key(from_private_key)
+        from_address = EthAddress.from_private_key(from_private_key)
         nonce = self.web3.get_address_nonce(from_address)
         tx_params = None
 

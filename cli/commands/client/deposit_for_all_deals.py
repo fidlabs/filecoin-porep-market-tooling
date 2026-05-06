@@ -6,7 +6,7 @@ from cli.commands.client._client import client_address, client_private_key
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarketDealProposal
 from cli.services.contracts.usdc_token import USDCToken
-from cli.services.web3_service import Address, Web3Service
+from cli.services.web3_service import EthAddress, Web3Service
 
 
 @click.command()
@@ -26,7 +26,7 @@ def deposit_for_all_deals(months: int):
 
 # deposits USDC funds to FileCoinPay account for X month of storing deals
 def _deposit_for_all_deals(deals: list[PoRepMarketDealProposal], months: int):
-    filecoinpay_account = FileCoinPay().get_account(utils.get_env_required("USDC_TOKEN", required_type=Address), client_address())
+    filecoinpay_account = FileCoinPay().get_account(utils.get_env_required("USDC_TOKEN", required_type=EthAddress), client_address())
 
     token_decimals = USDCToken().decimals()
     token_name = USDCToken().name()
@@ -58,7 +58,7 @@ def _deposit_for_all_deals(deals: list[PoRepMarketDealProposal], months: int):
 
         click.echo()
         signed_msg = client_utils.sign_filecoinpay_permit(deposit_amount, permit_deadline)
-        tx_hash = FileCoinPay().deposit_with_permit(utils.get_env_required("USDC_TOKEN", required_type=Address),
+        tx_hash = FileCoinPay().deposit_with_permit(utils.get_env_required("USDC_TOKEN", required_type=EthAddress),
                                                     client_address(),
                                                     deposit_amount,
                                                     permit_deadline,

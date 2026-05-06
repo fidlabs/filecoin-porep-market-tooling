@@ -7,7 +7,7 @@ from cli.services.contracts.porep_market import PoRepMarket
 from cli.services.contracts.sp_registry import SPRegistryProvider, SPRegistrySLIThresholds
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.sp_registry_db import SPRegistryDB
-from cli.services.web3_service import Address, ActorId
+from cli.services.web3_service import EthAddress, ActorId, FilAddress
 
 
 def get_db_sps(db_url: str,
@@ -86,7 +86,7 @@ def get_db_sps(db_url: str,
                                                            organization_address=organization_address)
 
     for org in organizations:
-        if Address.is_filecoin_address(org.payment_address_evm):
+        if FilAddress.is_filecoin_address(org.payment_address_evm):
             utils.confirm_ok(
                 f"Organization {org.organization_address} [db_id {org.id}] has payment_address_evm {org.payment_address_evm} which is a Filecoin f-address, "
                 f"expected EVM 0x-address. "
@@ -138,10 +138,10 @@ def get_db_sps(db_url: str,
                 f"Cannot return SPs from this organization")
             continue
 
-        if Address.is_filecoin_address(org.organization_address):
+        if FilAddress.is_filecoin_address(org.organization_address):
             # TODO LATER remove me
-            _MOCK_F_ORG_ADDR = utils.get_env_required("_MOCK_F_ORG_ADDR", default="", required_type=Address).strip().lower()
-            organization_address = Address(_MOCK_F_ORG_ADDR) if _MOCK_F_ORG_ADDR else Address.from_filecoin_address(org.organization_address)
+            _MOCK_F_ORG_ADDR = utils.get_env_required("_MOCK_F_ORG_ADDR", default="", required_type=EthAddress).strip().lower()
+            organization_address = EthAddress(_MOCK_F_ORG_ADDR) if _MOCK_F_ORG_ADDR else EthAddress.from_filecoin_address(org.organization_address)
 
             if not click.confirm(f"Converted organization {org.organization_address} [db_id {org.id}] Filecoin f-address "
                                  f"to EVM 0x-address {organization_address}. "

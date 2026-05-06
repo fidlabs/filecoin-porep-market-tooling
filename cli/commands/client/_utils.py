@@ -10,7 +10,7 @@ from cli.commands import utils as commands_utils
 from cli.commands.client._client import client_address, client_private_key
 from cli.services.contracts.porep_market import PoRepMarketDealProposal, PoRepMarketDealState, PoRepMarketDealRequest
 from cli.services.contracts.usdc_token import USDCToken
-from cli.services.web3_service import Address
+from cli.services.web3_service import EthAddress
 from cli.services.web3_service import Web3Service
 
 
@@ -46,7 +46,7 @@ def sign_filecoinpay_permit(amount: int, permit_deadline: int) -> SignedMessage:
             "name": token_name,
             "version": "1",
             "chainId": Web3Service().get_chain_id(),
-            "verifyingContract": utils.get_env_required("USDC_TOKEN", required_type=Address)
+            "verifyingContract": utils.get_env_required("USDC_TOKEN", required_type=EthAddress)
         },
         message_types={
             "Permit": [
@@ -59,11 +59,13 @@ def sign_filecoinpay_permit(amount: int, permit_deadline: int) -> SignedMessage:
         },
         message_data={
             "owner": client_address(),
-            "spender": utils.get_env_required("FILECOIN_PAY", required_type=Address),
+            "spender": utils.get_env_required("FILECOIN_PAY", required_type=EthAddress),
             "value": amount,
             "nonce": USDCToken().nonces(client_address()),
             "deadline": permit_deadline
-        }, private_key=client_private_key())
+        },
+        private_key=client_private_key()
+    )
 
     if not signed_msg.v or not signed_msg.r or not signed_msg.s or not signed_msg.signature:
         raise RuntimeError("Invalid EIP-712 signature generated for FileCoinPay permit")

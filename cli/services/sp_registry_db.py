@@ -3,7 +3,7 @@ from datetime import datetime
 import psycopg
 
 from cli import utils
-from cli.services.web3_service import Address, ActorId
+from cli.services.web3_service import EthAddress, ActorId
 
 
 @utils.json_dataclass()
@@ -30,7 +30,7 @@ class SPRegistryDBOrganization:
     updated_at: datetime
     geographical_location: list[str]
     kyc_email: str
-    payment_address_evm: Address
+    payment_address_evm: EthAddress
     deal_duration_min_months: int
     deal_duration_max_months: int
     min_price_per_tib_usd: float
@@ -69,7 +69,7 @@ class SPRegistryDBOrganization:
             updated_at=data[19],
             geographical_location=data[20],
             kyc_email=data[21],
-            payment_address_evm=Address(data[22]),
+            payment_address_evm=EthAddress(data[22]),
             deal_duration_min_months=int(data[23]),
             deal_duration_max_months=int(data[24]),
             min_price_per_tib_usd=float(data[25]),
@@ -107,9 +107,8 @@ class SPRegistryDB:
             params.append(organization_id)
 
         if miner_id is not None:
-            _miner_id = ActorId(miner_id)
             query += " AND %s = ANY(miner_ids)"
-            params.append(str(_miner_id))
+            params.append(str(miner_id))
 
         with psycopg.connect(self.db_url) as conn:
             # noinspection PyTypeChecker

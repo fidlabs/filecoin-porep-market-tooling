@@ -11,7 +11,7 @@ from eth_account.types import PrivateKeyType
 from cli import utils
 from cli._cli import is_dry_run
 from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarketDealProposal, PoRepMarket
-from cli.services.web3_service import Address
+from cli.services.web3_service import EthAddress
 from cli.services.web3_service import Web3Service
 
 # TODO LATER take sector size from smart contracts
@@ -23,7 +23,7 @@ def bytes_to_sectors(bytes_size: int) -> float:
 
 
 def get_all_deals(state: PoRepMarketDealState | str | None = None,
-                  organization: Address | None = None) -> list[PoRepMarketDealProposal]:
+                  organization: EthAddress | None = None) -> list[PoRepMarketDealProposal]:
     #
     _state = PoRepMarketDealState.from_string(str(state)) if state else None
 
@@ -66,11 +66,11 @@ def print_info():
     click.echo(f"DEBUG={utils.get_env_required('DEBUG', default='False').capitalize()}")
 
 
-def validate_address_matches_private_key(address: Address, private_key: PrivateKeyType | None):
+def validate_address_matches_private_key(address: EthAddress, private_key: PrivateKeyType | None):
     if not private_key:
         raise click.ClickException("Private key is not set")
 
-    derived_address = Address.from_private_key(private_key)
+    derived_address = EthAddress.from_private_key(private_key)
 
     if derived_address != address:
         raise click.ClickException(f"Address {address} does not match private key {utils.private_str_to_log_str(private_key)} (expected: {derived_address})")

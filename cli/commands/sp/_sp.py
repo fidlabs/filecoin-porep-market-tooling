@@ -3,7 +3,7 @@ from eth_account.types import PrivateKeyType
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.services.web3_service import Address, Web3Service
+from cli.services.web3_service import EthAddress, Web3Service, FilAddress
 
 SP_ORGANIZATION: str | None = None
 SP_ORGANIZATION_ADDRESS: str | None = None
@@ -33,15 +33,15 @@ def sp(private_key: str | None = None, organization: str | None = None, confirm_
 
 
 # lazy initialization
-def sp_organization_address() -> Address:
+def sp_organization_address() -> EthAddress:
     if not SP_ORGANIZATION:
         raise click.ClickException("SP organization is not set")
 
     global SP_ORGANIZATION_ADDRESS
 
     if not SP_ORGANIZATION_ADDRESS:
-        if Address.is_filecoin_address(SP_ORGANIZATION):
-            SP_ORGANIZATION_ADDRESS = str(Address.from_filecoin_address(SP_ORGANIZATION))
+        if FilAddress.is_filecoin_address(SP_ORGANIZATION):
+            SP_ORGANIZATION_ADDRESS = str(EthAddress.from_filecoin_address(SP_ORGANIZATION))
 
             if not click.confirm(f"Converted SP organization {SP_ORGANIZATION} Filecoin f-address "
                                  f"to EVM 0x-address {SP_ORGANIZATION_ADDRESS}. "
@@ -55,12 +55,12 @@ def sp_organization_address() -> Address:
             SP_ORGANIZATION_ADDRESS = SP_ORGANIZATION
 
     assert SP_ORGANIZATION_ADDRESS
-    return Address(SP_ORGANIZATION_ADDRESS)
+    return EthAddress(SP_ORGANIZATION_ADDRESS)
 
 
 # returns SP's wallet address which might be different that sp_organization()
-def sp_address() -> Address:
-    return Address.from_private_key(sp_private_key())
+def sp_address() -> EthAddress:
+    return EthAddress.from_private_key(sp_private_key())
 
 
 # lazy initialization
