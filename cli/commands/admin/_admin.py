@@ -3,7 +3,7 @@ from eth_account.types import PrivateKeyType
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.services.web3_service import Address, Web3Service
+from cli.services.web3_service import EthAddress, Web3Service
 
 ADMIN_PRIVATE_KEY: str | None = None
 
@@ -26,8 +26,8 @@ def admin(private_key: str | None = None, confirm_info: bool = False):
         click.echo("\n\n")
 
 
-def admin_address() -> Address:
-    return Address.from_private_key(admin_private_key())
+def admin_address() -> EthAddress:
+    return EthAddress.from_private_key(admin_private_key())
 
 
 # lazy initialization

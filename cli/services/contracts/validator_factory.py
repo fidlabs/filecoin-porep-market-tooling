@@ -4,12 +4,12 @@ from eth_account.types import PrivateKeyType
 
 from cli import utils
 from cli.services.contracts.contract_service import ContractService
-from cli.services.web3_service import Address
+from cli.services.web3_service import EthAddress
 
 
 class ValidatorFactory(ContractService):
-    def __init__(self, contract_address: Address | None = None):
-        super().__init__(contract_address or utils.get_env_required('VALIDATOR_FACTORY', required_type=Address),
+    def __init__(self, contract_address: EthAddress | None = None):
+        super().__init__(contract_address or utils.get_env_required('VALIDATOR_FACTORY', required_type=EthAddress),
                          os.path.dirname(os.path.realpath(__file__)) + '/abi/ValidatorFactory.json')
 
     # @notice Creates a new instance of an upgradeable contract.
@@ -22,5 +22,5 @@ class ValidatorFactory(ContractService):
     # @notice Gets the instance for a given deal
     # @param dealId The ID of the deal
     # @return The instance for the given deal
-    def get_instance(self, deal_id: int) -> Address:
-        return Address(self.contract.functions.getInstance(deal_id).call())
+    def get_instance(self, deal_id: int) -> EthAddress:
+        return EthAddress(self.contract.functions.getInstance(deal_id).call())

@@ -15,9 +15,7 @@ def get_registered_info(provider_id: str | None = None):
     PROVIDER_ID - Storage Provider id to query. [default: all providers under current SP organization]
     """
 
-    _provider_id = ActorId(provider_id) if provider_id else None
-
     click.echo(utils.json_pretty(
-        [SPRegistry().get_provider_info(_provider_id)] if _provider_id else
+        [SPRegistry().get_provider_info(ActorId(provider_id))] if provider_id else
         SPRegistry().get_providers_info_by_organization(sp_organization_address())
     ))

@@ -27,7 +27,7 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
                                                             provider.max_deal_duration_days,
                                                             admin_private_key())
 
-            click.echo(f"Updated deal duration limits for Storage Provider {provider.provider_id}: {tx_hash}")
+            click.echo(f"Updated (max_deal_duration_days, min_deal_duration_days) for Storage Provider {provider.provider_id}: {tx_hash}")
 
         else:
             click.echo("Skipped this parameter\n")
@@ -42,7 +42,7 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
                                              provider.price_per_sector_per_month,
                                              admin_private_key())
 
-            click.echo(f"Updated price per sector per month for Storage Provider {provider.provider_id}: {tx_hash}")
+            click.echo(f"Updated price_per_sector_per_month for Storage Provider {provider.provider_id}: {tx_hash}")
 
         else:
             click.echo("Skipped this parameter\n")
@@ -72,7 +72,7 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
                                              provider.payee_address,
                                              admin_private_key())
 
-            click.echo(f"Updated payee address for Storage Provider {provider.provider_id}: {tx_hash}")
+            click.echo(f"Updated payee_address for Storage Provider {provider.provider_id}: {tx_hash}")
 
         else:
             click.echo("Skipped this parameter\n")
@@ -87,7 +87,7 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
                                                           provider.available_bytes,
                                                           admin_private_key())
 
-            click.echo(f"Updated available bytes for Storage Provider {provider.provider_id}: {tx_hash}")
+            click.echo(f"Updated available_bytes for Storage Provider {provider.provider_id}: {tx_hash}")
 
         else:
             click.echo("Skipped this parameter\n")

@@ -4,7 +4,7 @@ from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.sp import _utils as sp_utils
 from cli.commands.sp._sp import sp_private_key, sp_organization_address
-from cli.services.web3_service import Address, Web3Service
+from cli.services.web3_service import EthAddress, Web3Service
 
 
 # TODO LATER print deals states at the end?
@@ -17,7 +17,7 @@ def manage_proposed_deals(action: str | None):
     ACTION - Action to perform on proposed deals.
     """
 
-    Web3Service().wait_for_pending_transactions(Address.from_private_key(sp_private_key()))
+    Web3Service().wait_for_pending_transactions(EthAddress.from_private_key(sp_private_key()))
     deals = commands_utils.get_all_deals(sp_utils.PoRepMarketDealState.PROPOSED, sp_organization_address())
 
     click.echo(f"Found {len(deals)} proposed deals.")

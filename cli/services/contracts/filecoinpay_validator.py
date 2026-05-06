@@ -3,11 +3,11 @@ import os
 from eth_account.types import PrivateKeyType
 
 from cli.services.contracts.contract_service import ContractService
-from cli.services.web3_service import Address
+from cli.services.web3_service import EthAddress
 
 
 class FileCoinPayValidator(ContractService):
-    def __init__(self, contract_address: Address):
+    def __init__(self, contract_address: EthAddress):
         super().__init__(contract_address,
                          os.path.dirname(os.path.realpath(__file__)) + '/abi/Validator.json')
 
@@ -15,7 +15,7 @@ class FileCoinPayValidator(ContractService):
     # @dev Only callable by the client
     # @dev Sets railID in contract state and updates the PoRepMarket with the created rail ID
     # @param token The ERC20 token to use for the payment rail
-    def create_rail(self, token_address: Address, from_private_key: PrivateKeyType) -> str:
+    def create_rail(self, token_address: EthAddress, from_private_key: PrivateKeyType) -> str:
         return self.sign_and_send_tx(self.contract.functions.createRail(token_address), from_private_key)
 
     # @notice Disables future payments for a payment rail by terminating the rail

@@ -4,7 +4,7 @@ from cli import utils
 from cli.commands.client._client import client_address
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.filecoin_pay import FileCoinPay
-from cli.services.web3_service import Address
+from cli.services.web3_service import EthAddress
 
 
 @click.command()
@@ -16,7 +16,7 @@ def get_filecoinpay_account(token_address: str):
     Note: PoRep Market currently supports USDC only.
     """
 
-    _token_address = Address(token_address)
+    _token_address = EthAddress(token_address)
     token_contract = ERC20Contract(_token_address)
     token_name = token_contract.name()
     token_decimals = token_contract.decimals()

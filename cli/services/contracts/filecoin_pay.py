@@ -4,7 +4,7 @@ from eth_account.types import PrivateKeyType
 
 from cli import utils
 from cli.services.contracts.contract_service import ContractService
-from cli.services.web3_service import Address
+from cli.services.web3_service import EthAddress
 
 
 @utils.json_dataclass()
@@ -48,8 +48,8 @@ class FileCoinPayOperatorApproval:
 
 
 class FileCoinPay(ContractService):
-    def __init__(self, contract_address: Address | None = None):
-        super().__init__(contract_address or utils.get_env_required("FILECOIN_PAY", required_type=Address),
+    def __init__(self, contract_address: EthAddress | None = None):
+        super().__init__(contract_address or utils.get_env_required("FILECOIN_PAY", required_type=EthAddress),
                          os.path.dirname(os.path.realpath(__file__)) + "/abi/FileCoinPay.json")
 
     # @notice Deposits tokens using permit (EIP-2612) approval in a single transaction,
@@ -70,12 +70,12 @@ class FileCoinPay(ContractService):
     # @param max_lockup_period The maximum number of epochs (blocks) the operator can lock funds for. If this is less than
     #             the current lockup period for a rail, the operator will only be able to reduce the lockup period.
     def deposit_with_permit_and_approve_operator(self,
-                                                 token: Address,
-                                                 to: Address,
+                                                 token: EthAddress,
+                                                 to: EthAddress,
                                                  amount: int,
                                                  deadline: int,
                                                  v: int, r: bytes, s: bytes,
-                                                 operator: Address,
+                                                 operator: EthAddress,
                                                  rate_allowance: int,
                                                  lockup_allowance: int,
                                                  max_lockup_period: int,
@@ -98,12 +98,12 @@ class FileCoinPay(ContractService):
     # @param lockup_allowance_increase The amount to increase the lockup allowance by.
     # @custom:constraint Operator must already be approved.
     def deposit_with_permit_and_increase_operator_approval(self,
-                                                           token: Address,
-                                                           to: Address,
+                                                           token: EthAddress,
+                                                           to: EthAddress,
                                                            amount: int,
                                                            deadline: int,
                                                            v: int, r: bytes, s: bytes,
-                                                           operator: Address,
+                                                           operator: EthAddress,
                                                            rate_allowance_increase: int,
                                                            lockup_allowance_increase: int,
                                                            from_private_key: PrivateKeyType) -> str:
@@ -119,8 +119,8 @@ class FileCoinPay(ContractService):
     # @param deadline Permit deadline (timestamp).
     # @param v,r,s Permit signature.
     def deposit_with_permit(self,
-                            token: Address,
-                            to: Address,
+                            token: EthAddress,
+                            to: EthAddress,
                             amount: int,
                             deadline: int,
                             v: int, r: bytes, s: bytes,
@@ -131,10 +131,10 @@ class FileCoinPay(ContractService):
             ), from_private_key)
 
     # token => client => operator => Approval
-    def get_operator_approval(self, token: Address, client: Address, operator: Address) -> FileCoinPayOperatorApproval:
+    def get_operator_approval(self, token: EthAddress, client: EthAddress, operator: EthAddress) -> FileCoinPayOperatorApproval:
         return FileCoinPayOperatorApproval.from_web3(self.contract.functions.operatorApprovals(token, client, operator).call())
 
     # Internal balances
     # The self-balance collects network fees
-    def get_account(self, token: Address, owner: Address) -> FileCoinPayAccount:
+    def get_account(self, token: EthAddress, owner: EthAddress) -> FileCoinPayAccount:
         return FileCoinPayAccount.from_web3(self.contract.functions.accounts(token, owner).call())

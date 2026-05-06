@@ -4,7 +4,7 @@ from eth_account.types import PrivateKeyType
 
 from cli import utils
 from cli.services.contracts.contract_service import ContractService
-from cli.services.web3_service import Address
+from cli.services.web3_service import EthAddress
 
 
 @utils.json_dataclass()
@@ -19,8 +19,8 @@ class TransferParams:
 
 
 class ClientContract(ContractService):
-    def __init__(self, contract_address: Address | None = None):
-        super().__init__(contract_address or utils.get_env_required("CLIENT_CONTRACT", required_type=Address),
+    def __init__(self, contract_address: EthAddress | None = None):
+        super().__init__(contract_address or utils.get_env_required("CLIENT_CONTRACT", required_type=EthAddress),
                          os.path.dirname(os.path.realpath(__file__)) + "/abi/Client.json")
 
     # @notice This function transfers DataCap tokens from the client to the storage provider

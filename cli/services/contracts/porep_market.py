@@ -6,7 +6,7 @@ from eth_account.types import PrivateKeyType
 from cli import utils
 from cli.services.contracts.contract_service import ContractService
 from cli.services.contracts.sp_registry import SPRegistrySLIThresholds
-from cli.services.web3_service import Address, ActorId
+from cli.services.web3_service import EthAddress, ActorId
 
 
 # @notice DealState enum
@@ -77,20 +77,21 @@ class PoRepMarketDealRequest:
 @utils.json_dataclass()
 class PoRepMarketDealProposal(PoRepMarketDealRequest):
     deal_id: int
-    client_address: Address
+    client_address: EthAddress
     provider_id: ActorId
-    validator_address: Address
+    validator_address: EthAddress
     state: PoRepMarketDealState
     rail_id: int
     proposed_at_block: int
 
     def __post_init__(self):
-        self.client_address = Address(self.client_address)
-        self.validator_address = Address(self.validator_address)
+        self.client_address = EthAddress(self.client_address)
+        self.validator_address = EthAddress(self.validator_address)
+        self.provider_id = ActorId(self.provider_id)
 
     @staticmethod
     def from_web3(data, expected_deal_id: int | None = None) -> "PoRepMarketDealProposal":
-        if not Address(data[1]):
+        if not EthAddress(data[1]):
             raise RuntimeError("Deal not found")
 
         if expected_deal_id is not None and expected_deal_id != data[0]:
@@ -99,7 +100,7 @@ class PoRepMarketDealProposal(PoRepMarketDealRequest):
         # noinspection PyArgumentList
         return PoRepMarketDealProposal(
             deal_id=int(data[0]),
-            client_address=Address(data[1]),
+            client_address=EthAddress(data[1]),
             provider_id=ActorId(data[2]),
             requirements=SPRegistrySLIThresholds(
                 retrievability_bps=int(data[3][0]),
@@ -121,8 +122,8 @@ class PoRepMarketDealProposal(PoRepMarketDealRequest):
 
 
 class PoRepMarket(ContractService):
-    def __init__(self, contract_address: Address | None = None):
-        super().__init__(contract_address or utils.get_env_required("POREP_MARKET", required_type=Address),
+    def __init__(self, contract_address: EthAddress | None = None):
+        super().__init__(contract_address or utils.get_env_required("POREP_MARKET", required_type=EthAddress),
                          os.path.dirname(os.path.realpath(__file__)) + "/abi/PoRepMarket.json")
 
     # @notice Proposes a deal
@@ -147,7 +148,7 @@ class PoRepMarket(ContractService):
     # @param organization_address The address of the organization
     # @param state The state of the deals to retrieve
     # @return deals Array of deal proposals for the organization in the specified state (from all providers associated with the organization)
-    def get_deals_for_organization_by_state(self, organization_address: Address, state: PoRepMarketDealState) -> list[PoRepMarketDealProposal]:
+    def get_deals_for_organization_by_state(self, organization_address: EthAddress, state: PoRepMarketDealState) -> list[PoRepMarketDealProposal]:
         return [PoRepMarketDealProposal.from_web3(deal) for deal in
                 self.contract.functions.getDealsForOrganizationByState(organization_address, state.value).call()]
 
@@ -167,7 +168,7 @@ class PoRepMarket(ContractService):
     # @param dealId The id of the deal proposal
     # @param terminator The address that terminated the deal
     # @param endEpoch The Filecoin epoch at which the deal was terminated
-    def terminate_deal(self, deal_id: int, terminator: Address, end_epoch: int, from_private_key: PrivateKeyType) -> str:
+    def terminate_deal(self, deal_id: int, terminator: EthAddress, end_epoch: int, from_private_key: PrivateKeyType) -> str:
         return self.sign_and_send_tx(self.contract.functions.terminateDeal(deal_id, terminator, end_epoch), from_private_key)
 
     # @notice Rejects a deal
