@@ -100,7 +100,7 @@ def get_db_sps(db_url: str,
             continue
 
         if org.kyc_status.strip().lower() != "approved":
-            if not click.confirm(
+            if not utils.confirm(
                     f"Organization {org.organization_address} [db_id {org.id}] has kyc_status {org.kyc_status}, which is not approved. "
                     f"Return SPs from this organization?",
                     default=bool(organization_id)):
@@ -109,7 +109,7 @@ def get_db_sps(db_url: str,
         if months_to_days(org.deal_duration_max_months) > max_deal_duration_days_limit:
             max_deal_duration_days = months_to_days(max_deal_duration_days_limit // 30)
 
-            if not click.confirm(
+            if not utils.confirm(
                     f"Organization {org.organization_address} [db_id {org.id}] has max deal duration of {months_to_days(org.deal_duration_max_months)} days "
                     f"which exceeds the SPRegistry contract limit of {max_deal_duration_days_limit} days. It will be truncated to {max_deal_duration_days}. "
                     f"Return SPs from this organization?",
@@ -122,7 +122,7 @@ def get_db_sps(db_url: str,
         if org.deal_duration_min_months < 6:
             min_deal_duration_days = months_to_days(6)
 
-            if not click.confirm(
+            if not utils.confirm(
                     f"Organization {org.organization_address} [db_id {org.id}] has min deal duration of {months_to_days(org.deal_duration_min_months)} days "
                     f"which is below the SPRegistry contract minimum of {min_deal_duration_days} days. It will be increased to this value. "
                     f"Return SPs from this organization?",
@@ -143,7 +143,7 @@ def get_db_sps(db_url: str,
             _MOCK_F_ORG_ADDR = utils.get_env_required("_MOCK_F_ORG_ADDR", default="", required_type=EthAddress).strip().lower()
             organization_address = EthAddress(_MOCK_F_ORG_ADDR) if _MOCK_F_ORG_ADDR else EthAddress.from_filecoin_address(org.organization_address)
 
-            if not click.confirm(f"Converted organization {org.organization_address} [db_id {org.id}] Filecoin f-address "
+            if not utils.confirm(f"Converted organization {org.organization_address} [db_id {org.id}] Filecoin f-address "
                                  f"to EVM 0x-address {organization_address}. "
                                  f"Return SPs from this organization?",
                                  default=True):

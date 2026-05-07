@@ -70,7 +70,7 @@ def _write_manifest_file(manifest: list[dict], output_dir: Path, deal_id: int) -
             existing_manifest = json.load(f)
 
         if utils.json_pretty(existing_manifest, True) != utils.json_pretty(manifest, True):
-            click.confirm(f"A different manifest already exists in the output directory: {manifest_file}\n"
+            utils.confirm(f"A different manifest already exists in the output directory: {manifest_file}\n"
                           "Do you want to overwrite it?", abort=True)
 
     with open(manifest_file, "w", encoding="utf-8") as f:
@@ -134,7 +134,7 @@ def onboard_data(ctx, deal_id: int, output_dir: str, port: int, host: str | None
                    "--summary-interval=30",
                    "--console-log-level=warn"] + ctx.args
 
-        click.confirm(f"\nRunning command:\n  {' '.join(command)}\nContinue?", default=True, abort=True)
+        utils.confirm(f"\nRunning command:\n  {' '.join(command)}\nContinue?", default=True, abort=True)
         click.echo("\n")
         subprocess.run(command, check=True)
 

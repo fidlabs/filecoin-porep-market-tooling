@@ -22,7 +22,7 @@ def admin(private_key: str | None = None, confirm_info: bool = False):
 
     if confirm_info:
         _info()
-        click.confirm("\n\nContinue?", default=True, abort=True)
+        utils.confirm("\n\nContinue?", default=True, abort=True)
         click.echo("\n\n")
 
 

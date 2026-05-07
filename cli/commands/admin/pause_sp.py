@@ -21,7 +21,7 @@ def pause_sp(provider_id: str):
     if provider.paused:
         raise click.ClickException(f"Storage Provider {provider.provider_id} is already paused")
 
-    click.confirm(f"Pausing Storage Provider {provider.provider_id}: "
+    utils.confirm(f"Pausing Storage Provider {provider.provider_id}: "
                   f"{utils.json_pretty(provider)}", abort=True)
 
     tx_hash = SPRegistry().pause_provider(provider.provider_id, admin_private_key())

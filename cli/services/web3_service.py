@@ -47,10 +47,11 @@ class ActorId(int):
 
 
 class FilAddress(str):
-    _PREFIXES = ("f0", "f1", "f2", "f3", "f4", "f5", "t0", "t1", "t2", "t3", "t4", "t5")
+    VALID_PREFIXES = ("f0", "f1", "f2", "f3", "f4", "f5",
+                      "t0", "t1", "t2", "t3", "t4", "t5")
 
     def __new__(cls, addr: str) -> "FilAddress":
-        if not isinstance(addr, str) or not addr.startswith(cls._PREFIXES):
+        if not isinstance(addr, str) or not addr.startswith(cls.VALID_PREFIXES):
             raise ValueError(f"Invalid Filecoin address format: {addr!r}")
 
         # noinspection PyTypeChecker

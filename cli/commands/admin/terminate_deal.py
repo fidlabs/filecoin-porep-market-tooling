@@ -38,7 +38,7 @@ def terminate_deal(deal_id: int):
 
     Web3Service().wait_for_pending_transactions(admin_address())
     deal = PoRepMarket().get_deal_proposal(deal_id)
-    click.confirm(f"Terminating deal id {deal.deal_id}: {utils.json_pretty(deal)}", abort=True)
+    utils.confirm(f"Terminating deal id {deal.deal_id}: {utils.json_pretty(deal)}", abort=True)
 
     if deal.state == PoRepMarketDealState.COMPLETED:
         tx_hash = terminate_completed_deal(deal)

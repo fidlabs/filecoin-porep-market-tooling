@@ -84,7 +84,7 @@ def claim_allocations(ctx, software: str, deal_id: int):
         command = build_allocation_command(allocation_id, deal) + ctx.args
 
         try:
-            if not click.confirm(f"\nRunning command:\n  {' '.join(command)}\nContinue?"):
+            if not utils.confirm(f"\nRunning command:\n  {' '.join(command)}\nContinue?"):
                 click.echo("Skipped this allocation")
                 continue
 

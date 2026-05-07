@@ -17,7 +17,7 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
     if (provider.max_deal_duration_days, provider.min_deal_duration_days) != (registered_info.max_deal_duration_days, registered_info.min_deal_duration_days):
         _different_parameters = {k: v for k, v in different_parameters.items() if k in ["max_deal_duration_days", "min_deal_duration_days"]}
 
-        if click.confirm(
+        if utils.confirm(
                 f"Updating (max_deal_duration_days, min_deal_duration_days) for Storage Provider {provider.provider_id}: "
                 f"{_different_parameters}",
                 default=True):
@@ -33,7 +33,7 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
             click.echo("Skipped this parameter\n")
 
     if provider.price_per_sector_per_month != registered_info.price_per_sector_per_month:
-        if click.confirm(
+        if utils.confirm(
                 f"Updating price_per_sector_per_month for Storage Provider {provider.provider_id}: "
                 f"{different_parameters['price_per_sector_per_month']}",
                 default=True):
@@ -48,7 +48,7 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
             click.echo("Skipped this parameter\n")
 
     if provider.capabilities != registered_info.capabilities:
-        if click.confirm(
+        if utils.confirm(
                 f"\nUpdating capabilities for Storage Provider {provider.provider_id}: "
                 f"{utils.json_pretty(different_parameters['capabilities'])}",
                 default=True):
@@ -63,7 +63,7 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
             click.echo("Skipped this parameter\n")
 
     if provider.payee_address != registered_info.payee_address:
-        if click.confirm(
+        if utils.confirm(
                 f"Updating payee_address for Storage Provider {provider.provider_id}: "
                 f"{different_parameters['payee_address']}",
                 default=True):
@@ -78,7 +78,7 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
             click.echo("Skipped this parameter\n")
 
     if provider.available_bytes != registered_info.available_bytes:
-        if click.confirm(
+        if utils.confirm(
                 f"Updating available_bytes for Storage Provider {provider.provider_id}: "
                 f"{different_parameters['available_bytes']}",
                 default=True):
@@ -121,7 +121,7 @@ def _register_sps(providers: list[SPRegistryProvider]):
                 #
                 continue
 
-            if not click.confirm(f"\nProvider {provider.provider_id} already registered with different parameters\n"
+            if not utils.confirm(f"\nProvider {provider.provider_id} already registered with different parameters\n"
                                  f"Do you want to update Storage Provider {provider.provider_id} parameters?\n"
                                  f"{utils.json_pretty(different_parameters)}"):
                 #
@@ -133,11 +133,11 @@ def _register_sps(providers: list[SPRegistryProvider]):
         else:
             # register Storage Provider with given parameters
 
-            if not click.confirm(f"\nRegistering Storage Provider with parameters: {provider}", default=True):
+            if not utils.confirm(f"\nRegistering Storage Provider with parameters: {provider}", default=True):
                 click.echo("Skipped this provider")
                 continue
 
-            if not click.confirm(f"\nThe organization_address {provider.organization_address} cannot be changed "
+            if not utils.confirm(f"\nThe organization_address {provider.organization_address} cannot be changed "
                                  f"once registered for provider_id {provider.provider_id}. Are you sure this is correct?"):
                 #
                 click.echo("Skipped this provider")

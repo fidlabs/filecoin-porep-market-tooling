@@ -151,7 +151,7 @@ class ContractService:
 
             _dry_run = is_dry_run()
 
-            if not click.confirm(f"\n== DRY RUN: {_dry_run}\n"
+            if not utils.confirm(f"\n== DRY RUN: {_dry_run}\n"
                                  f"== Chain ID: {tx_params['chainId']}\n"
                                  f"== Transaction:\n"
                                  f"==   from: {tx_params['from']}\n"

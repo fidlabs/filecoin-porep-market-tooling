@@ -21,7 +21,7 @@ def unpause_sp(provider_id: str):
     if not provider.paused:
         raise click.ClickException(f"Storage Provider {provider.provider_id} is not paused")
 
-    click.confirm(f"Unpausing Storage Provider {provider.provider_id}: "
+    utils.confirm(f"Unpausing Storage Provider {provider.provider_id}: "
                   f"{utils.json_pretty(provider)}", abort=True)
 
     tx_hash = SPRegistry().unpause_provider(provider.provider_id, admin_private_key())

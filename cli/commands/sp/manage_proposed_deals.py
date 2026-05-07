@@ -23,20 +23,20 @@ def manage_proposed_deals(action: str | None):
     click.echo(f"Found {len(deals)} proposed deals.")
 
     for deal in deals:
-        answer = action or utils.confirm_str(f"\nNew deal id {deal.deal_id}: {deal} ([a]ccept/[r]eject/[S]kip)",
-                                             valid_answers=["accept", "reject", "skip", "a", "r", "s"],
-                                             default_answer="skip")
+        answer = action or utils.confirm_str(f"\nNew deal id {deal.deal_id}: {deal}",
+                                             valid_answers=["accept", "reject", "skip"],
+                                             default="skip")
 
         try:
-            if answer in ["accept", "a"]:
+            if answer in ["accept"]:
                 click.echo()
                 sp_utils.accept_deal(deal)
 
-            elif answer in ["reject", "r"]:
+            elif answer in ["reject"]:
                 click.echo()
                 sp_utils.reject_deal(deal)
 
-            elif answer in ["skip", "s"]:
+            elif answer in ["skip"]:
                 continue
         except click.ClickException as e:
             e.show()
