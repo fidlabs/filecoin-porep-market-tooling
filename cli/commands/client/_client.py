@@ -28,7 +28,7 @@ def client(address: str | None = None, private_key: str | None = None, confirm_i
 
     if confirm_info:
         _info()
-        click.confirm("\n\nContinue?", default=True, abort=True)
+        utils.confirm("\n\nContinue?", default=True, abort=True)
         click.echo("\n\n")
 
 

@@ -28,7 +28,7 @@ def sp(private_key: str | None = None, organization: str | None = None, confirm_
 
     if confirm_info:
         _info()
-        click.confirm("\n\nContinue?", default=True, abort=True)
+        utils.confirm("\n\nContinue?", default=True, abort=True)
         click.echo("\n\n")
 
 
@@ -43,7 +43,7 @@ def sp_organization_address() -> EthAddress:
         if FilAddress.is_filecoin_address(SP_ORGANIZATION):
             SP_ORGANIZATION_ADDRESS = str(EthAddress.from_filecoin_address(SP_ORGANIZATION))
 
-            if not click.confirm(f"Converted SP organization {SP_ORGANIZATION} Filecoin f-address "
+            if not utils.confirm(f"Converted SP organization {SP_ORGANIZATION} Filecoin f-address "
                                  f"to EVM 0x-address {SP_ORGANIZATION_ADDRESS}. "
                                  f"Continue?",
                                  default=True):

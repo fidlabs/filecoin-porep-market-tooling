@@ -72,7 +72,7 @@ def _deploy_and_set_validator(deal_id: int):
         click.echo(f"\nValidator already set for deal id {deal.deal_id}: {deal.validator_address}")
         return
 
-    click.confirm(f"\nDeploy and set validator for deal id {deal.deal_id}?", default=True, abort=True)
+    utils.confirm(f"\nDeploy and set validator for deal id {deal.deal_id}?", default=True, abort=True)
 
     tx_hash = ValidatorFactory().create(deal.deal_id, client_private_key())
     click.echo(f"Validator deployed for deal id {deal.deal_id}: {tx_hash}")
@@ -121,7 +121,7 @@ def _deposit_and_approve_operator(deal_id: int):
     # TODO LATER deposit 0 if enough filecoinpay funds? deposit only missing funds?
     # This code now deposit full deposit_amount for the deal only logging the filecoinpay_available_funds
     # This is intentional
-    click.confirm(
+    utils.confirm(
         f"\nDeposit {deposit_amount_str} {token_name} for deal id {deal.deal_id} from address {client_address()} and approve operator\n"
         f"  Current token balance: {token_balance_str} {token_name}\n"
         f"  Current FileCoinPay account available funds: {filecoinpay_available_funds_str} {token_name}\n"
@@ -163,7 +163,7 @@ def _initialize_rail(deal_id: int):
         click.echo(f"\nRail already initialized for deal id {deal.deal_id}: {deal.rail_id}")
         return
 
-    click.confirm(f"\nInitialize FileCoinPay rail for deal id {deal.deal_id}?", default=True, abort=True)
+    utils.confirm(f"\nInitialize FileCoinPay rail for deal id {deal.deal_id}?", default=True, abort=True)
 
     tx_hash = FileCoinPayValidator(deal.validator_address).create_rail(utils.get_env_required("USDC_TOKEN", required_type=EthAddress), client_private_key())
 

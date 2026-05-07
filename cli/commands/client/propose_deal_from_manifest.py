@@ -57,12 +57,12 @@ def _propose_deal_from_manifest(manifest_url: str,
         is_active = existing_deal.state in [PoRepMarketDealState.PROPOSED, PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.COMPLETED]
 
         if deal.terms.deal_size_bytes == existing_deal.terms.deal_size_bytes:
-            click.confirm(f"\nWarning: Client deal with the same deal size "
+            utils.confirm(f"\nWarning: Client deal with the same deal size "
                           f"already exists in PoRep Market: {utils.json_pretty(existing_deal)} "
                           "Continue?", default=not is_active, abort=True)
 
         if deal.manifest_location == existing_deal.manifest_location:
-            click.confirm(
+            utils.confirm(
                 f"\nWarning: Client deal with the same manifest location "
                 f"already exists in PoRep Market: {utils.json_pretty(existing_deal)} "
                 "Continue?", default=not is_active, abort=True)
@@ -77,7 +77,7 @@ def _propose_deal_from_manifest(manifest_url: str,
     total_max_cost_str = utils.str_from_wei(total_max_cost, USDCToken().decimals())
 
     # TODO LATER print account info (you now have ... at address ...)
-    click.confirm(f"\nProposing deal: {utils.json_pretty(deal)}"
+    utils.confirm(f"\nProposing deal: {utils.json_pretty(deal)}"
                   f" This will cost you maximum of {max_cost_per_month_str} {token_name} per month. "
                   f"This is a total of {total_max_cost_str} {token_name} for {duration_months} months. "
                   f"Continue?", abort=True)

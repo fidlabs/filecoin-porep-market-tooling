@@ -50,7 +50,7 @@ def _deposit_for_all_deals(deals: list[PoRepMarketDealProposal], months: int):
             raise click.ClickException(f"Address {client_address()} {token_name} balance {token_balance_str} {token_name} is "
                                        f"less than required deposit {deposit_amount_str} for {len(deals)} deals")
 
-        click.confirm(
+        utils.confirm(
             f"\nDeposit {deposit_amount_str} {token_name} to {client_address()} FileCoinPay account for {len(deals)} deals\n"
             f"  Current token balance: {token_balance_str} {token_name}\n"
             f"  Current FileCoinPay account available funds: {filecoinpay_available_funds_str} {token_name}\n"

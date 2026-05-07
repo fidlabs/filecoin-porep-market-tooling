@@ -88,7 +88,7 @@ def fetch_manifest(manifest_url: str, show_manifest: bool | None = None, retries
             return _fetch_manifest(parsed_url, show_manifest, quiet)
         except requests.exceptions.RequestException as e:
             if retries is None:
-                if not click.confirm(f"\nFailed to fetch manifest:\n{e}.\nRetry?", default=True):
+                if not utils.confirm(f"\nFailed to fetch manifest:\n{e}.\nRetry?", default=True):
                     raise click.ClickException(f"Network error while fetching manifest: {e}") from e
 
             else:
@@ -137,7 +137,7 @@ def _fetch_manifest(parsed_url: ParseResult, show_manifest: bool | None = None, 
         click.echo("Manifest downloaded")
 
     # show manifest
-    if show_manifest or (show_manifest is None and click.confirm("Show manifest?")):
+    if show_manifest or (show_manifest is None and utils.confirm("Show manifest?")):
         _manifest = utils.json_pretty(manifest)
         click.echo_via_pager("\n".join([f"{i + 1}. {line}" for i, line in enumerate(_manifest.splitlines())]))
         click.echo()

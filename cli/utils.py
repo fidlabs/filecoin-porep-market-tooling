@@ -4,6 +4,7 @@ import json
 import os
 from typing import TypeVar, Callable
 
+import click
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=None)
@@ -50,17 +51,66 @@ def string_to_bool(value: str | None) -> bool | None:
         raise ValueError(f"Unknown boolean value: {value}")
 
 
-def confirm_str(prompt: str, default_answer: str | None = None, valid_answers: list[str] | None = None) -> str:
-    default_str = f" [default: {default_answer}]" if default_answer else ""
+_confirm_yes_for_all_sessions: set[str] = set()
+
+
+def confirm(text: str,
+            default: bool | None = None,
+            abort: bool = False,
+            session_id: str | None = None) -> bool:
+    #
+    if session_id and session_id in _confirm_yes_for_all_sessions:
+        return True
+
+    default_str = "y" if default else "n" if default is False else None
+    valid_answers_labels = ["Yes" if default else "yes", "No" if default is False else "no"] + (["all"] if session_id else [])
+    yes_for_all_answers = ["all", "a"] if session_id else []
+    yes_answers = ["y", "yes"]
+    no_answers = ["n", "no"]
+
+    answer = confirm_str(text=f"{text} [{'/'.join(valid_answers_labels)}]",
+                         default=default_str,
+                         valid_answers=yes_answers + no_answers + yes_for_all_answers,
+                         show_choices=False).strip().lower()
+
+    if answer in no_answers:
+        if abort:
+            raise click.Abort()
+        else:
+            return False
+    #
+    elif answer in yes_for_all_answers and session_id:
+        _confirm_yes_for_all_sessions.add(session_id)
+        return True
+    elif answer in yes_answers:
+        return True
+    else:
+        assert False  # should not happen
+
+
+def confirm_str(text: str,
+                default: str | None = None,
+                valid_answers: list[str] | None = None,
+                prompt_suffix: str = ": ",
+                show_choices: bool = True) -> str:
+    #
     valid_answers = [answer.strip().lower() for answer in valid_answers] if valid_answers else []
+    default = default.strip().lower() if default else None
+
+    if default is not None and valid_answers and default not in valid_answers:
+        valid_answers = [default] + valid_answers
+
+    valid_answers_str = [answer.capitalize() if answer == default else answer for answer in valid_answers]
+    valid_answers_str = f" [{'/'.join(valid_answers_str)}]" if valid_answers_str and show_choices else ""
 
     while True:
-        answer = input(f"{prompt}{default_str}: ").strip().lower()
+        answer = click.prompt(text=f"{text}{valid_answers_str}",
+                              prompt_suffix=prompt_suffix,
+                              default=default,
+                              show_default=False).strip().lower()
 
-        if not answer and default_answer is not None:
-            return default_answer
-        elif answer and (not valid_answers or answer in valid_answers):
-            return str(answer)
+        if not valid_answers or answer in valid_answers:
+            return answer
         else:
             continue
 
@@ -69,7 +119,7 @@ def confirm_str(prompt: str, default_answer: str | None = None, valid_answers: l
 
 # equivalent to "press enter to continue"
 def confirm_ok(prompt: str):
-    _ = confirm_str(f"{prompt} [OK]", default_answer="")
+    _ = confirm_str(f"{prompt} [OK]", default="OK", prompt_suffix=" ")
 
 
 def json_dataclass(eq=True, init=True, **d_kwargs):
@@ -99,9 +149,10 @@ def json_pretty(json_data, sort_keys: bool = False):
             return [_json_pretty(item) for item in data]
         if isinstance(data, dict) and data:
             return {key: _json_pretty(value) for key, value in data.items()}
+        # pylint: disable=unidiomatic-typecheck
         if not isinstance(data, bool) and type(data) is not int and isinstance(data, int):
             return str(data)
-            
+
         return data
 
     return json.dumps(_json_pretty(json_data), indent=4, sort_keys=sort_keys)

@@ -27,7 +27,7 @@ def calculate_deposit_amount_for_deal(deal: PoRepMarketDealRequest, deposit_for_
     result = deal_size_sectors * deal.terms.price_per_sector_per_month * deposit_for_months
 
     if result != ceil(result):
-        click.confirm(f"Calculated deposit amount {result} != {ceil(result)}. Continue?", default=True, abort=True)
+        utils.confirm(f"Calculated deposit amount {result} != {ceil(result)}. Continue?", default=True, abort=True)
 
     return ceil(result)
 

@@ -21,7 +21,7 @@ def block_sp(provider_id: str):
     if provider.blocked:
         raise click.ClickException(f"Storage Provider {str(provider.provider_id)} is already blocked")
 
-    click.confirm(f"Blocking Storage Provider {str(provider.provider_id)}: "
+    utils.confirm(f"Blocking Storage Provider {str(provider.provider_id)}: "
                   f"{utils.json_pretty(provider)}", abort=True)
 
     tx_hash = SPRegistry().block_provider(provider.provider_id, admin_private_key())

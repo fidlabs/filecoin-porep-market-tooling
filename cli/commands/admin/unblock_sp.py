@@ -21,7 +21,7 @@ def unblock_sp(provider_id: str):
     if not provider.blocked:
         raise click.ClickException(f"Storage Provider {provider.provider_id} is not blocked")
 
-    click.confirm(f"Unblocking Storage Provider {provider.provider_id}: "
+    utils.confirm(f"Unblocking Storage Provider {provider.provider_id}: "
                   f"{utils.json_pretty(provider)}", abort=True)
 
     tx_hash = SPRegistry().unblock_provider(provider.provider_id, admin_private_key())
