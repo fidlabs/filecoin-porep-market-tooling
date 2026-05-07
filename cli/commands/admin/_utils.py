@@ -86,13 +86,6 @@ def get_db_sps(db_url: str,
                                                            organization_address=organization_address)
 
     for org in organizations:
-        if FilAddress.is_filecoin_address(org.payment_address_evm):
-            utils.confirm_ok(
-                f"Organization {org.organization_address} [db_id {org.id}] has payment_address_evm {org.payment_address_evm} which is a Filecoin f-address, "
-                f"expected EVM 0x-address. "
-                f"Cannot return SPs from this organization")
-            continue
-
         if org.deal_duration_min_months < 0:
             utils.confirm_ok(
                 f"Organization {org.organization_address} [db_id {org.id}] has invalid min deal duration of {org.deal_duration_min_months} months. "
@@ -113,7 +106,8 @@ def get_db_sps(db_url: str,
                     f"Organization {org.organization_address} [db_id {org.id}] has max deal duration of {months_to_days(org.deal_duration_max_months)} days "
                     f"which exceeds the SPRegistry contract limit of {max_deal_duration_days_limit} days. It will be truncated to {max_deal_duration_days}. "
                     f"Return SPs from this organization?",
-                    default=True):
+                    default=True,
+                    session_id="get-db-sps-invalid-deal-duration"):
                 continue
         else:
             max_deal_duration_days = months_to_days(org.deal_duration_max_months)
@@ -126,7 +120,8 @@ def get_db_sps(db_url: str,
                     f"Organization {org.organization_address} [db_id {org.id}] has min deal duration of {months_to_days(org.deal_duration_min_months)} days "
                     f"which is below the SPRegistry contract minimum of {min_deal_duration_days} days. It will be increased to this value. "
                     f"Return SPs from this organization?",
-                    default=True):
+                    default=True,
+                    session_id="get-db-sps-invalid-deal-duration"):
                 continue
         else:
             min_deal_duration_days = months_to_days(org.deal_duration_min_months)
@@ -146,7 +141,8 @@ def get_db_sps(db_url: str,
             if not utils.confirm(f"Converted organization {org.organization_address} [db_id {org.id}] Filecoin f-address "
                                  f"to EVM 0x-address {organization_address}. "
                                  f"Return SPs from this organization?",
-                                 default=True):
+                                 default=True,
+                                 session_id="get-db-sps-converted-filecoin-address"):
                 continue
         else:
             organization_address = org.organization_address
@@ -176,8 +172,8 @@ def get_db_sps(db_url: str,
 
     provider_ids = [sp.provider_id for sp in result]
     if len(provider_ids) != len(set(provider_ids)):
-        duplicated_ids = set([provider_id for provider_id in provider_ids if provider_ids.count(provider_id) > 1])
-        raise click.ClickException(f"Duplicated miner_id in SPRegistry database: {duplicated_ids}")
+        duplicated_ids = list(set([provider_id for provider_id in provider_ids if provider_ids.count(provider_id) > 1]))
+        raise click.ClickException(f"\nDuplicated miner_id in SPRegistry database: {duplicated_ids}")
 
     return result
 

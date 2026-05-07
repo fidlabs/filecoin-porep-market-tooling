@@ -10,7 +10,7 @@ from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealStat
 from cli.services.web3_service import Web3Service, ActorId
 
 EPOCHS_PER_DAY = 60 * 24 * 2
-EPOCHS_PER_MONTH = EPOCHS_PER_DAY * 30
+EPOCHS_PER_MONTH = EPOCHS_PER_DAY * 30  # PoRep Market smart contracts assumes month == 30 days
 BATCH_SIZE = 10
 DATACAP_DECIMALS = 18
 
