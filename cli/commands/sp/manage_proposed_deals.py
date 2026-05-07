@@ -30,14 +30,15 @@ def manage_proposed_deals(action: str | None):
         try:
             if answer in ["accept"]:
                 click.echo()
-                sp_utils.accept_deal(deal)
+                sp_utils.accept_deal(deal, confirm_session_id="manage-proposed-deals-accept")
 
             elif answer in ["reject"]:
                 click.echo()
-                sp_utils.reject_deal(deal)
+                sp_utils.reject_deal(deal, confirm_session_id="manage-proposed-deals-reject")
 
             elif answer in ["skip"]:
                 continue
+        #
         except click.ClickException as e:
             e.show()
             continue

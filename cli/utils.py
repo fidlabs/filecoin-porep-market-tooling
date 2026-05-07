@@ -55,23 +55,22 @@ _confirm_yes_for_all_sessions: set[str] = set()
 
 
 def confirm(text: str,
-            default: bool | None = None,
+            default: bool | None = False,
             abort: bool = False,
             session_id: str | None = None) -> bool:
     #
-    if session_id and session_id in _confirm_yes_for_all_sessions:
-        return True
-
-    default_str = "y" if default else "n" if default is False else None
+    answer = "yes" if session_id and session_id in _confirm_yes_for_all_sessions else None
+    default_answer = "y" if default else "n" if default is False else None
     valid_answers_labels = ["Yes" if default else "yes", "No" if default is False else "no"] + (["all"] if session_id else [])
-    yes_for_all_answers = ["all", "a"] if session_id else []
+    yes_for_all_answers = ["a", "all"] if session_id else []
     yes_answers = ["y", "yes"]
     no_answers = ["n", "no"]
 
     answer = confirm_str(text=f"{text} [{'/'.join(valid_answers_labels)}]",
-                         default=default_str,
+                         default=default_answer,
                          valid_answers=yes_answers + no_answers + yes_for_all_answers,
-                         show_choices=False).strip().lower()
+                         show_choices=False,
+                         answer=answer).strip().lower()
 
     if answer in no_answers:
         if abort:
@@ -88,13 +87,16 @@ def confirm(text: str,
         assert False  # should not happen
 
 
+# if answer is set, print the prompt and return the answer immediately without asking the user
+# this function supports only case insensitive mode
 def confirm_str(text: str,
                 default: str | None = None,
                 valid_answers: list[str] | None = None,
                 prompt_suffix: str = ": ",
-                show_choices: bool = True) -> str:
+                show_choices: bool = True,
+                answer: str | None = None) -> str:
     #
-    valid_answers = [answer.strip().lower() for answer in valid_answers] if valid_answers else []
+    valid_answers = [_answer.strip().lower() for _answer in valid_answers] if valid_answers else []
     default = default.strip().lower() if default else None
 
     if default is not None and valid_answers and default not in valid_answers:
@@ -102,10 +104,15 @@ def confirm_str(text: str,
 
     valid_answers_str = [answer.capitalize() if answer == default else answer for answer in valid_answers]
     valid_answers_str = f" [{'/'.join(valid_answers_str)}]" if valid_answers_str and show_choices else ""
+    text = f"{text}{valid_answers_str}{prompt_suffix}"
+
+    if answer is not None:
+        click.echo(text + answer)
+        return answer.strip().lower()
 
     while True:
-        answer = click.prompt(text=f"{text}{valid_answers_str}",
-                              prompt_suffix=prompt_suffix,
+        answer = click.prompt(text=text,
+                              prompt_suffix="",
                               default=default,
                               show_default=False).strip().lower()
 
