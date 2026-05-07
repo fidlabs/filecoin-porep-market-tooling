@@ -1,9 +1,9 @@
 # Filecoin PoRep Market tooling CLI
 
-[![cli/test.sh](https://github.com/pingwindyktator/filecoin-porep-market-tooling/actions/workflows/test-sh.yml/badge.svg)](https://github.com/pingwindyktator/filecoin-porep-market-tooling/actions/workflows/test-sh.yml)
-[![Code linters](https://github.com/pingwindyktator/filecoin-porep-market-tooling/actions/workflows/lint.yml/badge.svg)](https://github.com/pingwindyktator/filecoin-porep-market-tooling/actions/workflows/lint.yml)
-[![CodeQL](https://github.com/pingwindyktator/filecoin-porep-market-tooling/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/pingwindyktator/filecoin-porep-market-tooling/actions/workflows/github-code-scanning/codeql)
-[![Copilot code review](https://github.com/pingwindyktator/filecoin-porep-market-tooling/actions/workflows/copilot-pull-request-reviewer/copilot-pull-request-reviewer/badge.svg)](https://github.com/pingwindyktator/filecoin-porep-market-tooling/actions/workflows/copilot-pull-request-reviewer/copilot-pull-request-reviewer)
+[![cli/test.sh](https://github.com/fidlabs/filecoin-porep-market-tooling/actions/workflows/test-sh.yml/badge.svg)](https://github.com/fidlabs/filecoin-porep-market-tooling/actions/workflows/test-sh.yml)
+[![Code linters](https://github.com/fidlabs/filecoin-porep-market-tooling/actions/workflows/lint.yml/badge.svg)](https://github.com/fidlabs/filecoin-porep-market-tooling/actions/workflows/lint.yml)
+[![CodeQL](https://github.com/fidlabs/filecoin-porep-market-tooling/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/fidlabs/filecoin-porep-market-tooling/actions/workflows/github-code-scanning/codeql)
+[![Copilot code review](https://github.com/fidlabs/filecoin-porep-market-tooling/actions/workflows/copilot-pull-request-reviewer/copilot-pull-request-reviewer/badge.svg)](https://github.com/fidlabs/filecoin-porep-market-tooling/actions/workflows/copilot-pull-request-reviewer/copilot-pull-request-reviewer)
 
 Python3 CLI tool for interacting with [Filecoin PoRep Market](https://github.com/fidlabs/porep-market) smart contracts
 using [Click](https://click.palletsprojects.com/en/stable/#), [Web3](https://web3py.readthedocs.io/en/stable/) and [psycopg](https://www.psycopg.org/docs/). \
@@ -14,6 +14,7 @@ Developed for admins, clients, and SPs to **manage their market interactions** f
 **Use python >= 3.10**
 
 ```bash
+python3 --version
 python3 -m pip install -r requirements.txt
 cp .env.mainnet .env
 ```
@@ -124,9 +125,9 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
 
 9. Now you should be ready to run the tools.
     - to find deals allocated to you:
-    ```bash
-    python3 ./porep_tooling_cli.py sp get-deals
-    ```
+      ```bash
+      python3 ./porep_tooling_cli.py sp get-deals
+      ```
 
     - deals have 3 states that are interesting for SPs:
         * **PROPOSED:** The data is prepared and the client has submitted a deal proposal with all required metadata and SLA requirements.
@@ -158,9 +159,9 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
       ```
 
 10. To get full list of commands for the tooling:
-   ```bash
-   python3 ./porep_tooling_cli.py sp --help
-   ```
+    ```bash
+    python3 ./porep_tooling_cli.py sp --help
+    ```
 
 ## Developing new CLI commands
 
