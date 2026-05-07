@@ -202,3 +202,9 @@ class PoRepMarket(ContractService):
     # @return deals Array of all deal proposals
     def get_deals(self) -> list[PoRepMarketDealProposal]:
         return [PoRepMarketDealProposal.from_web3(deal) for deal in self.contract.functions.getDeals().call()]
+
+    # @notice Rejects a deal in Accepted state before rail is set
+    # @dev Only callable by the admin
+    # @param dealId The id of the deal proposal
+    def reject_accepted_deal(self, deal_id: int, from_private_key: PrivateKeyType) -> str:
+        return self.sign_and_send_tx(self.contract.functions.rejectAcceptedDeal(deal_id), from_private_key)
