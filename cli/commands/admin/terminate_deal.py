@@ -15,16 +15,28 @@ def terminate_completed_deal(deal: PoRepMarketDealProposal) -> str:
     if validator_address != deal.validator_address:
         raise click.ClickException(f"Validator address {validator_address} does not match expected {deal.validator_address} for deal id {deal.deal_id}")
 
-    return FileCoinPayValidator(deal.validator_address).disable_future_rail_payments(deal.rail_id, admin_private_key())
+    return FileCoinPayValidator(deal.validator_address).terminate_rail(deal.rail_id, admin_private_key())
 
 
 def terminate_accepted_deal(deal: PoRepMarketDealProposal) -> str:
+    def terminate_accepted_initialized_deal() -> str:
+        assert deal.state == PoRepMarketDealState.ACCEPTED
+        assert deal.rail_id
+
+        raise RuntimeError("Not implemented")  # TODO
+
+    def terminate_accepted_not_initialized_deal() -> str:
+        assert deal.state == PoRepMarketDealState.ACCEPTED
+        assert not deal.rail_id
+
+        return PoRepMarket().reject_accepted_deal(deal.deal_id, admin_private_key())
+
     assert deal.state == PoRepMarketDealState.ACCEPTED
 
     if deal.rail_id == 0:
-        raise click.ClickException(f"Deal id {deal.deal_id} does not have a FileCoinPay rail set and cannot be terminated while in ACCEPTED state")
-
-    raise RuntimeError("Not implemented")  # TODO
+        return terminate_accepted_not_initialized_deal()
+    else:
+        return terminate_accepted_initialized_deal()
 
 
 @click.command()
@@ -38,12 +50,11 @@ def terminate_deal(deal_id: int):
 
     Web3Service().wait_for_pending_transactions(admin_address())
     deal = PoRepMarket().get_deal_proposal(deal_id)
-    utils.confirm(f"Terminating deal id {deal.deal_id}: {utils.json_pretty(deal)}", abort=True)
+    utils.confirm(f"Terminating deal id {deal.deal_id}: {deal}", abort=True)
 
     if deal.state == PoRepMarketDealState.COMPLETED:
         tx_hash = terminate_completed_deal(deal)
     elif deal.state == PoRepMarketDealState.ACCEPTED:
-        # pylint: disable=assignment-from-no-return
         tx_hash = terminate_accepted_deal(deal)
     else:
         raise click.ClickException(f"Deal id {deal_id} is not in a state that can be terminated. Current state: {deal.state.name}")
