@@ -103,7 +103,6 @@ def onboard_data(ctx, deal_id: int, output_dir: str, port: int, host: str | None
     """
 
     aria2c_path = _get_aria2c_path()
-
     deal = PoRepMarket().get_deal_proposal(deal_id)
 
     if deal.state != PoRepMarketDealState.COMPLETED:
