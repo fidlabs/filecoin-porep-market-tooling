@@ -69,7 +69,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
     click.confirm(f"Continue with allocation of remaining {len(pieces)} pieces in {len(batches)} batches?", default=True, abort=True)
 
     term_min = deal.terms.duration_days * EPOCHS_PER_DAY
-    term_max = term_min + 14 * EPOCHS_PER_DAY  # + 14 days
+    term_max = term_min + 40 * EPOCHS_PER_DAY  # + 40 days
 
     for batch_idx, batch in enumerate(batches):
         current_batch_number = batch_idx + 1
