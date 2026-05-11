@@ -98,19 +98,13 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
       SP_PRIVATE_KEY=<your miner controller wallet from step 2>
       ```
 
-    - add your SP organization address in 0x (ethereum) format:
+    - add your SP organization address:
       ```bash
       # Organization address to manage SPs from
       # You must have the SP_PRIVATE_KEY of an organization controlling address set to perform SP management operations
       
-      SP_ORGANIZATION=<your organization address converted to ETH format>
+      SP_ORGANIZATION=<your organization address>
       ```
-
-      NOTE: `SP_ORGANIZATION` is the ethereum version of the address you gave as your organization address. So if you registered
-      `f1cjn5vml22avryge434bj66tjrdir7gjgrbo4vpa`, you can go to
-      [https://filfox.info/en/address/f1cjn5vml22avryge434bj66tjrdir7gjgrbo4vpa](https://filfox.info/en/address/f1cjn5vml22avryge434bj66tjrdir7gjgrbo4vpa)
-      and look up the ID of that address: `f03767689`, then go to [https://beryx.io/address_converter](https://beryx.io/address_converter) and convert it to
-      `0xff00000000000000000000000000000000397d89`
 
 7. Ensure the file permissions on `.env` prevent the reading of this value by any user other than the one that runs the tooling.
    Assuming you are already logged in as the correct user, that would be:

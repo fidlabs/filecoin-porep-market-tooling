@@ -67,19 +67,33 @@ def check_python_version():
 
 
 def load_dotenv():
-    global DEBUG, LOG_FILE, ERROR_LOG_FILE
-
-    try:
+    if os.path.exists(".env"):
         import dotenv
-
         dotenv.load_dotenv(dotenv_path=None)
 
-        DEBUG = os.getenv("DEBUG", default="false").strip().lower() == "true"
-        LOG_FILE = os.getenv("_LOG_FILE", default=LOG_FILE)
-        ERROR_LOG_FILE = os.getenv("_ERROR_LOG_FILE", default=ERROR_LOG_FILE)
-    except Exception as e:
-        print_error("Error loading environment variables: %s: %s" % (type(e).__name__, e))
-        sys.exit(1)
+    global DEBUG, LOG_FILE, ERROR_LOG_FILE
+
+    DEBUG = os.getenv("DEBUG", default="false").strip().lower() == "true"
+    LOG_FILE = os.getenv("_LOG_FILE", default=LOG_FILE)
+    ERROR_LOG_FILE = os.getenv("_ERROR_LOG_FILE", default=ERROR_LOG_FILE)
+
+
+def write_error_file():
+    import traceback
+
+    os.makedirs(os.path.dirname(ERROR_LOG_FILE), exist_ok=True)
+
+    open(ERROR_LOG_FILE, "w", encoding="utf-8").close()
+    if not os.path.exists(LOG_FILE):
+        open(LOG_FILE, "w", encoding="utf-8").close()
+
+    with open(ERROR_LOG_FILE, "a", encoding="utf-8") as error_file:
+        with open(LOG_FILE, encoding="utf-8") as log_file:
+            error_file.writelines(log_file.readlines()[-300:])
+
+        error_file.write("\n")
+        error_file.write("**********************************************************************************************\n")
+        error_file.write(traceback.format_exc())
 
 
 def main():
@@ -91,7 +105,14 @@ def main():
 
 if __name__ == "__main__":
     check_python_version()
-    load_dotenv()
+
+    try:
+        load_dotenv()
+
+    # pylint: disable=invalid-name
+    except Exception as __e:
+        print_error("Error loading environment variables: %s: %s" % (type(__e).__name__, __e))
+        sys.exit(1)
 
     try:
         main()
@@ -111,23 +132,8 @@ if __name__ == "__main__":
         print("\n**********************************************************************************************\n")
         print_error("Internal error occurred: %s: %s\nSee %s for more logs." % (type(e).__name__, e, ERROR_LOG_FILE))
 
-        # write ERROR_LOG_FILE
         try:
-            import traceback
-
-            os.makedirs(os.path.dirname(ERROR_LOG_FILE), exist_ok=True)
-
-            open(ERROR_LOG_FILE, "w", encoding="utf-8").close()
-            if not os.path.exists(LOG_FILE):
-                open(LOG_FILE, "w", encoding="utf-8").close()
-
-            with open(ERROR_LOG_FILE, "a", encoding="utf-8") as error_file:
-                with open(LOG_FILE, encoding="utf-8") as log_file:
-                    error_file.writelines(log_file.readlines()[-300:])
-
-                error_file.write("\n")
-                error_file.write("**********************************************************************************************\n")
-                error_file.write(traceback.format_exc())
+            write_error_file()
         except Exception as _e:
             print_error("Unable to prepare error report: %s: %s" % (type(_e).__name__, _e))
 

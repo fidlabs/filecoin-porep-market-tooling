@@ -15,11 +15,11 @@ from cli import utils
 
 # TODO LATER support testnet t0 id
 class ActorId(int):
-    _PREFIXES = ("f0",)
+    VALID_PREFIXES = ("f0",)
 
     def __new__(cls, actor_id: int | str) -> "ActorId":
         if isinstance(actor_id, str):
-            if actor_id.startswith(cls._PREFIXES):
+            if actor_id.startswith(cls.VALID_PREFIXES):
                 actor_id = actor_id[2:]
             try:
                 actor_id = int(actor_id)
@@ -45,17 +45,76 @@ class ActorId(int):
         except (ValueError, TypeError):
             return None
 
+    @staticmethod
+    def is_actor_id(actor_id: str | int) -> bool:
+        return ActorId.try_parse(actor_id) is not None
+
+    def to_ethereum_address(self) -> "EthAddress":
+        return EthAddress.from_filecoin_address(str(self))
+
+    def to_filecoin_address(self) -> "FilAddress":
+        response = Web3Service().w3().provider.make_request(
+            RPCEndpoint("Filecoin.StateAccountKey"),
+            [str(self), None]
+        )
+
+        if "error" in response:
+            raise RuntimeError(response["error"])
+
+        if not response.get("result"):
+            raise RuntimeError(f"Failed to get f-address for actor ID {self}: empty result")
+
+        return FilAddress(response["result"])
+
+    @staticmethod
+    def from_any(xinput: str | int) -> "ActorId":
+        if ActorId.is_actor_id(xinput):
+            return ActorId(xinput)
+
+        if isinstance(xinput, str):
+            if FilAddress.is_filecoin_address(xinput):
+                return FilAddress(xinput).to_actor_id()
+
+            if EthAddress.is_ethereum_address(xinput):
+                return EthAddress(xinput).to_actor_id()
+
+        raise ValueError(f"Cannot convert {xinput!r} to ActorId: unsupported format")
+
 
 class FilAddress(str):
-    VALID_PREFIXES = ("f0", "f1", "f2", "f3", "f4", "f5",
-                      "t0", "t1", "t2", "t3", "t4", "t5")
+    VALID_PREFIXES = ("f0", "f1", "f2", "f3", "f4",
+                      "t0", "t1", "t2", "t3", "t4")
 
     def __new__(cls, addr: str) -> "FilAddress":
-        if not isinstance(addr, str) or not addr.startswith(cls.VALID_PREFIXES):
+        if not isinstance(addr, str) or not addr.startswith(cls.VALID_PREFIXES) or len(addr) < 20:
             raise ValueError(f"Invalid Filecoin address format: {addr!r}")
 
         # noinspection PyTypeChecker
         return super().__new__(cls, addr)
+
+    def __eq__(self, other):
+        # noinspection PyBroadException
+        try:
+            other = FilAddress(other)
+
+        # pylint: disable=broad-exception-caught
+        except Exception:
+            # nop
+            pass
+
+        return super().__eq__(other)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __bool__(self):
+        return bool(str(self)) and not all(c == "0" for c in str(self)[2:])
+
+    def __neg__(self):
+        return not self.__bool__()
+
+    def __hash__(self):
+        return super().__hash__()
 
     @classmethod
     def try_parse(cls, addr: str) -> "FilAddress | None":
@@ -68,6 +127,13 @@ class FilAddress(str):
     def is_filecoin_address(addr: str) -> bool:
         return FilAddress.try_parse(addr) is not None
 
+    def to_ethereum_address(self) -> "EthAddress":
+        return EthAddress.from_filecoin_address(self)
+
+    @staticmethod
+    def from_ethereum_address(addr: str) -> "FilAddress":
+        return EthAddress(addr).to_filecoin_address()
+
     def to_actor_id(self) -> ActorId:
         response = Web3Service().w3().provider.make_request(
             RPCEndpoint("Filecoin.StateLookupID"),
@@ -77,10 +143,24 @@ class FilAddress(str):
         if "error" in response:
             raise RuntimeError(response["error"])
 
-        if not response["result"]:
-            raise RuntimeError(f"Failed to get actor ID for address {self}: empty result")
+        if not response.get("result"):
+            raise RuntimeError(f"Failed to get actor ID for f-address {self}: empty result")
 
         return ActorId(response["result"])
+
+    @staticmethod
+    def from_any(xinput: str | int) -> "FilAddress":
+        if ActorId.is_actor_id(xinput):
+            return ActorId(xinput).to_filecoin_address()
+
+        if isinstance(xinput, str):
+            if FilAddress.is_filecoin_address(xinput):
+                return FilAddress(xinput)
+
+            if EthAddress.is_ethereum_address(xinput):
+                return EthAddress(xinput).to_filecoin_address()
+
+        raise ValueError(f"Cannot convert {xinput!r} to Filecoin address: unsupported format")
 
 
 class EthAddress(str):
@@ -114,7 +194,36 @@ class EthAddress(str):
     def __hash__(self):
         return super().__hash__()
 
+    @classmethod
+    def try_parse(cls, addr: str) -> "EthAddress | None":
+        try:
+            return cls(addr)
+        except (ValueError, TypeError):
+            return None
+
+    @staticmethod
+    def is_ethereum_address(addr: str) -> bool:
+        return EthAddress.try_parse(addr) is not None
+
     def to_filecoin_address(self) -> FilAddress:
+        return self.to_actor_id().to_filecoin_address()
+
+    @staticmethod
+    def from_filecoin_address(addr: str) -> "EthAddress":
+        response = Web3Service().w3().provider.make_request(
+            RPCEndpoint("Filecoin.FilecoinAddressToEthAddress"),
+            [addr]
+        )
+
+        if "error" in response:
+            raise RuntimeError(response["error"])
+
+        if not response.get("result") or not Web3.is_address(response["result"]):
+            raise ValueError(f"Failed to get Ethereum address for f-address {addr}: invalid result {response.get('result')!r}")
+
+        return EthAddress(response["result"])
+
+    def to_actor_id(self) -> ActorId:
         response = Web3Service().w3().provider.make_request(
             RPCEndpoint("Filecoin.EthAddressToFilecoinAddress"),
             [self]
@@ -123,27 +232,15 @@ class EthAddress(str):
         if "error" in response:
             raise RuntimeError(response["error"])
 
-        return FilAddress(response["result"])
+        if not response.get("result"):
+            raise ValueError(f"Failed to get actor ID for Ethereum address {self}: empty result")
 
-    @staticmethod
-    def from_filecoin_address(addr: str) -> "EthAddress":
-        fil_address = FilAddress(addr)
-
-        response = Web3Service().w3().provider.make_request(
-            RPCEndpoint("Filecoin.FilecoinAddressToEthAddress"),
-            [fil_address]
-        )
-
-        if "error" in response:
-            raise RuntimeError(response["error"])
-
-        if not response["result"] or not Web3.is_address(response["result"]):
-            raise ValueError(f"Invalid response for FilecoinAddressToEthAddress: {response['result']}")
-
-        return EthAddress(response["result"])
-
-    def to_actor_id(self) -> ActorId:
-        return self.to_filecoin_address().to_actor_id()
+        if ActorId.is_actor_id(response["result"]):
+            return ActorId(response["result"])
+        elif FilAddress.is_filecoin_address(response["result"]):
+            return FilAddress(response["result"]).to_actor_id()
+        else:
+            raise ValueError(f"Failed to get actor ID for Ethereum address {self}: invalid result {response.get('result')!r}")
 
     @staticmethod
     def from_private_key(private_key: PrivateKeyType) -> "EthAddress":
@@ -151,6 +248,20 @@ class EthAddress(str):
             return EthAddress(Web3Service().w3().eth.account.from_key(private_key).address)
         except Exception as e:
             raise ValueError(f"Invalid private key: {str(e)}") from e
+
+    @staticmethod
+    def from_any(xinput: str | int) -> "EthAddress":
+        if ActorId.is_actor_id(xinput):
+            return ActorId(xinput).to_ethereum_address()
+
+        if isinstance(xinput, str):
+            if EthAddress.is_ethereum_address(xinput):
+                return EthAddress(xinput)
+
+            if FilAddress.is_filecoin_address(xinput):
+                return FilAddress(xinput).to_ethereum_address()
+
+        raise ValueError(f"Cannot convert {xinput!r} to Ethereum address: unsupported format")
 
 
 class Web3Service:
@@ -214,6 +325,9 @@ class Web3Service:
 
         if "error" in response:
             raise RuntimeError(response["error"])
+
+        if not response.get("result") or not isinstance(response["result"], dict):
+            raise RuntimeError(f"Failed to get allocations for actor ID {actor_id}: invalid result {response.get('result')!r}")
 
         return response["result"]
 
