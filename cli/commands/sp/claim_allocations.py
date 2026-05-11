@@ -23,7 +23,7 @@ def _get_curio_path() -> str:
     # pylint: disable=broad-exception-caught
     except Exception as e:
         click.echo("curio not found. Please install curio to use this command.\n"
-                   "See https://docs.curiostorage.org/ for more information.\n"
+                   "See https://docs.curiostorage.org/installation for more information.\n"
                    "Set the CURIO_PATH environment variable if curio is installed but not in PATH.\n")
 
         raise click.ClickException(f"{curio_path} not found:\n{e}") from e

@@ -1,23 +1,27 @@
 import click
 
 from cli import utils
-from cli.services.web3_service import ActorId, EthAddress, FilAddress
+from cli.services.web3_service import EthAddress, FilAddress, ActorId
 
 
-@click.command("convert")
-@click.argument("addr")
-def convert(addr: str):
-    """Convert ADDR to all address formats and output as JSON."""
-    result = {}
+@click.command()
+@click.argument("xinput")
+def convert(xinput: str):
+    """
+    Convert XINPUT to all address formats.
 
-    for key, fn in [
-        ("ethAddress", EthAddress.parse),
-        ("filAddress", FilAddress.parse),
-        ("actorId",    ActorId.parse),
-    ]:
+    XINPUT - can be Ethereum address, Filecoin address, or ActorId
+    """
+
+    def try_call(func):
         try:
-            result[key] = str(fn(addr))
-        except Exception as e:
-            result[key] = f"ERROR: {e}"
+            return func()
+        except (ValueError, RuntimeError) as e:
+            return f"Error: {str(e)}"
 
-    click.echo(utils.json_pretty(result))
+    click.echo(utils.json_pretty({
+        "input": xinput,
+        "ethAddress": try_call(lambda: EthAddress.from_any(xinput)),
+        "filAddress": try_call(lambda: FilAddress.from_any(xinput)),
+        "actorId": try_call(lambda: ActorId.from_any(xinput)),
+    }))

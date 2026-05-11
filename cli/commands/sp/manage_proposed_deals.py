@@ -38,7 +38,7 @@ def manage_proposed_deals(action: str | None):
 
             elif answer in ["skip"]:
                 continue
-        #
+
         except click.ClickException as e:
             e.show()
             continue
