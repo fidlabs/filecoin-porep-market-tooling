@@ -81,7 +81,7 @@ def _write_manifest_file(manifest: list[dict], output_dir: Path, deal_id: int) -
 
 @click.command(context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
 @click.argument("deal_id", type=click.IntRange(min=0))
-@click.option("--output-dir", type=click.Path(), required=True, help="Directory to save downloaded pieces.")
+@click.option("--output-dir", type=click.Path(file_okay=False), required=True, help="Directory to save downloaded pieces.")
 @click.option("--host", help="Host to use for .car files download.  [default: same host as manifest URL]")
 @click.option("--port", default=7777, type=click.IntRange(min=1, max=65535), show_default=True,
               help="Port to use for .car files download.")
