@@ -6,18 +6,24 @@ from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarke
 
 
 @click.command()
+@click.argument("deal_id", type=click.IntRange(min=0))
+def get_deal(deal_id: int):
+    """
+    Get deal by id.
+
+    DEAL_ID - Deal id to fetch.
+    """
+
+    click.echo(PoRepMarket().get_deal_proposal(deal_id))
+
+
+@click.command()
 @click.argument("state", required=False, type=click.Choice(PoRepMarketDealState.to_string_list(), case_sensitive=False))
-@click.option("--deal-id", required=False, type=click.IntRange(min=0), help="Deal id to fetch.")
-def get_deals(state: str | None, deal_id: int | None = None):
+def get_deals(state: str | None = None):
     """
-    Get deals for the client.
+    Get client's deals by state.
 
-    STATE - Deal state to filter by.
+    STATE - Optional deal state to filter by.
     """
 
-    if deal_id is not None:
-        result = [PoRepMarket().get_deal_proposal(deal_id)]
-    else:
-        result = client_utils.get_client_deals(PoRepMarketDealState.from_string(state))
-
-    click.echo(utils.json_pretty(result))
+    click.echo(utils.json_pretty(client_utils.get_client_deals(PoRepMarketDealState.from_string(state))))
