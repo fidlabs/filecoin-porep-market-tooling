@@ -1,5 +1,3 @@
-import os
-
 from eth_account.types import PrivateKeyType
 
 from cli import utils
@@ -50,7 +48,7 @@ class FileCoinPayOperatorApproval:
 class FileCoinPay(ContractService):
     def __init__(self, contract_address: EthAddress | None = None):
         super().__init__(contract_address or utils.get_env_required("FILECOIN_PAY", required_type=EthAddress),
-                         os.path.dirname(os.path.realpath(__file__)) + "/abi/FileCoinPay.json")
+                         self.abi_dir() / "FileCoinPay.json")
 
     # @notice Deposits tokens using permit (EIP-2612) approval in a single transaction,
     #         while also setting operator approval.

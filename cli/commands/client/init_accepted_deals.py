@@ -19,7 +19,7 @@ def init_accepted_deals(deal_id: int | None = None):
     """
     Interactively initialize accepted deals.
 
-    DEAL_ID - Optional deal id to initialize. If not provided, will initialize all accepted deals for the client address.
+    DEAL_ID - Optional deal ID to initialize. If not provided, will initialize all accepted deals for the client address.
 
     \b
     1. Deploy and initialize validator,

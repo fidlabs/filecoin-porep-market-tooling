@@ -45,7 +45,7 @@ def terminate_deal(deal_id: int):
     """
     Terminate a deal early. Not all deals can be terminated.
 
-    DEAL_ID - Deal ID to terminate.
+    DEAL_ID - The ID of the deal to terminate.
     """
 
     Web3Service().wait_for_pending_transactions(admin_address())

@@ -13,7 +13,7 @@ def reject_deal(deal_id: int):
     """
     Reject a deal proposal.
 
-    DEAL_ID - The id of the deal proposal to reject.
+    DEAL_ID - The ID of the deal proposal to reject.
     """
 
     Web3Service().wait_for_pending_transactions(sp_address())
