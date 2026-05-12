@@ -10,7 +10,7 @@ from cli.services.contracts.filecoinpay_validator import FileCoinPayValidator
 from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarketDealProposal, PoRepMarket
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.contracts.validator_factory import ValidatorFactory
-from cli.services.web3_service import EthAddress, Web3Service
+from cli.services.web3_service import Web3Service
 
 
 @click.command()
@@ -84,7 +84,7 @@ def _deposit_and_approve_operator(deal_id: int):
     if not __get_validator_address_for_deal(deal):
         raise click.ClickException(f"Validator not found for deal id {deal.deal_id}, cannot deposit and approve operator")
 
-    operator_approval = FileCoinPay().get_operator_approval(utils.get_env_required("USDC_TOKEN", required_type=EthAddress),
+    operator_approval = FileCoinPay().get_operator_approval(USDCToken().address(),
                                                             client_address(),
                                                             deal.validator_address)
 
@@ -95,14 +95,12 @@ def _deposit_and_approve_operator(deal_id: int):
     token_decimals = USDCToken().decimals()
     token_name = USDCToken().name()
 
-    filecoinpay_account = FileCoinPay().get_account(utils.get_env_required("USDC_TOKEN", required_type=EthAddress), client_address())
+    filecoinpay_account = FileCoinPay().get_account(USDCToken().address(), client_address())
     filecoinpay_available_funds = filecoinpay_account.funds - filecoinpay_account.lockup_current
     filecoinpay_available_funds_str = utils.str_from_wei(filecoinpay_available_funds, token_decimals)
 
     token_balance = USDCToken().balance_of(client_address())
     token_balance_str = utils.str_from_wei(token_balance, token_decimals)
-
-    permit_deadline = client_utils.get_permit_deadline()
 
     deposit_amount = client_utils.calculate_deposit_amount_for_deal(deal)
     deposit_amount_str = utils.str_from_wei(deposit_amount, token_decimals)
@@ -131,8 +129,11 @@ def _deposit_and_approve_operator(deal_id: int):
         f"  Max lockup period: {'MAX_UINT256' if max_lockup_period == utils.MAX_UINT256 else max_lockup_period}", abort=True)
 
     click.echo()
+
+    permit_deadline = client_utils.get_filecoin_permit_deadline()
     signed_msg = client_utils.sign_filecoinpay_permit(deposit_amount, permit_deadline)
-    tx_hash = FileCoinPay().deposit_with_permit_and_approve_operator(utils.get_env_required("USDC_TOKEN", required_type=EthAddress),
+
+    tx_hash = FileCoinPay().deposit_with_permit_and_approve_operator(USDCToken().address(),
                                                                      client_address(),
                                                                      deposit_amount,
                                                                      permit_deadline,
@@ -152,7 +153,7 @@ def _initialize_rail(deal_id: int):
     if not __get_validator_address_for_deal(deal):
         raise click.ClickException(f"Validator not found for deal id {deal.deal_id}, cannot initialize rail")
 
-    operator_approval = FileCoinPay().get_operator_approval(utils.get_env_required("USDC_TOKEN", required_type=EthAddress),
+    operator_approval = FileCoinPay().get_operator_approval(USDCToken().address(),
                                                             client_address(),
                                                             deal.validator_address)
 
@@ -165,7 +166,7 @@ def _initialize_rail(deal_id: int):
 
     utils.confirm(f"\nInitialize FileCoinPay rail for deal id {deal.deal_id}?", default=True, abort=True)
 
-    tx_hash = FileCoinPayValidator(deal.validator_address).create_rail(utils.get_env_required("USDC_TOKEN", required_type=EthAddress), client_private_key())
+    tx_hash = FileCoinPayValidator(deal.validator_address).create_rail(USDCToken().address(), client_private_key())
 
     click.echo(f"FileCoinPay rail initialized for deal id {deal.deal_id}: {tx_hash}")
 
