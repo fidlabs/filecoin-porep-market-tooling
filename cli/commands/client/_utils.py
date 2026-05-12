@@ -8,9 +8,9 @@ from web3.auto import w3
 from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.client._client import client_address, client_private_key
+from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import PoRepMarketDealProposal, PoRepMarketDealState, PoRepMarketDealRequest
 from cli.services.contracts.usdc_token import USDCToken
-from cli.services.web3_service import EthAddress
 from cli.services.web3_service import Web3Service
 
 
@@ -32,21 +32,19 @@ def calculate_deposit_amount_for_deal(deal: PoRepMarketDealRequest, deposit_for_
     return ceil(result)
 
 
-def get_permit_deadline() -> int:
+def get_filecoin_permit_deadline() -> int:
     return int(time.time()) + 3600  # 1 hour
 
 
 # EIP-712 signing for FileCoinPay permit msg
 def sign_filecoinpay_permit(amount: int, permit_deadline: int) -> SignedMessage:
-    token_name = USDCToken().name()
-
     # signed_msg.signature is sensitive info, should never be logged
     signed_msg = w3.eth.account.sign_typed_data(
         domain_data={
-            "name": token_name,
+            "name": USDCToken().name(),
             "version": "1",
             "chainId": Web3Service().get_chain_id(),
-            "verifyingContract": utils.get_env_required("USDC_TOKEN", required_type=EthAddress)
+            "verifyingContract": USDCToken().address()
         },
         message_types={
             "Permit": [
@@ -59,7 +57,7 @@ def sign_filecoinpay_permit(amount: int, permit_deadline: int) -> SignedMessage:
         },
         message_data={
             "owner": client_address(),
-            "spender": utils.get_env_required("FILECOIN_PAY", required_type=EthAddress),
+            "spender": FileCoinPay().address(),
             "value": amount,
             "nonce": USDCToken().nonces(client_address()),
             "deadline": permit_deadline
@@ -72,3 +70,33 @@ def sign_filecoinpay_permit(amount: int, permit_deadline: int) -> SignedMessage:
 
     click.echo(f"EIP-712 message signed for FileCoinPay permit: {utils.private_str_to_log_str(signed_msg.signature.hex())}")
     return signed_msg
+
+
+def deposit_to_filecoinpay(deposit_amount: int):
+    token_decimals = USDCToken().decimals()
+    token_name = USDCToken().name()
+
+    token_balance = USDCToken().balance_of(client_address())
+    token_balance_str = utils.str_from_wei(token_balance, token_decimals)
+
+    click.echo(f"Token balance: {token_balance_str} {token_name}")
+    click.echo()
+
+    if token_balance < deposit_amount:
+        raise click.ClickException("Insufficient token balance")
+
+    deposit_amount_str = utils.str_from_wei(deposit_amount, token_decimals)
+
+    utils.confirm(f"Deposit {deposit_amount_str} {token_name} to {client_address()} FileCoinPay account?", abort=True)
+    click.echo()
+
+    permit_deadline = get_filecoin_permit_deadline()
+    signed_msg = sign_filecoinpay_permit(deposit_amount, permit_deadline)
+    tx_hash = FileCoinPay().deposit_with_permit(USDCToken().address(),
+                                                client_address(),
+                                                deposit_amount,
+                                                permit_deadline,
+                                                signed_msg.v, utils.uint_to_bytes(signed_msg.r), utils.uint_to_bytes(signed_msg.s),
+                                                client_private_key())
+
+    click.echo(f"Deposited {deposit_amount_str} {token_name}: {tx_hash}")
