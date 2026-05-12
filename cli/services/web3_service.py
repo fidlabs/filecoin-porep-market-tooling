@@ -15,7 +15,7 @@ from cli import utils
 
 # TODO LATER support testnet t0 id
 class ActorId(int):
-    VALID_PREFIXES = ("f0",)
+    VALID_PREFIXES = ("f0", "t0")
 
     def __new__(cls, actor_id: int | str) -> "ActorId":
         if isinstance(actor_id, str):
@@ -345,6 +345,7 @@ class Web3Service:
 
         if client is not None:
             return {claim_id: claim for claim_id, claim in response["result"].items() if claim.get("Client") == client}
+            raise RuntimeError(f"Failed to get allocations for actor ID {actor_id}: invalid result {response.get('result')!r}")
 
         return response["result"]
 

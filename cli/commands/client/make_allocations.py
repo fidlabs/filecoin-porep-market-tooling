@@ -36,6 +36,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
 
     # TODO improve click.echo here
     Web3Service().wait_for_pending_transactions(client_address())
+
     deal = PoRepMarket().get_deal_proposal(deal_id)
 
     if deal.state != PoRepMarketDealState.ACCEPTED:
@@ -102,26 +103,38 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
             operator_data=operator_data
         )
 
-        is_completed = current_batch_number == len(batches)
-
         if print_only:
-            click.echo(f"to={params.to[0].hex()}  amount={params.amount[0].hex()}  operator_data={params.operator_data.hex()}   is_completed={is_completed}")
+            click.echo(f"to={params.to[0].hex()}  amount={params.amount[0].hex()}  operator_data={params.operator_data.hex()}")
         else:
-            tx_hash = ClientContract().transfer(params, deal_id, is_completed, client_private_key())
-            click.echo(f"params: {params}, tx={tx_hash}, deal_completed={is_completed}")
+            tx_hash = ClientContract().transfer(params, deal_id, client_private_key())
+            click.echo(f"params: {params}, tx={tx_hash}")
 
             if tx_hash == Web3Service.ZERO_TX_HASH:
                 click.echo("Cannot continue with dry-run mode, exiting.")
                 return
 
-        click.echo(f"Batch {current_batch_number} done.")
+            allocation_size = ClientContract().get_size_of_allocations(deal_id)
+            click.echo(f"Batch {current_batch_number} done.")
+            click.echo(f"Allocated size ({allocation_size}/{deal.terms.deal_size_bytes})")
+
+
+    if print_only:
+        click.echo("\nAll done!")
+        return
+
+    commands_utils.check_allocations_size(deal)
+    tx_hash = PoRepMarket().complete_deal(deal_id, client_private_key())
+    click.echo(f"Deal completed successfully: {tx_hash}")
 
     click.echo("\nAll done!")
 
 
 def _build_operator_data_batch(provider_id: ActorId, batch: list[tuple[str, int]], term_min: int, term_max: int, expiration: int) -> bytes:
     def format_cid_to_cbor_universal(cid_str: str) -> cbor2.CBORTag:
-        cid_bytes = bytes(multibase.decode(cid_str))
+        try:
+            cid_bytes = bytes(multibase.decode(cid_str))
+        except Exception as e:
+            raise click.ClickException(f"Invalid piece CID '{cid_str}': {e}") from e
         cid_with_prefix = b"\x00" + cid_bytes
         return cbor2.CBORTag(42, cid_with_prefix)
 
