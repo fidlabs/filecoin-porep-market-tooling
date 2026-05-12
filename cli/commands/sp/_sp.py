@@ -95,7 +95,7 @@ def info():
 @click.command()
 def wait():
     """
-    Wait for all pending transactions from the current private key to be mined and exit. Useful when executing a series of commands.
+    Wait for all pending transactions from the current private key to be mined and exit.
     """
 
     Web3Service().wait_for_pending_transactions(sp_address())

@@ -13,7 +13,7 @@ from cli.services.web3_service import Web3Service
 @click.argument("deal_id", type=click.IntRange(min=0), required=False)
 @click.option("--months", type=click.IntRange(min=1), default=1, show_default=True,
               help="Number of months to calculate required deposit amount for.")
-def deposit_for_deals(deal_id: int, months: int):
+def deposit_for_deals(deal_id: int | None = None, months: int = 1):
     """
     Deposit USDC funds to FileCoinPay account for all COMPLETED deals or a given deal ID.
 

@@ -36,6 +36,8 @@ def _tx_to_log_string(transaction, tx_params: dict | None) -> str:
 
 
 class ContractService:
+    _KNOWN_ABIS: list[ABIElement] = []
+
     def __new__(cls, *args, **kwargs):
         return object.__new__(cls)
 
@@ -58,18 +60,25 @@ class ContractService:
     def address(self) -> EthAddress:
         return EthAddress(self.contract.address)
 
+    @staticmethod
+    def __get_known_abis() -> list[ABIElement]:
+        if ContractService._KNOWN_ABIS:
+            return ContractService._KNOWN_ABIS
+
+        ContractService._KNOWN_ABIS = []
+
+        for abi_file in ContractService.abi_dir().glob("*.json"):
+            with open(abi_file, "r", encoding="utf-8") as f:
+                try:
+                    ContractService._KNOWN_ABIS.extend(json.load(f))
+                except json.JSONDecodeError:
+                    continue
+
+        return ContractService._KNOWN_ABIS
+
     def __decode_contract_error_name(self, err: ContractCustomError) -> str:
         def find_error_in_abi(selector: bytes) -> ABIElement | None:
-            known_abis = []
-
-            for abi_file in self.abi_dir().glob("*.json"):
-                with open(abi_file, "r", encoding="utf-8") as f:
-                    try:
-                        known_abis.extend(json.load(f))
-                    except json.JSONDecodeError:
-                        continue
-
-            for item in [i for i in known_abis if i.get("type") == "error"]:
+            for item in [i for i in ContractService.__get_known_abis() if i.get("type") == "error"]:
                 sig = item["name"] + "(" + ",".join(i["type"] for i in item["inputs"]) + ")"
 
                 if self.web3.keccak(text=sig)[:4] == selector:

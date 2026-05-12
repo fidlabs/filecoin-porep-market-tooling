@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# TODO LATER validate is output is always json
 # Simple tool that runs all CLI get commands that requires no user input.
 # Expects process exit code and nothing more.
 # This is not designed to be a comprehensive test suite.
@@ -29,27 +28,31 @@ set +a
   python3 "${CLI_PATH}" admin get-deals --help                                                                      >/dev/null &&
 
   # admin tests
-  python3 "${CLI_PATH}" admin get-deals proposed         >/dev/null &&
-  python3 "${CLI_PATH}" admin get-devnet-sps             >/dev/null &&
-  python3 "${CLI_PATH}" admin get-registered-sps         >/dev/null &&
-  python3 "${CLI_PATH}" admin get-db-sps --help          >/dev/null &&
-  python3 "${CLI_PATH}" admin register-db-sps --help     >/dev/null &&
-  python3 "${CLI_PATH}" admin register-devnet-sps --help >/dev/null &&
+  python3 "${CLI_PATH}" admin get-deals proposed         >/dev/null   &&
+  python3 "${CLI_PATH}" admin get-devnet-sps             >/dev/null   &&
+  python3 "${CLI_PATH}" admin get-registered-sps         >/dev/null   &&
+  python3 "${CLI_PATH}" admin get-db-sps --help          >/dev/null   &&
+  python3 "${CLI_PATH}" admin register-db-sps --help     >/dev/null   &&
+  python3 "${CLI_PATH}" admin register-devnet-sps --help >/dev/null   &&
+  ! (python3 "${CLI_PATH}" admin get-deal    4242 >/dev/null 2>&1)    &&
 
   # client tests
   python3 "${CLI_PATH}" client get-deals rejected                >/dev/null &&
   python3 "${CLI_PATH}" client get-filecoinpay-account           >/dev/null &&
   python3 "${CLI_PATH}" client init-accepted-deals --help        >/dev/null &&
-  python3 "${CLI_PATH}" client deposit-for-all-deals --help      >/dev/null &&
+  python3 "${CLI_PATH}" client deposit-for-deals --help          >/dev/null &&
   python3 "${CLI_PATH}" client propose-deal-from-manifest --help >/dev/null &&
+  python3 "${CLI_PATH}" client deposit-amount --help             >/dev/null &&
+  ! (python3 "${CLI_PATH}" client get-deal    4242 >/dev/null 2>&1)         &&
 
   # sp tests
   python3 "${CLI_PATH}" sp get-deals accepted           >/dev/null &&
   python3 "${CLI_PATH}" sp accept-deal --help           >/dev/null &&
   python3 "${CLI_PATH}" sp reject-deal --help           >/dev/null &&
   python3 "${CLI_PATH}" sp manage-proposed-deals --help >/dev/null &&
-
-  ! (python3 "${CLI_PATH}" sp accept-deal 4242 >/dev/null 2>&1) &&
+  ! (python3 "${CLI_PATH}" sp get-deal    4242 >/dev/null 2>&1)    &&
+  ! (python3 "${CLI_PATH}" sp accept-deal 4242 >/dev/null 2>&1)    &&
+  ! (python3 "${CLI_PATH}" sp reject-deal 4242 >/dev/null 2>&1)    &&
 
   # test keys
 

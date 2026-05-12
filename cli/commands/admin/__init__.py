@@ -1,6 +1,7 @@
 from ._admin import admin, info, wait
 from .block_sp import block_sp
 from .get_db_sps import get_db_sps
+from .get_deals import get_deal
 from .get_deals import get_deals
 from .get_devnet_sps import get_devnet_sps
 from .get_registered_sps import get_registered_sps
@@ -10,6 +11,7 @@ from .terminate_deal import terminate_deal
 from .unblock_sp import unblock_sp
 from .unpause_sp import unpause_sp
 
+admin.add_command(get_deal)
 admin.add_command(terminate_deal)
 admin.add_command(block_sp)
 admin.add_command(unblock_sp)
