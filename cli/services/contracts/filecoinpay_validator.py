@@ -1,5 +1,3 @@
-import os
-
 from eth_account.types import PrivateKeyType
 
 from cli.services.contracts.contract_service import ContractService
@@ -9,7 +7,7 @@ from cli.services.web3_service import EthAddress
 class FileCoinPayValidator(ContractService):
     def __init__(self, contract_address: EthAddress):
         super().__init__(contract_address,
-                         os.path.dirname(os.path.realpath(__file__)) + '/abi/Validator.json')
+                         self.abi_dir() / "Validator.json")
 
     # @notice Creates a payment rail with the specified parameters and set initial lockup period
     # @dev Only callable by the client

@@ -1,5 +1,4 @@
 import enum
-import os
 
 from eth_account.types import PrivateKeyType
 
@@ -124,7 +123,7 @@ class PoRepMarketDealProposal(PoRepMarketDealRequest):
 class PoRepMarket(ContractService):
     def __init__(self, contract_address: EthAddress | None = None):
         super().__init__(contract_address or utils.get_env_required("POREP_MARKET", required_type=EthAddress),
-                         os.path.dirname(os.path.realpath(__file__)) + "/abi/PoRepMarket.json")
+                         self.abi_dir() / "PoRepMarket.json")
 
     # @notice Proposes a deal
     def propose_deal(self, deal: PoRepMarketDealRequest, from_private_key: PrivateKeyType) -> str:

@@ -103,7 +103,7 @@ def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = N
 
     \b
     SOFTWARE - The software to use for claiming allocations.
-    DEAL_ID - The id of the deal to claim allocations for.
+    DEAL_ID - The ID of the deal to claim allocations for.
     """
 
     if software.lower() == "curio":

@@ -13,7 +13,7 @@ def accept_deal(deal_id: int):
     """
     Accept a deal proposal.
 
-    DEAL_ID - The id of the deal proposal to accept.
+    DEAL_ID - The ID of the deal proposal to accept.
     """
 
     Web3Service().wait_for_pending_transactions(sp_address())

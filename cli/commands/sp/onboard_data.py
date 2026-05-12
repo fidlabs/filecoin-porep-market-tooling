@@ -96,7 +96,7 @@ def onboard_data(ctx, deal_id: int, output_dir: str, port: int, host: str | None
     Unknown [OPTIONS] are passed directly to aria2c, allowing for flexible configuration.
     See aria2c --help for available options.
 
-    DEAL_ID - ID of the deal to download pieces for.
+    DEAL_ID - The ID of the deal to download pieces for.
 
     \b
     See https://aria2.github.io/ and https://github.com/aria2/aria2 for more information about aria2 and installation instructions.
