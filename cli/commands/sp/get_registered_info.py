@@ -12,7 +12,7 @@ def get_registered_info(provider_id: str | None = None):
     """
     Get PoRep Market registered info for the SP.
 
-    PROVIDER_ID - Storage Provider id to query. [default: all providers under current SP organization]
+    PROVIDER_ID - Storage Provider ID to query. [default: all providers under current SP organization]
     """
 
     click.echo(utils.json_pretty(

@@ -31,7 +31,7 @@ def _propose_deal_from_manifest(manifest_url: str,
 
     click.echo(f"\nFound {len(pieces)} pieces with size {pieces_size_bytes} bytes "
                f"(= {humanfriendly.format_size(pieces_size_bytes)} = {humanfriendly.format_size(pieces_size_bytes, binary=True)} = "
-               f"{commands_utils.bytes_to_sectors(pieces_size_bytes)} sectors) "
+               f"{utils.bytes_to_sectors(pieces_size_bytes)} sectors) "
                f"(including dag piece)")
 
     # noinspection PyArgumentList
@@ -50,7 +50,7 @@ def _propose_deal_from_manifest(manifest_url: str,
         manifest_location=manifest_url)
 
     Web3Service().wait_for_pending_transactions(client_address())
-    existing_deals = client_utils.get_client_deals()
+    existing_deals = commands_utils.get_client_deals(client_address())
 
     # warn if any of existing client deals looks similar to the new deal proposal
     for existing_deal in existing_deals:

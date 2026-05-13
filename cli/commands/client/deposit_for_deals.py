@@ -1,6 +1,7 @@
 import click
 
 from cli import utils
+from cli.commands import utils as commands_utils
 from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address
 from cli.services.contracts.filecoin_pay import FileCoinPay
@@ -42,7 +43,7 @@ def deposit_for_deals(deal_id: int | None = None, months: int = 1):
 
         deals = [deal]
     else:
-        deals = client_utils.get_client_deals(PoRepMarketDealState.COMPLETED)
+        deals = commands_utils.get_client_deals(client_address(), PoRepMarketDealState.COMPLETED)
         click.echo(f"Found {len(deals)} COMPLETED deal(s) for client address {client_address()}")
 
         if not deals:

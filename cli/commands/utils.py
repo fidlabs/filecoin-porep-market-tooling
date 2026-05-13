@@ -11,15 +11,9 @@ from eth_account.types import PrivateKeyType
 from cli import utils
 from cli._cli import is_dry_run
 from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarketDealProposal, PoRepMarket
-from cli.services.web3_service import EthAddress
+from cli.services.contracts.sp_registry import SPRegistry
+from cli.services.web3_service import EthAddress, ActorId
 from cli.services.web3_service import Web3Service
-
-# TODO LATER take sector size from smart contracts
-SECTOR_SIZE_BYTES = 32 * 1024 ** 3  # 32 GiB
-
-
-def bytes_to_sectors(bytes_size: int) -> float:
-    return bytes_size / SECTOR_SIZE_BYTES
 
 
 def get_all_deals(state: PoRepMarketDealState | str | None = None,
@@ -40,6 +34,34 @@ def get_all_deals(state: PoRepMarketDealState | str | None = None,
 
         if _state:
             result = [deal for deal in result if deal.state == _state]
+
+    return result
+
+
+def get_client_deals(_client_address: EthAddress, state: PoRepMarketDealState | None = None) -> list[PoRepMarketDealProposal]:
+    all_deals = get_all_deals(state)
+    return [deal for deal in all_deals if deal.client_address == _client_address]
+
+
+def get_sp_deals(state: PoRepMarketDealState | None = None,
+                 organization_address: EthAddress | None = None,
+                 provider_id: ActorId | None = None) -> list[PoRepMarketDealProposal]:
+    #
+    if provider_id:
+        assert not organization_address
+
+        try:
+            provider_info = SPRegistry().get_provider_info(provider_id)
+        except RuntimeError:
+            return []
+
+        organization_address = provider_info.organization_address
+
+    assert organization_address
+    result = get_all_deals(state, organization_address)
+
+    if provider_id:
+        result = [deal for deal in result if deal.provider_id == provider_id]
 
     return result
 
