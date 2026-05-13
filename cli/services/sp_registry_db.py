@@ -43,7 +43,7 @@ class SPRegistryDBOrganization:
         db_id = int(data[0])
 
         if any(miner_id is None for miner_id in miner_ids):
-            raise ValueError(f"Invalid miner id in database for db_id {db_id}: {data[2]}")
+            raise ValueError(f"Invalid miner ID in database for db_id {db_id}: {data[2]}")
 
         # noinspection PyArgumentList
         return SPRegistryDBOrganization(

@@ -10,9 +10,9 @@ from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarke
 @click.argument("deal_id", type=click.IntRange(min=0))
 def get_deal(deal_id: int):
     """
-    Get deal by id.
+    Get deal by ID.
 
-    DEAL_ID - Deal id to fetch.
+    DEAL_ID - Deal ID to fetch.
     """
 
     click.echo(PoRepMarket().get_deal_proposal(deal_id))

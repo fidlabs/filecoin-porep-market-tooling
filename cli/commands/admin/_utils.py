@@ -181,7 +181,7 @@ def get_devnet_sps() -> list[SPRegistryProvider]:
     # noinspection PyArgumentList
     return [
         SPRegistryProvider(provider_id=1000,
-                           organization_address="0xD59552F98B877328a247ace2A45b14ffe3dB8E48",
+                           organization_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7",
                            capabilities=SPRegistrySLIThresholds(
                                retrievability_bps=10000,
                                bandwidth_mbps=1000,
@@ -193,7 +193,7 @@ def get_devnet_sps() -> list[SPRegistryProvider]:
                            max_deal_duration_days=1278,
                            payee_address="0x99f063C701a97545B760aD6C2F7F5401850C9F11"),
         SPRegistryProvider(provider_id=1001,
-                           organization_address="0xD59552F98B877328a247ace2A45b14ffe3dB8E48",
+                           organization_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7",
                            capabilities=SPRegistrySLIThresholds(
                                retrievability_bps=8000,
                                bandwidth_mbps=500,
@@ -204,17 +204,17 @@ def get_devnet_sps() -> list[SPRegistryProvider]:
                            price_per_sector_per_month=0,
                            min_deal_duration_days=1,
                            max_deal_duration_days=1278,
-                           payee_address="0xD59552F98B877328a247ace2A45b14ffe3dB8E48"),
+                           payee_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7"),
         SPRegistryProvider(provider_id=1002,
-                           organization_address="0xD59552F98B877328a247ace2A45b14ffe3dB8E48",
+                           organization_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7",
                            capabilities=SPRegistrySLIThresholds(
                                retrievability_bps=5000,
                                bandwidth_mbps=100,
                                latency_ms=500,
                                indexing_pct=50),
                            available_bytes=10 * 1024 * 1024 * 1024,
-                           price_per_sector_per_month=100,
+                           price_per_sector_per_month=0,
                            min_deal_duration_days=1,
                            max_deal_duration_days=1278,
-                           payee_address="0xD59552F98B877328a247ace2A45b14ffe3dB8E48"),
+                           payee_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7"),
     ]

@@ -106,7 +106,7 @@ def onboard_data(ctx, deal_id: int, output_dir: str, port: int, host: str | None
     deal = PoRepMarket().get_deal_proposal(deal_id)
 
     if deal.state != PoRepMarketDealState.COMPLETED:
-        raise click.ClickException(f"Deal id {deal_id} is not in COMPLETED state")
+        raise click.ClickException(f"Deal ID {deal_id} is not in COMPLETED state")
 
     manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False, retries=10)
 
