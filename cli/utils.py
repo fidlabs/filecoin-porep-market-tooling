@@ -61,16 +61,14 @@ def confirm(text: str,
             session_id: str | None = None) -> bool:
     #
     answer = "yes" if session_id and session_id in _confirm_yes_for_all_sessions else None
-    default_answer = "y" if default else "n" if default is False else None
-    valid_answers_labels = ["Yes" if default else "yes", "No" if default is False else "no"] + (["all"] if session_id else [])
-    yes_for_all_answers = ["a", "all"] if session_id else []
-    yes_answers = ["y", "yes"]
-    no_answers = ["n", "no"]
+    default_answer = "yes" if default else "no" if default is False else None
+    yes_for_all_answers = ["all"] if session_id else []
+    yes_answers = ["yes"]
+    no_answers = ["no"]
 
-    answer = confirm_str(text=f"{text} [{'/'.join(valid_answers_labels)}]",
+    answer = confirm_str(text=text,
                          default=default_answer,
                          valid_answers=yes_answers + no_answers + yes_for_all_answers,
-                         show_choices=False,
                          answer=answer).strip().lower()
 
     if answer in no_answers:
@@ -95,7 +93,8 @@ def confirm_str(text: str,
                 valid_answers: list[str] | None = None,
                 prompt_suffix: str = ": ",
                 show_choices: bool = True,
-                answer: str | None = None) -> str:
+                answer: str | None = None,
+                allow_short_answer: bool = True) -> str:
     #
     valid_answers = [_answer.strip().lower() for _answer in valid_answers] if valid_answers else []
     default = default.strip().lower() if default else None
@@ -103,9 +102,18 @@ def confirm_str(text: str,
     if default is not None and valid_answers and default not in valid_answers:
         valid_answers = [default] + valid_answers
 
-    valid_answers_str = [answer.capitalize() if answer == default else answer for answer in valid_answers]
-    valid_answers_str = f" [{'/'.join(valid_answers_str)}]" if valid_answers_str and show_choices else ""
-    text = f"{text}{valid_answers_str}{prompt_suffix}"
+    if allow_short_answer:
+        # pylint: disable=unsubscriptable-object
+        valid_answers_short = {answer[0]: answer for answer in valid_answers}
+
+        if len(valid_answers_short) != len(valid_answers):
+            raise RuntimeError("Short answers are not unique")
+    else:
+        valid_answers_short = {}
+
+    valid_answers_labels = [answer.capitalize() if answer == default else answer for answer in valid_answers]
+    valid_answers_labels = f" [{'/'.join(valid_answers_labels)}]" if valid_answers_labels and show_choices else ""
+    text = f"{text}{valid_answers_labels}{prompt_suffix}"
 
     if answer is not None:
         click.echo(text + answer)
@@ -119,6 +127,8 @@ def confirm_str(text: str,
 
         if not valid_answers or answer in valid_answers:
             return answer
+        if answer in valid_answers_short:
+            return valid_answers_short[answer]
         else:
             continue
 
