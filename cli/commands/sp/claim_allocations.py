@@ -128,7 +128,7 @@ def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = N
     deal = PoRepMarket().get_deal_proposal(deal_id)
     deal_allocations = sp_utils.get_deal_allocations(deal)
 
-    click.echo(f"Found {len(deal_allocations)} allocations for deal id {deal_id}: {utils.json_pretty(deal_allocations)}\n")
+    click.echo(f"Found {len(deal_allocations)} allocations for deal ID {deal_id}: {utils.json_pretty(deal_allocations)}\n")
 
     for allocation in deal_allocations:
         command = build_allocation_command(allocation_id=allocation["allocationId"],

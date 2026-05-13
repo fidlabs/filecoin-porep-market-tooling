@@ -169,7 +169,6 @@ class ContractService:
         try:
             # tx_params.data is sensitive info, should never be logged
             tx_params = transaction.build_transaction({"from": from_address, "nonce": nonce})
-
             _dry_run = is_dry_run()
 
             if not utils.confirm(f"\n== DRY RUN: {_dry_run}\n"

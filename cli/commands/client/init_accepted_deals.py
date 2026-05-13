@@ -31,14 +31,23 @@ def init_accepted_deals(deal_id: int | None = None):
     Web3Service().wait_for_pending_transactions(client_address())
 
     if deal_id is not None:
-        accepted_deals = [PoRepMarket().get_deal_proposal(deal_id)]
+        deal = PoRepMarket().get_deal_proposal(deal_id)
+
+        if deal.client_address != client_address():
+            raise click.ClickException(f"Deal ID {deal_id} client address {deal.client_address} "
+                                       f"does not match with connected client address {client_address()}")
+
+        if deal.state != PoRepMarketDealState.ACCEPTED:
+            raise click.ClickException(f"Deal ID {deal_id} is in state {deal.state} != ACCEPTED")
+
+        accepted_deals = [deal]
     else:
         accepted_deals = commands_utils.get_client_deals(client_address(), PoRepMarketDealState.ACCEPTED)
-        click.echo(f"Found {len(accepted_deals)} accepted deals for client address {client_address()}\n")
+        click.echo(f"Found {len(accepted_deals)} ACCEPTED deals for client address {client_address()}")
 
     for deal in accepted_deals:
         assert deal.deal_id
-        click.echo(f"\nDeal id {deal.deal_id}: {utils.json_pretty(deal)}")
+        click.echo(f"\nDeal ID {deal.deal_id}: {utils.json_pretty(deal)}")
 
         try:
             _deploy_and_set_validator(deal.deal_id)
@@ -57,40 +66,40 @@ def init_accepted_deals(deal_id: int | None = None):
             continue
 
     click.echo("\n\nAll done!")
-    click.echo(f"\nRun {sys.argv[0]} client deposit-for-all-deals to make sure you have enough FileCoinPay funds deposited for all your accepted deals")
+    click.echo(f"\nRun {sys.argv[0]} client deposit-for-deals to make sure you have enough FileCoinPay funds deposited for all your deals.")
 
 
 def _deploy_and_set_validator(deal_id: int):
     deal = PoRepMarket().get_deal_proposal(deal_id)
 
     if deal.client_address != client_address():
-        raise click.ClickException(f"Deal id {deal_id} client address {deal.client_address} does not match from address {client_address()}")
+        raise click.ClickException(f"Deal ID {deal_id} client address {deal.client_address} does not match from address {client_address()}")
 
     if deal.state != PoRepMarketDealState.ACCEPTED:
-        raise click.ClickException(f"Deal id {deal.deal_id} is not in ACCEPTED state")
+        raise click.ClickException(f"Deal ID {deal.deal_id} is not in ACCEPTED state")
 
     if __get_validator_address_for_deal(deal):
-        click.echo(f"\nValidator already set for deal id {deal.deal_id}: {deal.validator_address}")
+        click.echo(f"\nValidator already set for deal ID {deal.deal_id}: {deal.validator_address}")
         return
 
-    utils.confirm(f"\nDeploy and set validator for deal id {deal.deal_id}?", default=True, abort=True)
+    utils.confirm(f"\nDeploy and set validator for deal ID {deal.deal_id}?", default=True, abort=True)
 
     tx_hash = ValidatorFactory().create(deal.deal_id, client_private_key())
-    click.echo(f"Validator deployed for deal id {deal.deal_id}: {tx_hash}")
+    click.echo(f"Validator deployed for deal ID {deal.deal_id}: {tx_hash}")
 
 
 def _deposit_and_approve_operator(deal_id: int):
     deal = PoRepMarket().get_deal_proposal(deal_id)
 
     if not __get_validator_address_for_deal(deal):
-        raise click.ClickException(f"Validator not found for deal id {deal.deal_id}, cannot deposit and approve operator")
+        raise click.ClickException(f"Validator not found for deal ID {deal.deal_id}, cannot deposit and approve operator")
 
     operator_approval = FileCoinPay().get_operator_approval(USDCToken().address(),
                                                             client_address(),
                                                             deal.validator_address)
 
     if operator_approval.is_approved:
-        click.echo(f"\nOperator already approved for deal id {deal.deal_id}: {operator_approval}")
+        click.echo(f"\nOperator already approved for deal ID {deal.deal_id}: {operator_approval}")
         return
 
     token_decimals = USDCToken().decimals()
@@ -108,7 +117,7 @@ def _deposit_and_approve_operator(deal_id: int):
 
     if token_balance < deposit_amount:
         raise click.ClickException(f"Address {client_address()} {token_name} balance {token_balance_str} is "
-                                   f"less than required deposit {deposit_amount_str} {token_name} for deal id {deal.deal_id}")
+                                   f"less than required deposit {deposit_amount_str} {token_name} for deal ID {deal.deal_id}")
 
     # These parameters control operator approval limits in the FileCoinPay contract, not EIP-2612 permits
     # Setting all three to MAX_UINT256 grants the operator unrestricted control over payment rates, fund lockup amounts, and lockup periods
@@ -121,7 +130,7 @@ def _deposit_and_approve_operator(deal_id: int):
     # This code now deposit full deposit_amount for the deal only logging the filecoinpay_available_funds
     # This is intentional
     utils.confirm(
-        f"\nDeposit {deposit_amount_str} {token_name} for deal id {deal.deal_id} from address {client_address()} and approve operator\n"
+        f"\nDeposit {deposit_amount_str} {token_name} for deal ID {deal.deal_id} from address {client_address()} and approve operator\n"
         f"  Current token balance: {token_balance_str} {token_name}\n"
         f"  Current FileCoinPay account available funds: {filecoinpay_available_funds_str} {token_name}\n"
         f"  Operator address: {deal.validator_address}\n"
@@ -145,37 +154,37 @@ def _deposit_and_approve_operator(deal_id: int):
                                                                      max_lockup_period,
                                                                      client_private_key())
 
-    click.echo(f"Deposited {deposit_amount_str} {token_name} and operator approved for deal id {deal.deal_id}: {tx_hash}")
+    click.echo(f"Deposited {deposit_amount_str} {token_name} and operator approved for deal ID {deal.deal_id}: {tx_hash}")
 
 
 def _initialize_rail(deal_id: int):
     deal = PoRepMarket().get_deal_proposal(deal_id)
 
     if not __get_validator_address_for_deal(deal):
-        raise click.ClickException(f"Validator not found for deal id {deal.deal_id}, cannot initialize rail")
+        raise click.ClickException(f"Validator not found for deal ID {deal.deal_id}, cannot initialize rail")
 
     operator_approval = FileCoinPay().get_operator_approval(USDCToken().address(),
                                                             client_address(),
                                                             deal.validator_address)
 
     if not operator_approval.is_approved:
-        raise click.ClickException(f"Operator not approved for deal id {deal.deal_id}, cannot initialize rail")
+        raise click.ClickException(f"Operator not approved for deal ID {deal.deal_id}, cannot initialize rail")
 
     if deal.rail_id:
-        click.echo(f"\nRail already initialized for deal id {deal.deal_id}: {deal.rail_id}")
+        click.echo(f"\nRail already initialized for deal ID {deal.deal_id}: {deal.rail_id}")
         return
 
-    utils.confirm(f"\nInitialize FileCoinPay rail for deal id {deal.deal_id}?", default=True, abort=True)
+    utils.confirm(f"\nInitialize FileCoinPay rail for deal ID {deal.deal_id}?", default=True, abort=True)
 
     tx_hash = FileCoinPayValidator(deal.validator_address).create_rail(USDCToken().address(), client_private_key())
 
-    click.echo(f"FileCoinPay rail initialized for deal id {deal.deal_id}: {tx_hash}")
+    click.echo(f"FileCoinPay rail initialized for deal ID {deal.deal_id}: {tx_hash}")
 
 
 def __get_validator_address_for_deal(deal: PoRepMarketDealProposal) -> str:
     result = ValidatorFactory().get_instance(deal.deal_id)
 
     if result != deal.validator_address:
-        raise click.ClickException(f"Validator address {result} does not match expected {deal.validator_address} for deal id {deal.deal_id}")
+        raise click.ClickException(f"Validator address {result} does not match expected {deal.validator_address} for deal ID {deal.deal_id}")
 
     return result

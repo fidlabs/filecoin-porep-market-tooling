@@ -1,3 +1,5 @@
+import sys
+
 import click
 
 from cli import utils
@@ -33,10 +35,15 @@ def deposit_for_deals(deal_id: int | None = None, months: int = 1):
         click.echo(f"Depositing for deal {deal}\n")
 
         if deal.state == PoRepMarketDealState.ACCEPTED:
-            utils.confirm(f"Deal ID {deal_id} is in state ACCEPTED. You might want to initialize it first. Continue anyway?", abort=True)
+            if deal.rail_id is None or not deal.validator_address:
+                raise click.ClickException(f"Deal not initialized; run {sys.argv[0]} client init-accepted-deals {deal_id} first")
+
+            else:
+                utils.confirm(f"Deal ID {deal_id} is in ACCEPTED state; "
+                              f"you might want to run {sys.argv[0]} client make-allocations {deal_id} first. Continue anyway?", abort=True)
 
         elif deal.state in [PoRepMarketDealState.REJECTED, PoRepMarketDealState.TERMINATED]:
-            raise click.ClickException(f"Deal ID {deal_id} is in state {deal.state}. Cannot deposit for rejected or terminated deals.")
+            raise click.ClickException("Cannot deposit for REJECTED or TERMINATED deals")
 
         elif deal.state != PoRepMarketDealState.COMPLETED:
             utils.confirm(f"Deal ID {deal_id} is in state {deal.state} != COMPLETED. Continue anyway?", abort=True)

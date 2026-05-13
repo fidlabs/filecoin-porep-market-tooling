@@ -13,7 +13,7 @@ def _terminate_completed_deal(deal: PoRepMarketDealProposal) -> str:
 
     validator_address = ValidatorFactory().get_instance(deal.deal_id)
     if validator_address != deal.validator_address:
-        raise click.ClickException(f"Validator address {validator_address} does not match expected {deal.validator_address} for deal id {deal.deal_id}")
+        raise click.ClickException(f"Validator address {validator_address} does not match expected {deal.validator_address} for deal ID {deal.deal_id}")
 
     return FileCoinPayValidator(deal.validator_address).terminate_rail(deal.rail_id, admin_private_key())
 
@@ -50,13 +50,13 @@ def terminate_deal(deal_id: int):
 
     Web3Service().wait_for_pending_transactions(admin_address())
     deal = PoRepMarket().get_deal_proposal(deal_id)
-    utils.confirm(f"Terminating deal id {deal.deal_id}: {deal}", abort=True)
+    utils.confirm(f"Terminating deal ID {deal.deal_id}: {deal}", abort=True)
 
     if deal.state == PoRepMarketDealState.COMPLETED:
         tx_hash = _terminate_completed_deal(deal)
     elif deal.state == PoRepMarketDealState.ACCEPTED:
         tx_hash = _terminate_accepted_deal(deal)
     else:
-        raise click.ClickException(f"Deal id {deal_id} is not in a state that can be terminated")
+        raise click.ClickException(f"Deal ID {deal_id} is not in a state that can be terminated")
 
-    click.echo(f"Deal id {deal.deal_id} terminated: {tx_hash}")
+    click.echo(f"Deal ID {deal.deal_id} terminated: {tx_hash}")

@@ -19,7 +19,8 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
 
         if utils.confirm(f"Updating (max_deal_duration_days, min_deal_duration_days) for Storage Provider {provider.provider_id}: "
                          f"{_different_parameters}",
-                         default=True):
+                         default=True,
+                         session_id=f"update-{provider.provider_id}"):
             #
             tx_hash = SPRegistry().set_deal_duration_limits(provider.provider_id,
                                                             provider.min_deal_duration_days,
@@ -34,7 +35,8 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
     if provider.price_per_sector_per_month != registered_info.price_per_sector_per_month:
         if utils.confirm(f"Updating price_per_sector_per_month for Storage Provider {provider.provider_id}: "
                          f"{different_parameters['price_per_sector_per_month']}",
-                         default=True):
+                         default=True,
+                         session_id=f"update-{provider.provider_id}"):
             #
             tx_hash = SPRegistry().set_price(provider.provider_id,
                                              provider.price_per_sector_per_month,
@@ -48,7 +50,8 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
     if provider.capabilities != registered_info.capabilities:
         if utils.confirm(f"\nUpdating capabilities for Storage Provider {provider.provider_id}: "
                          f"{utils.json_pretty(different_parameters['capabilities'])}",
-                         default=True):
+                         default=True,
+                         session_id=f"update-{provider.provider_id}"):
             #
             tx_hash = SPRegistry().set_capabilities(provider.provider_id,
                                                     provider.capabilities,
@@ -62,7 +65,8 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
     if provider.payee_address != registered_info.payee_address:
         if utils.confirm(f"Updating payee_address for Storage Provider {provider.provider_id}: "
                          f"{different_parameters['payee_address']}",
-                         default=True):
+                         default=True,
+                         session_id=f"update-{provider.provider_id}"):
             #
             tx_hash = SPRegistry().set_payee(provider.provider_id,
                                              provider.payee_address,
@@ -76,7 +80,8 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
     if provider.available_bytes != registered_info.available_bytes:
         if utils.confirm(f"Updating available_bytes for Storage Provider {provider.provider_id}: "
                          f"{different_parameters['available_bytes']}",
-                         default=True):
+                         default=True,
+                         session_id=f"update-{provider.provider_id}"):
             #
             tx_hash = SPRegistry().update_available_space(provider.provider_id,
                                                           provider.available_bytes,
@@ -106,7 +111,7 @@ def _register_sps(providers: list[SPRegistryProvider]):
                                     getattr(registered_info, k) != getattr(provider, k)}
 
             if not different_parameters:
-                click.echo(f"Provider {provider.provider_id} already registered with same parameters, skipping...")
+                click.echo(f"Provider {provider.provider_id} already registered with same parameters")
                 continue
 
             if provider.organization_address != registered_info.organization_address:
@@ -117,7 +122,7 @@ def _register_sps(providers: list[SPRegistryProvider]):
 
             if not utils.confirm(f"\nProvider {provider.provider_id} already registered with different parameters\n"
                                  f"Do you want to update Storage Provider {provider.provider_id} parameters?\n"
-                                 f"{utils.json_pretty(different_parameters)}"):
+                                 f"{utils.json_pretty(different_parameters)}", session_id="update-provider"):
                 #
                 click.echo("Skipped this provider")
                 continue
@@ -127,7 +132,7 @@ def _register_sps(providers: list[SPRegistryProvider]):
         else:
             # register Storage Provider with given parameters
 
-            if not utils.confirm(f"\nRegistering Storage Provider with parameters: {provider}", default=True):
+            if not utils.confirm(f"\nRegistering Storage Provider with parameters: {provider}", default=True, session_id="register-provider"):
                 click.echo("Skipped this provider")
                 continue
 
@@ -163,7 +168,7 @@ def register_db_sps(db_url: str,
     1. Fetch and print SPs from SPRegistry database,
     2. register them one by one on-chain via SPRegistry contract.
 
-    DB_ID - SPRegistry database organization id to register SPs from.
+    DB_ID - SPRegistry database organization ID to register SPs from.
     """
 
     _register_sps(admin_utils.get_db_sps(db_url,

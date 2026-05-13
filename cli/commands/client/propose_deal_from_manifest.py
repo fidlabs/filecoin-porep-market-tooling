@@ -13,7 +13,7 @@ from cli.services.web3_service import Web3Service
 
 # TODO LATER propose for multiple manifests + state, retry
 # TODO LATER validate params here?
-# TODO LATER print proposed deal at the end? where do we get deal id from? events only?
+# TODO LATER print proposed deal at the end? where do we get deal ID from? events only?
 def _propose_deal_from_manifest(manifest_url: str,
                                 retrievability_bps: int,
                                 bandwidth_mbps: int,

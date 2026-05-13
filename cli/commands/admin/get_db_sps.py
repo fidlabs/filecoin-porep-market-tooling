@@ -26,7 +26,7 @@ def get_db_sps(db_url: str,
     """
     Get SPs from SPRegistry database.
 
-    DB_ID - SPRegistry database organization id to fetch SPs from. [default: SPs from all organizations eligible for registration]
+    DB_ID - SPRegistry database organization ID to fetch SPs from. [default: SPs from all organizations eligible for registration]
     """
 
     click.echo(utils.json_pretty(

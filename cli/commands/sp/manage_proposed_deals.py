@@ -23,11 +23,11 @@ def manage_proposed_deals(action: str | None = None, provider_id: str | None = N
                                         sp_organization_address() if not provider_id else None,
                                         ActorId(provider_id) if provider_id else None)
 
-    click.echo(f"Found {len(deals)} proposed deals for "
-               f"{'provider ID' + provider_id if provider_id else 'organization address ' + sp_organization_address()}.\n")
+    click.echo(f"Found {len(deals)} PROPOSED deal(s) for "
+               f"{'provider ID ' + provider_id if provider_id else 'organization address ' + sp_organization_address()}")
 
     for deal in deals:
-        answer = action or utils.confirm_str(f"\nNew deal id {deal.deal_id}: {deal}",
+        answer = action or utils.confirm_str(f"\nNew deal ID {deal.deal_id}: {deal}",
                                              valid_answers=["accept", "reject", "skip"],
                                              default="skip")
 
@@ -50,4 +50,4 @@ def manage_proposed_deals(action: str | None = None, provider_id: str | None = N
             click.echo("\nSkipped this deal.")
             continue
 
-    click.echo("\n\nAll done!")
+    click.echo("\nAll done!")
