@@ -2,7 +2,6 @@ import click
 import humanfriendly
 
 from cli import utils
-from cli.commands import utils as commands_utils
 from cli.services.contracts.porep_market import PoRepMarket
 from cli.services.contracts.sp_registry import SPRegistryProvider, SPRegistrySLIThresholds
 from cli.services.contracts.usdc_token import USDCToken
@@ -64,7 +63,7 @@ def get_db_sps(db_url: str,
             raise ValueError(f"Unsupported payment type: {payment_types}")
 
         price_per_tib = utils.to_wei(price_per_tib_tokens, USDCToken().decimals())
-        sectors_per_tib = 1024 ** 4 // commands_utils.SECTOR_SIZE_BYTES
+        sectors_per_tib = 1024 ** 4 // utils.SECTOR_SIZE_BYTES
         result = price_per_tib / sectors_per_tib
 
         if result != int(result):
@@ -107,7 +106,7 @@ def get_db_sps(db_url: str,
                     f"which exceeds the SPRegistry contract limit of {max_deal_duration_days_limit} days. It will be truncated to {max_deal_duration_days}. "
                     f"Return SPs from this organization?",
                     default=True,
-                    session_id="get-db-sps-invalid-deal-duration"):
+                    session_id="get-db-sps"):
                 continue
         else:
             max_deal_duration_days = months_to_days(org.deal_duration_max_months)
@@ -121,7 +120,7 @@ def get_db_sps(db_url: str,
                     f"which is below the SPRegistry contract minimum of {min_deal_duration_days} days. It will be increased to this value. "
                     f"Return SPs from this organization?",
                     default=True,
-                    session_id="get-db-sps-invalid-deal-duration"):
+                    session_id="get-db-sps"):
                 continue
         else:
             min_deal_duration_days = months_to_days(org.deal_duration_min_months)
@@ -142,7 +141,7 @@ def get_db_sps(db_url: str,
                                  f"to EVM 0x-address {organization_address}. "
                                  f"Return SPs from this organization?",
                                  default=True,
-                                 session_id="get-db-sps-converted-filecoin-address"):
+                                 session_id="get-db-sps"):
                 continue
         else:
             organization_address = org.organization_address

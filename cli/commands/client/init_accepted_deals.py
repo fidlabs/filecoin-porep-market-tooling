@@ -3,6 +3,7 @@ import sys
 import click
 
 from cli import utils
+from cli.commands import utils as commands_utils
 from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address, client_private_key
 from cli.services.contracts.filecoin_pay import FileCoinPay
@@ -32,7 +33,7 @@ def init_accepted_deals(deal_id: int | None = None):
     if deal_id is not None:
         accepted_deals = [PoRepMarket().get_deal_proposal(deal_id)]
     else:
-        accepted_deals = client_utils.get_client_deals(PoRepMarketDealState.ACCEPTED)
+        accepted_deals = commands_utils.get_client_deals(client_address(), PoRepMarketDealState.ACCEPTED)
         click.echo(f"Found {len(accepted_deals)} accepted deals for client address {client_address()}\n")
 
     for deal in accepted_deals:

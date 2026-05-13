@@ -6,24 +6,18 @@ from eth_account.datastructures import SignedMessage
 from web3.auto import w3
 
 from cli import utils
-from cli.commands import utils as commands_utils
 from cli.commands.client._client import client_address, client_private_key
 from cli.services.contracts.filecoin_pay import FileCoinPay
-from cli.services.contracts.porep_market import PoRepMarketDealProposal, PoRepMarketDealState, PoRepMarketDealRequest
+from cli.services.contracts.porep_market import PoRepMarketDealRequest
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.web3_service import Web3Service
-
-
-def get_client_deals(state: PoRepMarketDealState | None = None) -> list[PoRepMarketDealProposal]:
-    all_deals = commands_utils.get_all_deals(state=state)
-    return [deal for deal in all_deals if deal.client_address == client_address()]
 
 
 def calculate_deposit_amount_for_deal(deal: PoRepMarketDealRequest, deposit_for_months: int = 1) -> int:
     if deposit_for_months < 0:
         raise RuntimeError("deposit_for_months must be >= 0")
 
-    deal_size_sectors = commands_utils.bytes_to_sectors(deal.terms.deal_size_bytes)
+    deal_size_sectors = utils.bytes_to_sectors(deal.terms.deal_size_bytes)
     result = deal_size_sectors * deal.terms.price_per_sector_per_month * deposit_for_months
 
     if result != ceil(result):
