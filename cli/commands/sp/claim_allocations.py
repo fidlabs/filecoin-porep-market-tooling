@@ -4,7 +4,7 @@ from pathlib import Path
 import click
 
 from cli import utils
-from cli.commands.sp import _utils as sp_utils
+from cli.commands import utils as commands_utils
 from cli.services.contracts.client_contract import ClientContract
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealProposal, PoRepMarketDealState
 from cli.services.web3_service import FilAddress
@@ -130,14 +130,13 @@ def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = N
     if deal.state != PoRepMarketDealState.COMPLETED:
         raise click.ClickException(f"Deal ID {deal_id} is in state {deal.state} != COMPLETED")
 
-    deal_allocations = sp_utils.get_deal_allocations(deal)
-    deal_claims = sp_utils.get_deal_claims(deal)
+    deal_allocations = commands_utils.get_deal_allocations(deal)
+    deal_claims = commands_utils.get_deal_claims(deal)
 
-    allocations_claimed = {allocation_id: alloc for allocation_id, alloc in deal_allocations.items() if int(allocation_id) in deal_claims}
-    allocations_not_claimed = {allocation_id: alloc for allocation_id, alloc in deal_allocations.items() if int(allocation_id) not in deal_claims}
+    allocations_not_claimed = {allocation_id: alloc for allocation_id, alloc in deal_allocations.items() if str(allocation_id) not in deal_claims}
 
     click.echo(f"Found {len(deal_allocations)} allocations and {len(deal_claims)} claims for deal ID {deal_id}")
-    click.echo(f"{len(allocations_claimed)} allocations already claimed " + f"{len(allocations_not_claimed)} not claimed")
+    click.echo(f"{len(allocations_not_claimed)} allocations not claimed")
 
     if not allocations_not_claimed:
         return

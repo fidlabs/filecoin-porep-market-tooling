@@ -44,29 +44,31 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
     if deal.rail_id == 0:
         raise click.ClickException(f"Deal ID {deal_id} does not have a FileCoinPay rail set")
 
-    manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False)
+    if not deal.validator_address:
+        raise click.ClickException(f"Deal ID {deal_id} does not have a validator set")
+
+    deal_allocations = commands_utils.get_deal_allocations(deal)
+    deal_claims = commands_utils.get_deal_claims(deal)
+
+    click.echo(f"Found {len(deal_allocations)} allocations already made and {len(deal_claims)} claims for deal ID {deal_id}")
+
+    if deal_claims:
+        raise RuntimeError("Some allocations claimed but deal still in ACCEPTED state")
+
+    manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False, quiet=True)
     pieces = manifest[0]["pieces"]
-    client_contract = ClientContract()
 
     if exclude_dag:
         pieces = [piece for piece in pieces if piece["pieceType"] != "dag"]
 
-    deal_allocations = client_contract.get_client_allocation_ids_per_deal(deal_id)
-    state_allocations = Web3Service().state_get_allocations(client_contract.address().to_actor_id())
+    cids_allocated = [alloc.get("Data", {}).get("/") for alloc in [*deal_allocations.values(), *deal_claims.values()]]
+    pieces_not_allocated = [piece for piece in pieces if piece["pieceCid"] not in cids_allocated]
+    batches = _batch_pieces(pieces_not_allocated)
 
-    pieces_allocated = commands_utils.match_deal_allocations(pieces, state_allocations, deal_allocations)
-    click.echo(f"\nFound {len(pieces_allocated)} already allocated pieces" + (f": {utils.json_pretty(pieces_allocated)}" if pieces_allocated else ""))
+    if not pieces_not_allocated:
+        raise RuntimeError("All pieces allocated but deal still in ACCEPTED state")
 
-    cids_allocated = [alloc.get("Data", {}).get("/") for allocation_id, alloc in state_allocations.items() if
-                      int(allocation_id) in deal_allocations]
-    pieces = [piece for piece in pieces if piece["pieceCid"] not in cids_allocated]
-    batches = _batch_pieces(pieces)
-
-    if not pieces:
-        # TODO can we handle this case better?
-        raise RuntimeError("All pieces allocated but deal not marked as completed")
-
-    utils.confirm(f"Continue with allocation of remaining {len(pieces)} pieces in {len(batches)} batches?", default=True, abort=True)
+    utils.confirm(f"Continue with allocation of remaining {len(pieces_not_allocated)} pieces in {len(batches)} batches?", default=True, abort=True)
 
     term_min = deal.terms.duration_days * EPOCHS_PER_DAY
     term_max = term_min + 40 * EPOCHS_PER_DAY  # + 40 days
@@ -105,7 +107,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
         if print_only:
             click.echo(f"to={params.to[0].hex()}  amount={params.amount[0].hex()}  operator_data={params.operator_data.hex()}   is_completed={is_completed}")
         else:
-            tx_hash = client_contract.transfer(params, deal_id, is_completed, client_private_key())
+            tx_hash = ClientContract().transfer(params, deal_id, is_completed, client_private_key())
             click.echo(f"params: {params}, tx={tx_hash}, deal_completed={is_completed}")
 
             if tx_hash == Web3Service.ZERO_TX_HASH:
