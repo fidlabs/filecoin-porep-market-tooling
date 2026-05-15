@@ -23,9 +23,9 @@ DATACAP_DECIMALS = 18
               help="Exclude manifest DAG piece. Default is to include it.  [default: False]")
 def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool = False):
     """
-    Interactively make DDO allocations for accepted deal in batches (groups).
+    Interactively make DDO allocations for an accepted deal in batches (groups).
 
-    DEAL_ID: ID of the deal to transfer DataCap for.
+    DEAL_ID: ID of the deal to make DDO allocations for.
 
     \b
     1. Fetch deal proposal and manifest for the given DEAL_ID,
