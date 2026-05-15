@@ -91,6 +91,21 @@ set +a
   ADMIN_PRIVATE_KEY="" \
     python3 "${CLI_PATH}" admin get-deals >/dev/null &&
 
+  # sp auto-onboard script
+  readonly AUTO_ONBOARD_SCRIPT="${SCRIPT_DIR}/../../scripts/sp_auto_onboard.py"
+  readonly AUTO_ONBOARD_TMP="${SCRIPT_DIR}/.tmp_auto_onboard"
+
+  python3 "${AUTO_ONBOARD_SCRIPT}" --help >/dev/null &&
+  mkdir -p "${AUTO_ONBOARD_TMP}" &&
+  python3 "${AUTO_ONBOARD_SCRIPT}" \
+    --software curio \
+    --download-dir "${AUTO_ONBOARD_TMP}" \
+    --organization "${SP_ORGANIZATION}" \
+    --min-block 999999999999 \
+    --once >/dev/null &&
+
+  python3 -m unittest discover -s "${SCRIPT_DIR}" -p 'test_sp_auto_onboard.py' -v >/dev/null &&
+
   echo "All tests passed"
 ) || {
   echo "Error: CLI test failed: expected different exit code" >&2

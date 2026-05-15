@@ -5,6 +5,7 @@
 .env
 .env.devnet
 logs/
+cli/tests/.tmp_auto_onboard/
 
 mypy.ini
 

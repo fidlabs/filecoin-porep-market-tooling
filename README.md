@@ -157,6 +157,111 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
     python3 ./porep_tooling_cli.py sp --help
     ```
 
+## Automated SP onboarding
+
+For storage providers who want to poll for completed deals and onboard them without running each CLI step by hand, use `scripts/sp_auto_onboard.py`.
+
+The script:
+
+- Checks for **COMPLETED** deals for your organization on a schedule (default: every hour)
+- Skips deals already recorded in a **local state file** (the on-chain contract has no `ONBOARDED` state)
+- Skips deals proposed before a cutoff you configure (`--min-date` or `--min-block`)
+- Downloads `.car` files (same flow as `sp onboard-data`), claims allocations via **curio** or **boost**, then deletes downloaded files
+
+The interactive CLI commands (`sp onboard-data`, `sp claim-allocations`) still prompt for confirmation. The automation script does not.
+
+### Prerequisites
+
+Same as the manual SP workflow above, plus:
+
+- `SP_ORGANIZATION` in `.env` (or pass `--organization`)
+- **aria2** installed (`ARIA2C_PATH` if not on `PATH`)
+- **curio** or **boostd** installed and configured (`CURIO_PATH` / `BOOSTD_PATH`)
+- Enough disk space under `--download-dir` for one deal at a time (files are removed after each successful onboard)
+
+### Quick start
+
+```bash
+# Curio: run continuously, check every hour
+python3 scripts/sp_auto_onboard.py \
+  --software curio \
+  --download-dir /data/porep-downloads \
+  --min-date 2025-06-01
+
+# Boost: same, but uses boostd import-direct (expects {cid}.car layout; the script creates symlinks)
+python3 scripts/sp_auto_onboard.py \
+  --software boost \
+  --download-dir /data/porep-downloads \
+  --min-date 2025-06-01
+
+# Single run (e.g. cron every hour)
+python3 scripts/sp_auto_onboard.py \
+  --software curio \
+  --download-dir /data/porep-downloads \
+  --min-date 2025-06-01 \
+  --once
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--software curio\|boost` | Onboarding backend (required) |
+| `--download-dir` | Directory for temporary downloads (required) |
+| `--organization` | SP organization address (default: `SP_ORGANIZATION` from `.env`) |
+| `--min-date` | Ignore deals proposed before this UTC date (ISO-8601, e.g. `2025-06-01`) |
+| `--min-block` | Same cutoff by chain block number (`proposed_at_block`; overrides `--min-date` if both set) |
+| `--state-file` | Path to onboarded-deals JSON (default: `<download-dir>/.onboarded_deals.json`) |
+| `--interval` | Seconds between checks when not using `--once` (default: `3600`) |
+| `--once` | Run one cycle and exit |
+| `--provider-id` | Only process deals for this Filecoin miner actor id |
+| `--manifest-host` / `--manifest-port` | Override download host/port (default: host from manifest URL, port `7777`) |
+| `-v` / `--verbose` | Debug logging |
+
+### Local state file
+
+Successfully onboarded deals are recorded so the script does not retry them:
+
+```json
+{
+  "onboarded_deals": {
+    "42": {
+      "onboarded_at": "2026-05-15T12:00:00Z",
+      "software": "curio",
+      "provider_id": 12345
+    }
+  }
+}
+```
+
+Only deals where **all** allocations were claimed are saved. Failed runs are not recorded and will be retried on the next cycle.
+
+To force re-processing a deal, remove its entry from the state file.
+
+### systemd example
+
+```ini
+[Unit]
+Description=PoRep Market SP auto-onboard
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/path/to/filecoin-porep-market-tooling
+EnvironmentFile=/path/to/filecoin-porep-market-tooling/.env
+ExecStart=/usr/bin/python3 scripts/sp_auto_onboard.py \
+  --software curio \
+  --download-dir /data/porep-downloads \
+  --min-date 2025-06-01 \
+  --interval 3600
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Alternatively, use `--once` with a timer or cron job instead of a long-running service.
+
 ## Developing new CLI commands
 
 - See files in `cli/commands` for examples of how to implement new commands.
