@@ -26,6 +26,43 @@ class FileCoinPayAccount:
 
 
 @utils.json_dataclass()
+class FileCoinPayRail:
+    token: EthAddress
+    from_address: EthAddress
+    to: EthAddress
+    operator: EthAddress
+    validator: EthAddress
+    payment_rate: int
+    lockup_period: int
+    lockup_fixed: int
+    settled_up_to: int
+    end_epoch: int
+    commission_rate_bps: int
+    service_fee_recipient: EthAddress
+
+    @staticmethod
+    def from_web3(data) -> "FileCoinPayRail":
+        # noinspection PyArgumentList
+        return FileCoinPayRail(
+            token=EthAddress(data[0]),
+            from_address=EthAddress(data[1]),
+            to=EthAddress(data[2]),
+            operator=EthAddress(data[3]),
+            validator=EthAddress(data[4]),
+            payment_rate=int(data[5]),
+            lockup_period=int(data[6]),
+            lockup_fixed=int(data[7]),
+            settled_up_to=int(data[8]),
+            end_epoch=int(data[9]),
+            commission_rate_bps=int(data[10]),
+            service_fee_recipient=EthAddress(data[11]),
+        )
+
+    def is_onchain(self) -> bool:
+        return self.payment_rate > 0
+
+
+@utils.json_dataclass()
 class FileCoinPayOperatorApproval:
     is_approved: bool
     rate_allowance: int
@@ -138,3 +175,6 @@ class FileCoinPay(ContractService):
     # The self-balance collects network fees
     def get_account(self, token: EthAddress, owner: EthAddress) -> FileCoinPayAccount:
         return FileCoinPayAccount.from_web3(self.contract.functions.accounts(token, owner).call())
+
+        return FileCoinPayRail.from_web3(self.contract.functions.getRail(rail_id).call())
+    def get_rail(self, rail_id: int) -> FileCoinPayRail:

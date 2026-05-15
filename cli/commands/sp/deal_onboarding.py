@@ -10,6 +10,7 @@ from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.sp import _utils as sp_utils
 from cli.services.contracts.client_contract import ClientContract
+from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealProposal, PoRepMarketDealState
 from cli.services.web3_service import FilAddress, Web3Service
 
@@ -309,3 +310,27 @@ def deal_meets_min_block(deal: PoRepMarketDealProposal, min_block: int | None) -
         return True
 
     return deal.proposed_at_block >= min_block
+
+
+def deal_onchain_status(deal: PoRepMarketDealProposal) -> tuple[bool, int]:
+    """
+    Return whether the deal is on-chain and its rail payment rate per epoch.
+
+    A deal is on-chain when its Filecoin Pay rail has a non-zero payment rate (same as
+    synapse.payments.getRail().paymentRate).
+    """
+    if deal.rail_id == 0:
+        return False, 0
+
+    try:
+        rail = FileCoinPay().get_rail(deal.rail_id)
+    except Exception:
+        logger.warning("Failed to read Filecoin Pay rail %s for deal %s", deal.rail_id, deal.deal_id, exc_info=True)
+        return False, 0
+
+    return rail.is_onchain(), rail.payment_rate
+
+
+def deal_is_onchain(deal: PoRepMarketDealProposal) -> bool:
+    onchain, _payment_rate = deal_onchain_status(deal)
+    return onchain

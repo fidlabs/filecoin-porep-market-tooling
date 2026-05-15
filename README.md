@@ -164,7 +164,8 @@ For storage providers who want to poll for completed deals and onboard them with
 The script:
 
 - Checks for **COMPLETED** deals for your organization on a schedule (default: every hour)
-- Skips deals already recorded in a **local state file** (the on-chain contract has no `ONBOARDED` state)
+- Skips deals that are already **on-chain**: Filecoin Pay rail `paymentRate` per epoch is non-zero (same as `synapse.payments.getRail({ railId }).paymentRate`)
+- Optionally writes a **local cache** of the last chain read (safe to delete; not used as the source of truth)
 - Skips deals proposed before a cutoff you configure (`--min-date` or `--min-block`)
 - Downloads `.car` files (same flow as `sp onboard-data`), claims allocations via **curio** or **boost**, then deletes downloaded files
 
@@ -211,32 +212,34 @@ python3 scripts/sp_auto_onboard.py \
 | `--organization` | SP organization address (default: `SP_ORGANIZATION` from `.env`) |
 | `--min-date` | Ignore deals proposed before this UTC date (ISO-8601, e.g. `2025-06-01`) |
 | `--min-block` | Same cutoff by chain block number (`proposed_at_block`; overrides `--min-date` if both set) |
-| `--state-file` | Path to onboarded-deals JSON (default: `<download-dir>/.onboarded_deals.json`) |
+| `--cache-file` | Path to on-chain status cache JSON (default: `<download-dir>/.onboard_cache.json`) |
 | `--interval` | Seconds between checks when not using `--once` (default: `3600`) |
 | `--once` | Run one cycle and exit |
 | `--provider-id` | Only process deals for this Filecoin miner actor id |
 | `--manifest-host` / `--manifest-port` | Override download host/port (default: host from manifest URL, port `7777`) |
 | `-v` / `--verbose` | Debug logging |
 
-### Local state file
+### On-chain skip condition and local cache
 
-Successfully onboarded deals are recorded so the script does not retry them:
+Before onboarding, the script reads each deal's Filecoin Pay rail (via `deal.rail_id` on PoRep Market). If `paymentRate > 0`, the deal is treated as on-chain and is not downloaded or claimed again.
+
+An optional cache file records the last chain check per deal (for logging and fewer redundant reads). It is rebuilt from chain state each cycle:
 
 ```json
 {
-  "onboarded_deals": {
+  "deals": {
     "42": {
-      "onboarded_at": "2026-05-15T12:00:00Z",
-      "software": "curio",
-      "provider_id": 12345
+      "provider_id": 12345,
+      "onchain": true,
+      "rail_id": 7,
+      "payment_rate": "56500",
+      "checked_at": "2026-05-15T12:00:00Z"
     }
   }
 }
 ```
 
-Only deals where **all** allocations were claimed are saved. Failed runs are not recorded and will be retried on the next cycle.
-
-To force re-processing a deal, remove its entry from the state file.
+Failed runs are retried on the next cycle unless the deal is already on-chain. To force a re-check, delete the cache file or wait for the next cycle (skipping always uses a fresh chain read).
 
 ### systemd example
 

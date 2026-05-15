@@ -2,8 +2,8 @@
 """
 Periodically onboard COMPLETED PoRep Market deals for a storage provider.
 
-Tracks successfully onboarded deals in a local JSON state file because the
-on-chain contract has no ONBOARDED deal state.
+Skips deals that are already on-chain: a Filecoin Pay rail with non-zero payment rate
+per epoch (same signal as synapse.payments.getRail().paymentRate).
 """
 
 from __future__ import annotations
@@ -51,9 +51,14 @@ def _parse_args() -> argparse.Namespace:
         help="Directory where deal .car files are downloaded before onboarding.",
     )
     parser.add_argument(
+        "--cache-file",
+        type=Path,
+        help="JSON cache of last-known on-chain deal status (default: <download-dir>/.onboard_cache.json).",
+    )
+    parser.add_argument(
         "--state-file",
         type=Path,
-        help="JSON file tracking onboarded deal IDs (default: <download-dir>/.onboarded_deals.json).",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--min-date",
@@ -96,6 +101,16 @@ def _parse_args() -> argparse.Namespace:
         help="Enable debug logging.",
     )
     return parser.parse_args()
+
+
+def _resolve_cache_path(args: argparse.Namespace, download_dir: Path) -> Path:
+    if args.cache_file is not None:
+        return args.cache_file.resolve()
+
+    if args.state_file is not None:
+        return args.state_file.resolve()
+
+    return (download_dir / ".onboard_cache.json").resolve()
 
 
 def _resolve_min_block(args: argparse.Namespace) -> int | None:
@@ -152,12 +167,35 @@ def _cleanup_deal_dir(deal_dir: Path, deal_id: int, manifest: list[dict] | None)
         logging.exception("Failed to clean up files for deal %s in %s", deal_id, deal_dir)
 
 
+def _refresh_deal_onchain_status(deal, cache) -> bool:
+    from cli.commands.sp import deal_onboarding
+
+    onchain, payment_rate = deal_onboarding.deal_onchain_status(deal)
+
+    cache.update_deal(
+        deal.deal_id,
+        provider_id=int(deal.provider_id),
+        onchain=onchain,
+        rail_id=int(deal.rail_id),
+        payment_rate=payment_rate,
+    )
+
+    if onchain:
+        logging.info(
+            "Deal %s is on-chain (rail_id=%s, payment_rate=%s); skipping",
+            deal.deal_id,
+            deal.rail_id,
+            payment_rate,
+        )
+
+    return onchain
+
+
 def _process_deal(
     deal,
     *,
     software: str,
     download_dir: Path,
-    state,
     min_block: int | None,
     manifest_host: str | None,
     manifest_port: int,
@@ -165,11 +203,6 @@ def _process_deal(
     from cli.commands.sp import deal_onboarding
 
     deal_id = deal.deal_id
-
-    if state.is_onboarded(deal_id):
-        logging.info("Deal %s already onboarded (local state); skipping", deal_id)
-        return False
-
     deal_dir = download_dir / f"deal_{deal_id}"
     boost_cars_dir = deal_dir / "boost_cars"
     manifest: list[dict] | None = None
@@ -197,7 +230,6 @@ def _process_deal(
             interactive=False,
         )
 
-        state.mark_onboarded(deal_id, software=software, provider_id=int(deal.provider_id))
         logging.info("Deal %s onboarded successfully", deal_id)
         return True
 
@@ -210,10 +242,10 @@ def _process_deal(
             _cleanup_deal_dir(deal_dir, deal_id, manifest)
 
 
-def run_cycle(args: argparse.Namespace) -> tuple[int, int]:
+def run_cycle(args: argparse.Namespace) -> tuple[int, int, int]:
     from cli.commands import utils as commands_utils
     from cli.commands.sp import deal_onboarding
-    from cli.commands.sp.onboard_state import OnboardState
+    from cli.commands.sp.onboard_state import DealOnboardCache
     from cli.services.contracts.porep_market import PoRepMarketDealState
 
     organization = _resolve_organization(args.organization)
@@ -221,8 +253,8 @@ def run_cycle(args: argparse.Namespace) -> tuple[int, int]:
     download_dir = args.download_dir.resolve()
     download_dir.mkdir(parents=True, exist_ok=True)
 
-    state_path = (args.state_file or (download_dir / ".onboarded_deals.json")).resolve()
-    state: OnboardState = OnboardState.load(state_path)
+    cache_path = _resolve_cache_path(args, download_dir)
+    cache: DealOnboardCache = DealOnboardCache.load(cache_path)
 
     deals = commands_utils.get_all_deals(PoRepMarketDealState.COMPLETED, organization)
 
@@ -232,18 +264,20 @@ def run_cycle(args: argparse.Namespace) -> tuple[int, int]:
     deals.sort(key=lambda deal: deal.deal_id)
 
     logging.info(
-        "Found %s completed deal(s) for organization %s (min_block=%s, state_file=%s)",
+        "Found %s completed deal(s) for organization %s (min_block=%s, cache_file=%s)",
         len(deals),
         organization,
         min_block,
-        state_path,
+        cache_path,
     )
 
     processed = 0
     onboarded = 0
+    skipped_onchain = 0
 
     for deal in deals:
-        if state.is_onboarded(deal.deal_id):
+        if _refresh_deal_onchain_status(deal, cache):
+            skipped_onchain += 1
             continue
 
         if not deal_onboarding.deal_meets_min_block(deal, min_block):
@@ -260,14 +294,14 @@ def run_cycle(args: argparse.Namespace) -> tuple[int, int]:
             deal,
             software=args.software,
             download_dir=download_dir,
-            state=state,
             min_block=min_block,
             manifest_host=args.manifest_host,
             manifest_port=args.manifest_port,
         ):
             onboarded += 1
+            _refresh_deal_onchain_status(deal, cache)
 
-    return processed, onboarded
+    return processed, onboarded, skipped_onchain
 
 
 def main() -> int:
@@ -285,8 +319,13 @@ def main() -> int:
 
     try:
         while True:
-            processed, onboarded = run_cycle(args)
-            logging.info("Cycle finished: %s deal(s) processed, %s onboarded", processed, onboarded)
+            processed, onboarded, skipped_onchain = run_cycle(args)
+            logging.info(
+                "Cycle finished: %s deal(s) processed, %s onboarded, %s skipped (on-chain)",
+                processed,
+                onboarded,
+                skipped_onchain,
+            )
 
             if args.once:
                 break

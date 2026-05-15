@@ -11,7 +11,8 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from cli.commands.sp import deal_onboarding
-from cli.commands.sp.onboard_state import OnboardState
+from cli.commands.sp.onboard_state import DealOnboardCache
+from cli.services.contracts.filecoin_pay import FileCoinPayRail
 from cli.services.contracts.porep_market import (
     PoRepMarketDealProposal,
     PoRepMarketDealState,
@@ -53,7 +54,7 @@ def _sample_manifest(cid: str = "bafydata", storage_path: str = "data/piece.car"
     }]
 
 
-def _sample_deal(deal_id: int = 1, proposed_at_block: int = 100) -> PoRepMarketDealProposal:
+def _sample_deal(deal_id: int = 1, proposed_at_block: int = 100, rail_id: int = 1) -> PoRepMarketDealProposal:
     return PoRepMarketDealProposal(
         deal_id=deal_id,
         client_address=EthAddress("0x4300EbD613b8E965A81B54aCdF1fA843758420DA"),
@@ -62,30 +63,92 @@ def _sample_deal(deal_id: int = 1, proposed_at_block: int = 100) -> PoRepMarketD
         terms=PoRepMarketDealTerms(32 * 1024 ** 3, 1, 30),
         validator_address=EthAddress("0x4300EbD613b8E965A81B54aCdF1fA843758420DA"),
         state=PoRepMarketDealState.COMPLETED,
-        rail_id=1,
+        rail_id=rail_id,
         proposed_at_block=proposed_at_block,
         manifest_location="https://example.com/manifest.json",
     )
 
 
-class OnboardStateTests(unittest.TestCase):
+def _sample_rail(payment_rate: int = 100) -> FileCoinPayRail:
+    zero = EthAddress("0x0000000000000000000000000000000000000000")
+    return FileCoinPayRail(
+        token=zero,
+        from_address=zero,
+        to=zero,
+        operator=zero,
+        validator=zero,
+        payment_rate=payment_rate,
+        lockup_period=0,
+        lockup_fixed=0,
+        settled_up_to=0,
+        end_epoch=0,
+        commission_rate_bps=0,
+        service_fee_recipient=zero,
+    )
+
+
+class DealOnboardCacheTests(unittest.TestCase):
     def test_roundtrip(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "state.json"
-            state = OnboardState.load(path)
-            self.assertFalse(state.is_onboarded(7))
+            path = Path(tmp) / "cache.json"
+            cache = DealOnboardCache.load(path)
 
-            state.mark_onboarded(7, software="curio", provider_id=12345)
-            reloaded = OnboardState.load(path)
+            cache.update_deal(
+                7,
+                provider_id=12345,
+                onchain=True,
+                rail_id=3,
+                payment_rate=56500,
+            )
+            reloaded = DealOnboardCache.load(path)
 
-            self.assertTrue(reloaded.is_onboarded(7))
-            self.assertEqual(reloaded.deals[7].software, "curio")
-            self.assertEqual(reloaded.deals[7].provider_id, 12345)
+            record = reloaded.deals[7]
+            self.assertTrue(record.onchain)
+            self.assertEqual(record.provider_id, 12345)
+            self.assertEqual(record.rail_id, 3)
+            self.assertEqual(record.payment_rate, 56500)
 
             with open(path, encoding="utf-8") as f:
                 raw = json.load(f)
 
-            self.assertIn("7", raw["onboarded_deals"])
+            self.assertIn("7", raw["deals"])
+
+    def test_loads_legacy_onboarded_deals_format(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "cache.json"
+            path.write_text(json.dumps({
+                "onboarded_deals": {
+                    "9": {
+                        "onboarded_at": "2026-05-15T12:00:00Z",
+                        "software": "curio",
+                        "provider_id": 99,
+                    }
+                }
+            }), encoding="utf-8")
+
+            cache = DealOnboardCache.load(path)
+            self.assertTrue(cache.deals[9].onchain)
+
+    def test_loads_new_format_without_checked_at(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "cache.json"
+            path.write_text(json.dumps({
+                "deals": {
+                    "11": {
+                        "provider_id": 42,
+                        "onchain": False,
+                        "rail_id": 2,
+                        "payment_rate": "0",
+                    }
+                }
+            }), encoding="utf-8")
+
+            cache = DealOnboardCache.load(path)
+
+            record = cache.deals[11]
+            self.assertFalse(record.onchain)
+            self.assertEqual(record.provider_id, 42)
+            self.assertIsNotNone(record.checked_at)
 
 
 class DealOnboardingHelperTests(unittest.TestCase):
@@ -94,6 +157,29 @@ class DealOnboardingHelperTests(unittest.TestCase):
         self.assertTrue(deal_onboarding.deal_meets_min_block(deal, None))
         self.assertTrue(deal_onboarding.deal_meets_min_block(deal, 200))
         self.assertFalse(deal_onboarding.deal_meets_min_block(deal, 201))
+
+    def test_deal_is_onchain_without_rail(self):
+        deal = _sample_deal(rail_id=0)
+        self.assertFalse(deal_onboarding.deal_is_onchain(deal))
+        self.assertEqual(deal_onboarding.deal_onchain_status(deal), (False, 0))
+
+    def test_deal_is_onchain_with_payment_rate(self):
+        deal = _sample_deal(rail_id=5)
+
+        with mock.patch("cli.commands.sp.deal_onboarding.FileCoinPay") as filecoin_pay:
+            filecoin_pay.return_value.get_rail.return_value = _sample_rail(payment_rate=42)
+
+            self.assertEqual(deal_onboarding.deal_onchain_status(deal), (True, 42))
+            self.assertTrue(deal_onboarding.deal_is_onchain(deal))
+            filecoin_pay.return_value.get_rail.assert_called_with(5)
+
+    def test_deal_is_onchain_with_zero_payment_rate(self):
+        deal = _sample_deal(rail_id=5)
+
+        with mock.patch("cli.commands.sp.deal_onboarding.FileCoinPay") as filecoin_pay:
+            filecoin_pay.return_value.get_rail.return_value = _sample_rail(payment_rate=0)
+
+            self.assertFalse(deal_onboarding.deal_is_onchain(deal))
 
     def test_write_aria2c_input_file(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -149,21 +235,20 @@ class SpAutoOnboardScriptTests(unittest.TestCase):
         namespace = mock.Mock(min_block=42, min_date=None)
         self.assertEqual(auto_onboard._resolve_min_block(namespace), 42)
 
-    def test_run_cycle_skips_onboarded_deals(self):
+    def test_run_cycle_skips_onchain_deals(self):
         auto_onboard = _load_auto_onboard_module()
 
         with tempfile.TemporaryDirectory() as tmp:
             download_dir = Path(tmp)
-            state_path = download_dir / ".onboarded_deals.json"
-            state = OnboardState.load(state_path)
-            state.mark_onboarded(1, software="curio", provider_id=12345)
+            cache_path = download_dir / ".onboard_cache.json"
 
             args = mock.Mock(
                 organization="0xfF000000000000000000000000000000002847Cc",
                 min_block=None,
                 min_date=None,
                 download_dir=download_dir,
-                state_file=state_path,
+                cache_file=cache_path,
+                state_file=None,
                 provider_id=None,
                 software="curio",
                 manifest_host=None,
@@ -174,12 +259,15 @@ class SpAutoOnboardScriptTests(unittest.TestCase):
 
             with mock.patch.object(auto_onboard, "_resolve_organization", return_value=EthAddress(args.organization)), \
                     mock.patch("cli.commands.utils.get_all_deals", return_value=[deal]), \
+                    mock.patch.object(auto_onboard, "_refresh_deal_onchain_status", return_value=True) as refresh_status, \
                     mock.patch.object(auto_onboard, "_process_deal") as process_deal:
-                processed, onboarded = auto_onboard.run_cycle(args)
+                processed, onboarded, skipped_onchain = auto_onboard.run_cycle(args)
 
+            refresh_status.assert_called_once()
             process_deal.assert_not_called()
             self.assertEqual(processed, 0)
             self.assertEqual(onboarded, 0)
+            self.assertEqual(skipped_onchain, 1)
 
 
 if __name__ == "__main__":
