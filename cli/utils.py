@@ -144,14 +144,10 @@ def json_dataclass(eq=True, init=True, **d_kwargs):
     def wrapper(cls):
         cls = dataclasses.dataclass(**d_kwargs, eq=eq, init=init)(cls)
 
-        def __repr__(self):
-            return json.dumps(
-                dataclasses.asdict(self),
-                indent=4,
-                default=str
-            )
+        def __str__(self):
+            return json_pretty(dataclasses.asdict(self))
 
-        cls.__repr__ = __repr__
+        cls.__str__ = __str__
         return cls
 
     return wrapper

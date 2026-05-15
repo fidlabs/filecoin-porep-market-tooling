@@ -99,7 +99,11 @@ def validate_address_matches_private_key(address: EthAddress, private_key: Priva
 
 
 # retries = None means "ask user"
-def fetch_manifest(manifest_url: str, show_manifest: bool | None = None, retries: int | None = None, quiet: bool = False) -> list[dict]:
+def fetch_manifest(manifest_url: str,
+                   show_manifest: bool | None = None,
+                   retries: int | None = None,
+                   quiet: bool = False) -> list[dict]:
+    #
     if not quiet:
         click.echo(f"Fetching manifest from {manifest_url}")
 
