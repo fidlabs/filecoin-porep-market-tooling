@@ -62,7 +62,7 @@ class ActorId(int):
             raise RuntimeError(response["error"])
 
         if not response.get("result"):
-            raise RuntimeError(f"Failed to get f-address for actor ID {self}: empty result")
+            raise RuntimeError(f"Failed to get Filecoin.StateAccountKey({self}): empty result")
 
         return FilAddress(response["result"])
 
@@ -144,7 +144,7 @@ class FilAddress(str):
             raise RuntimeError(response["error"])
 
         if not response.get("result"):
-            raise RuntimeError(f"Failed to get actor ID for f-address {self}: empty result")
+            raise RuntimeError(f"Failed to get Filecoin.StateLookupID({self}): empty result")
 
         return ActorId(response["result"])
 
@@ -219,7 +219,7 @@ class EthAddress(str):
             raise RuntimeError(response["error"])
 
         if not response.get("result") or not Web3.is_address(response["result"]):
-            raise ValueError(f"Failed to get Ethereum address for f-address {addr}: invalid result {response.get('result')!r}")
+            raise ValueError(f"Failed to get Filecoin.FilecoinAddressToEthAddress({addr}): invalid result {response.get('result')!r}")
 
         return EthAddress(response["result"])
 
@@ -233,14 +233,14 @@ class EthAddress(str):
             raise RuntimeError(response["error"])
 
         if not response.get("result"):
-            raise ValueError(f"Failed to get actor ID for Ethereum address {self}: empty result")
+            raise ValueError(f"Failed to get Filecoin.EthAddressToFilecoinAddress({self}): empty result")
 
         if ActorId.is_actor_id(response["result"]):
             return ActorId(response["result"])
         elif FilAddress.is_filecoin_address(response["result"]):
             return FilAddress(response["result"]).to_actor_id()
         else:
-            raise ValueError(f"Failed to get actor ID for Ethereum address {self}: invalid result {response.get('result')!r}")
+            raise ValueError(f"Failed to get Filecoin.EthAddressToFilecoinAddress({self}): invalid result {response.get('result')!r}")
 
     @staticmethod
     def from_private_key(private_key: PrivateKeyType) -> "EthAddress":
@@ -326,8 +326,8 @@ class Web3Service:
         if "error" in response:
             raise RuntimeError(response["error"])
 
-        if not response.get("result") or not isinstance(response["result"], dict):
-            raise RuntimeError(f"Failed to get allocations for actor ID {actor_id}: invalid result {response.get('result')!r}")
+        if response.get("result") is None or not isinstance(response["result"], dict):
+            raise RuntimeError(f"Failed to get Filecoin.StateGetAllocations({actor_id}): invalid result {response.get('result')!r}")
 
         return response["result"]
 
@@ -340,8 +340,8 @@ class Web3Service:
         if "error" in response:
             raise RuntimeError(response["error"])
 
-        if not response.get("result") or not isinstance(response["result"], dict):
-            raise RuntimeError(f"Failed to get allocations for actor ID {actor_id}: invalid result {response.get('result')!r}")
+        if response.get("result") is None or not isinstance(response["result"], dict):
+            raise RuntimeError(f"Failed to get Filecoin.StateGetClaims({actor_id}): invalid result {response.get('result')!r}")
 
         if client is not None:
             return {claim_id: claim for claim_id, claim in response["result"].items() if claim.get("Client") == client}
