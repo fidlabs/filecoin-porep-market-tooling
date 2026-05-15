@@ -180,3 +180,9 @@ class FileCoinPay(ContractService):
     # @param railId the ID of the rail.
     def get_rail(self, rail_id: int) -> FileCoinPayRailView:
         return FileCoinPayRailView.from_web3(self.contract.functions.getRail(rail_id).call())
+
+    def withdraw(self, token: EthAddress, amount: int, from_private_key: PrivateKeyType) -> str:
+        return self.sign_and_send_tx(self.contract.functions.withdraw(token, amount), from_private_key)
+
+    def withdraw_to(self, token: EthAddress, to: EthAddress, amount: int, from_private_key: PrivateKeyType) -> str:
+        return self.sign_and_send_tx(self.contract.functions.withdrawTo(token, to, amount), from_private_key)

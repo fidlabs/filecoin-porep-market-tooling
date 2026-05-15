@@ -1,8 +1,11 @@
 import click
 
 from cli import utils
-from cli.commands.sp._sp import sp_private_key
+from cli.commands.sp._sp import sp_private_key, sp_address
+from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarketDealProposal, PoRepMarket
+from cli.services.contracts.usdc_token import USDCToken
+from cli.services.web3_service import EthAddress
 
 
 def accept_deal(deal: PoRepMarketDealProposal, confirm_session_id: str | None = None) -> str:
@@ -25,5 +28,78 @@ def reject_deal(deal: PoRepMarketDealProposal, confirm_session_id: str | None = 
 
     tx_hash = PoRepMarket().reject_deal(deal.deal_id, sp_private_key())
     click.echo(f"Deal ID {deal.deal_id} rejected: {tx_hash}")
+
+    return tx_hash
+
+
+def get_balance(address: EthAddress) -> dict:
+    usdc = USDCToken()
+    return {
+        "address": address,
+        "token": usdc.balance_of(address),
+        "filecoin_pay": FileCoinPay().get_account(usdc.address(), address).funds,
+    }
+
+
+def print_balance(snap: dict) -> None:
+    usdc = USDCToken()
+    decimals = usdc.decimals()
+    name = usdc.name()
+    click.echo(utils.json_pretty({
+        "address": str(snap["address"]),
+        "token": f"{utils.str_from_wei(snap['token'], decimals)} {name}",
+        "filecoin_pay": f"{utils.str_from_wei(snap['filecoin_pay'], decimals)} {name}",
+    }))
+
+
+def print_delta(before: dict, after: dict) -> None:
+    usdc = USDCToken()
+    decimals = usdc.decimals()
+    name = usdc.name()
+    erc20_diff = after["token"] - before["token"]
+    fp_diff = after["filecoin_pay"] - before["filecoin_pay"]
+
+    def _format_sign(val):
+        return "+" if val >= 0 else ""
+
+    click.echo(utils.json_pretty({
+        "address": str(before["address"]),
+        "token": f"{_format_sign(erc20_diff)}{utils.str_from_wei(erc20_diff, decimals)} {name}",
+        "filecoin_pay": f"{_format_sign(fp_diff)}{utils.str_from_wei(fp_diff, decimals)} {name}",
+    }))
+
+
+def withdraw(amount: int) -> str:
+    sp = sp_address()
+
+    click.echo("\n=== Balances BEFORE ===")
+    before = get_balance(sp)
+    print_balance(before)
+
+    tx_hash = FileCoinPay().withdraw(USDCToken().address(), amount, sp_private_key())
+
+    click.echo("\n=== Balances AFTER ===")
+    after = get_balance(sp)
+    print_balance(after)
+
+    click.echo("\n=== Delta ===")
+    print_delta(before, after)
+
+    return tx_hash
+
+
+def withdraw_to(amount: int, to_address: EthAddress) -> str:
+    click.echo("\n=== Balances BEFORE ===")
+    to_before = get_balance(to_address)
+    print_balance(to_before)
+
+    tx_hash = FileCoinPay().withdraw_to(USDCToken().address(), to_address, amount, sp_private_key())
+
+    click.echo("\n=== Balances AFTER ===")
+    to_after = get_balance(to_address)
+    print_balance(to_after)
+
+    click.echo("\n=== Delta ===")
+    print_delta(to_before, to_after)
 
     return tx_hash
