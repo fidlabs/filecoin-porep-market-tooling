@@ -13,7 +13,7 @@ SP_PRIVATE_KEY: str | None = None
 @click.group()
 @click.option("--organization", envvar="SP_ORGANIZATION", show_envvar=True, help="Organization address to manage SPs from.")
 @click.option("--private-key", envvar="SP_PRIVATE_KEY", hidden=True)
-@click.option("--confirm-info", is_flag=True, default=False, show_default=True,
+@click.option("--confirm-info", is_flag=True, default=False,
               help="Confirm current account info before executing command.  [default: false]")
 def sp(private_key: str | None = None, organization: str | None = None, confirm_info: bool = False):
     """

@@ -13,7 +13,7 @@ CLIENT_PRIVATE_KEY: str | None = None
 @click.group()
 @click.option("--address", help="Client address to use.  [default: derived from the provided private key]")
 @click.option("--private-key", envvar="CLIENT_PRIVATE_KEY", hidden=True)
-@click.option("--confirm-info", is_flag=True, default=False, show_default=True,
+@click.option("--confirm-info", is_flag=True, default=False,
               help="Confirm current account info before executing command.  [default: false]")
 def client(address: str | None = None, private_key: str | None = None, confirm_info: bool = False):
     """
@@ -67,7 +67,7 @@ def _info():
 
 
 @click.command()
-@click.option("--test-keys", is_flag=True, default=False, show_default=True,
+@click.option("--test-keys", is_flag=True, default=False,
               help="Fail if the private key does not matches provided address.  [default: False]")
 def info(test_keys: bool = False):
     """

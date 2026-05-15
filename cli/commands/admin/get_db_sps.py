@@ -9,7 +9,7 @@ from cli.services.web3_service import ActorId
 @click.argument("db_id", type=click.IntRange(min=0), required=False)
 @click.option("--db-url", envvar="SP_REGISTRY_DATABASE_URL", show_envvar=True, required=True,
               help="SPRegistry database connection string.")
-@click.option("--show-all", is_flag=True, default=False, show_default=True,
+@click.option("--show-all", is_flag=True, default=False,
               help="Whether to return SPs from all organizations or only from those eligible for registration.  [default: false]")
 @click.option("--indexing-pct", type=click.IntRange(0, 100), default=0, show_default=True,
               help="IPNI indexing guarantee in percentage to return; 0 means \"don't support\".")
