@@ -7,7 +7,9 @@ from cli.services.contracts.porep_market import PoRepMarket
 
 @click.command()
 @click.argument("deal_id", type=click.IntRange(min=0))
-def get_allocations(deal_id: int):
+@click.option("--not-claimed", is_flag=True, default=False,
+              help="Show only allocations that have not been claimed.  [default: False]")
+def get_allocations(deal_id: int, not_claimed: bool = False):
     """
     Get client DDO allocations for a deal.
 
@@ -16,5 +18,9 @@ def get_allocations(deal_id: int):
 
     deal = PoRepMarket().get_deal_proposal(deal_id)
     allocations = commands_utils.get_deal_allocations(deal)
+
+    if not_claimed:
+        claims = commands_utils.get_deal_claims(deal)
+        allocations = {allocation_id: alloc for allocation_id, alloc in allocations.items() if allocation_id not in claims}
 
     click.echo(utils.json_pretty(allocations))

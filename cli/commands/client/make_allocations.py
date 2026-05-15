@@ -17,9 +17,9 @@ DATACAP_DECIMALS = 18
 
 @click.command()
 @click.argument("deal_id", type=click.IntRange(min=0))
-@click.option("--print-only", is_flag=True, default=False, show_default=True,
+@click.option("--print-only", is_flag=True, default=False,
               help="Print transfer params without broadcasting.  [default: False]")
-@click.option("--exclude-dag", is_flag=True, default=False, show_default=True,
+@click.option("--exclude-dag", is_flag=True, default=False,
               help="Exclude manifest DAG piece. Default is to include it.  [default: False]")
 def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool = False):
     """

@@ -10,7 +10,7 @@ ADMIN_PRIVATE_KEY: str | None = None
 
 @click.group()
 @click.option("--private-key", envvar="ADMIN_PRIVATE_KEY", hidden=True)
-@click.option("--confirm-info", is_flag=True, default=False, show_default=True,
+@click.option("--confirm-info", is_flag=True, default=False,
               help="Confirm current account info before executing command.  [default: false]")
 def admin(private_key: str | None = None, confirm_info: bool = False):
     """
