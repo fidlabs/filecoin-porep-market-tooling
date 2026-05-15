@@ -76,7 +76,7 @@ def _deploy_and_set_validator(deal_id: int):
         raise click.ClickException(f"Deal ID {deal_id} client address {deal.client_address} does not match from address {client_address()}")
 
     if deal.state != PoRepMarketDealState.ACCEPTED:
-        raise click.ClickException(f"Deal ID {deal.deal_id} is not in ACCEPTED state")
+        raise click.ClickException(f"Deal ID {deal.deal_id} is in state {deal.state} != ACCEPTED")
 
     if __get_validator_address_for_deal(deal):
         click.echo(f"\nValidator already set for deal ID {deal.deal_id}: {deal.validator_address}")

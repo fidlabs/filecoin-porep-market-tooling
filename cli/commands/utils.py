@@ -10,6 +10,7 @@ from eth_account.types import PrivateKeyType
 
 from cli import utils
 from cli._cli import is_dry_run
+from cli.services.contracts.client_contract import ClientContract
 from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarketDealProposal, PoRepMarket
 from cli.services.contracts.sp_registry import SPRegistry
 from cli.services.web3_service import EthAddress, ActorId
@@ -64,6 +65,20 @@ def get_sp_deals(state: PoRepMarketDealState | None = None,
         result = [deal for deal in result if deal.provider_id == provider_id]
 
     return result
+
+
+def get_deal_allocations(deal: PoRepMarketDealProposal) -> dict[str, dict]:
+    deal_allocations = ClientContract().get_client_allocation_ids_per_deal(deal.deal_id)
+
+    allocations = Web3Service().state_get_allocations(ClientContract().address().to_actor_id())
+    return {allocation_id: allocation for allocation_id, allocation in allocations.items() if int(allocation_id) in deal_allocations}
+
+
+def get_deal_claims(deal: PoRepMarketDealProposal) -> dict[str, dict]:
+    deal_allocations = ClientContract().get_client_allocation_ids_per_deal(deal.deal_id)
+
+    claims = Web3Service().state_get_claims(deal.provider_id, ClientContract().address().to_actor_id())
+    return {claim_id: claim for claim_id, claim in claims.items() if int(claim_id) in deal_allocations}
 
 
 def print_info():

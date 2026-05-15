@@ -6,7 +6,7 @@ import click
 from cli import utils
 from cli.commands.sp import _utils as sp_utils
 from cli.services.contracts.client_contract import ClientContract
-from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealProposal
+from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealProposal, PoRepMarketDealState
 from cli.services.web3_service import FilAddress
 
 
@@ -126,14 +126,29 @@ def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = N
         raise click.ClickException(f"Unsupported software: {software}")
 
     deal = PoRepMarket().get_deal_proposal(deal_id)
+
+    if deal.state != PoRepMarketDealState.COMPLETED:
+        raise click.ClickException(f"Deal ID {deal_id} is in state {deal.state} != COMPLETED")
+
     deal_allocations = sp_utils.get_deal_allocations(deal)
+    deal_claims = sp_utils.get_deal_claims(deal)
 
-    click.echo(f"Found {len(deal_allocations)} allocations for deal ID {deal_id}: {utils.json_pretty(deal_allocations)}\n")
+    allocations_claimed = {allocation_id: alloc for allocation_id, alloc in deal_allocations.items() if int(allocation_id) in deal_claims}
+    allocations_not_claimed = {allocation_id: alloc for allocation_id, alloc in deal_allocations.items() if int(allocation_id) not in deal_claims}
 
-    for allocation in deal_allocations:
-        command = build_allocation_command(allocation_id=allocation["allocationId"],
+    click.echo(f"Found {len(deal_allocations)} allocations and {len(deal_claims)} claims for deal ID {deal_id}")
+    click.echo(f"{len(allocations_claimed)} allocations already claimed " + f"{len(allocations_not_claimed)} not claimed")
+
+    if not allocations_not_claimed:
+        return
+
+    if click.confirm("Print allocations not claimed?", default=False):
+        click.echo(utils.json_pretty(allocations_not_claimed))
+
+    for allocation_id, allocation in allocations_not_claimed.items():
+        command = build_allocation_command(allocation_id=int(allocation_id),
                                            deal=deal,
-                                           cid=allocation["CID"],
+                                           cid=allocation.get("Data", {}).get("/")
                                            ) + ctx.args
 
         try:
