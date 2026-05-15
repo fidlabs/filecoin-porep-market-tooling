@@ -39,7 +39,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
     deal = PoRepMarket().get_deal_proposal(deal_id)
 
     if deal.state != PoRepMarketDealState.ACCEPTED:
-        raise click.ClickException(f"Deal ID {deal_id} is not in ACCEPTED state")
+        raise click.ClickException(f"Deal ID {deal_id} is in state {deal.state} != ACCEPTED")
 
     if deal.rail_id == 0:
         raise click.ClickException(f"Deal ID {deal_id} does not have a FileCoinPay rail set")

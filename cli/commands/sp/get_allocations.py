@@ -1,7 +1,7 @@
 import click
 
 from cli import utils
-from cli.commands.sp import _utils as sp_utils
+from cli.commands import utils as commands_utils
 from cli.services.contracts.porep_market import PoRepMarket
 
 
@@ -15,6 +15,6 @@ def get_allocations(deal_id: int):
     """
 
     deal = PoRepMarket().get_deal_proposal(deal_id)
-    allocations = sp_utils.get_deal_allocations(deal)
+    allocations = commands_utils.get_deal_allocations(deal)
 
     click.echo(utils.json_pretty(allocations))
