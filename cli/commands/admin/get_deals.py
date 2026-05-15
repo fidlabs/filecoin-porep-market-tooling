@@ -7,6 +7,20 @@ from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarke
 
 @click.command()
 @click.argument("deal_id", type=click.IntRange(min=0))
+def get_deal_manifest(deal_id: int):
+    """
+    Get deal manifest by deal ID.
+
+    DEAL_ID - Deal ID to fetch manifest for.
+    """
+
+    deal = PoRepMarket().get_deal_proposal(deal_id)
+    manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False, quiet=True, retries=10)
+    click.echo(utils.json_pretty(manifest))
+
+
+@click.command()
+@click.argument("deal_id", type=click.IntRange(min=0))
 def get_deal(deal_id: int):
     """
     Get deal by ID.
