@@ -136,3 +136,9 @@ class FileCoinPay(ContractService):
     # The self-balance collects network fees
     def get_account(self, token: EthAddress, owner: EthAddress) -> FileCoinPayAccount:
         return FileCoinPayAccount.from_web3(self.contract.functions.accounts(token, owner).call())
+
+    def withdraw(self, amount: int, token: EthAddress ,from_private_key: PrivateKeyType) -> None:
+        return self.sign_and_send_tx(self.contract.functions.withdraw(token, amount), from_private_key)
+
+    def withdraw_to(self, to: EthAddress,amount: int, token: EthAddress ,from_private_key: PrivateKeyType) -> None:
+        return self.sign_and_send_tx(self.contract.functions.withdraw_to(token, to, amount), from_private_key)
