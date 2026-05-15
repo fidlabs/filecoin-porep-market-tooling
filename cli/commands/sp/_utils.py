@@ -73,7 +73,8 @@ def print_delta(before: dict, after: dict) -> None:
     erc20_diff = after["token"] - before["token"]
     fp_diff = after["filecoin_pay"] - before["filecoin_pay"]
 
-    _format_sign = lambda val: '+' if val >= 0 else ''
+    def _format_sign(val):
+        return "+" if val >= 0 else ""
 
     click.echo(utils.json_pretty({
         "address": str(before["address"]),
