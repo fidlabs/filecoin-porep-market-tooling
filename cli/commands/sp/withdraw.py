@@ -11,7 +11,7 @@ from cli.services.web3_service import Web3Service
 @click.option("--to", required=False, type=click.STRING, help="address")
 def withdraw(amount: int, to: str):
     """
-    Withdraw money from filecoin pay, if no --to argument given it will be withdrawed to the sender.
+    Withdraw money from filecoin pay, if no --to argument given it will be withdrawn to the sender.
 
     AMOUNT - amount to withdraw.
     """
