@@ -33,14 +33,10 @@ def reject_deal(deal: PoRepMarketDealProposal, confirm_session_id: str | None = 
 
 
 def get_deal_allocations(deal: PoRepMarketDealProposal) -> list[dict]:
-    manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False, quiet=True, retries=10)
-    pieces = manifest[0]["pieces"]
-
     deal_allocations = ClientContract().get_client_allocation_ids_per_deal(deal.deal_id)
     state_allocations = Web3Service().state_get_allocations(ClientContract().address().to_actor_id())
 
+    manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False, quiet=True, retries=10)
+    pieces = manifest[0]["pieces"]
+
     return commands_utils.match_deal_allocations(pieces, state_allocations, deal_allocations)
-
-
-def get_deal_allocations_by_id(deal_id: int) -> list[dict]:
-    return get_deal_allocations(PoRepMarket().get_deal_proposal(deal_id))

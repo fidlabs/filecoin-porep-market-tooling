@@ -331,6 +331,23 @@ class Web3Service:
 
         return response["result"]
 
+    def state_get_claims(self, actor_id: ActorId, client: ActorId | None = None) -> Dict[str, dict]:
+        response = self._w3.provider.make_request(
+            RPCEndpoint("Filecoin.StateGetClaims"),
+            [str(actor_id), None]
+        )
+
+        if "error" in response:
+            raise RuntimeError(response["error"])
+
+        if not response.get("result") or not isinstance(response["result"], dict):
+            raise RuntimeError(f"Failed to get allocations for actor ID {actor_id}: invalid result {response.get('result')!r}")
+
+        if client is not None:
+            return {claim_id: claim for claim_id, claim in response["result"].items() if claim.get("Client") == client}
+
+        return response["result"]
+
     def wait_for_pending_transactions(self, from_address: EthAddress):
         _ = self.get_address_nonce(from_address, block_identifier="pending")
 
