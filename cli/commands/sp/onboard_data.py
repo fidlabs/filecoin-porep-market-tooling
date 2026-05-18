@@ -85,9 +85,11 @@ def _write_manifest_file(manifest: list[dict], output_dir: Path, deal_id: int) -
 @click.option("--host", help="Host to use for .car files download.  [default: same host as manifest URL]")
 @click.option("--port", default=7777, type=click.IntRange(min=1, max=65535), show_default=True,
               help="Port to use for .car files download.")
+@click.option("--force", is_flag=True, default=False,
+              help="Force download even if all allocations are claimed.  [default: false]")
 @click.pass_context
 # TODO add commP files verification after download
-def onboard_data(ctx, deal_id: int, output_dir: str, port: int, host: str | None = None):
+def onboard_data(ctx, deal_id: int, output_dir: str, port: int, host: str | None = None, force: bool = False):
     """
     \b
     Download data for a deal using aria2 downloader.
@@ -107,6 +109,14 @@ def onboard_data(ctx, deal_id: int, output_dir: str, port: int, host: str | None
 
     if deal.state != PoRepMarketDealState.COMPLETED:
         raise click.ClickException(f"Deal ID {deal_id} is in state {deal.state} != COMPLETED")
+
+    deal_allocations = commands_utils.get_deal_allocations(deal)
+    deal_claims = commands_utils.get_deal_claims(deal)
+    allocations_not_claimed = {allocation_id: alloc for allocation_id, alloc in deal_allocations.items() if str(allocation_id) not in deal_claims}
+
+    if deal_claims and not allocations_not_claimed and not force:
+        click.echo(f"All {len(deal_allocations)} allocations for deal ID {deal_id} are claimed; no need to download the data. Use --force to download anyway.")
+        return
 
     manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False, retries=10)
 

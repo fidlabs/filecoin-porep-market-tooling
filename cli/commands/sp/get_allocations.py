@@ -8,7 +8,7 @@ from cli.services.contracts.porep_market import PoRepMarket
 @click.command()
 @click.argument("deal_id", type=click.IntRange(min=0))
 @click.option("--not-claimed", is_flag=True, default=False,
-              help="Show only allocations that have not been claimed.  [default: False]")
+              help="Show only allocations that have not been claimed.  [default: false]")
 def get_allocations(deal_id: int, not_claimed: bool = False):
     """
     Get client DDO allocations for a deal.

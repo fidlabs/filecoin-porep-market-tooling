@@ -68,7 +68,7 @@ def _info():
 
 @click.command()
 @click.option("--test-keys", is_flag=True, default=False,
-              help="Fail if the private key does not matches provided address.  [default: False]")
+              help="Fail if the private key does not matches provided address.  [default: false]")
 def info(test_keys: bool = False):
     """
     Display the current client info.
