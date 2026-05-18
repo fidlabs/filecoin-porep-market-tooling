@@ -89,7 +89,7 @@ def _build_allocation_command_boost(boostd_path: str,
 def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = None):
     """
     \b
-    Interactively claim DDO allocations for a deal using the specified software.
+    Interactively claim DDO allocations for a deal.
 
     \b
     Runs `curio market ddo --actor <deal.provider_id> <client_contract_filecoin_address> <allocation_id>` for curio or
@@ -132,7 +132,6 @@ def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = N
 
     deal_allocations = commands_utils.get_deal_allocations(deal)
     deal_claims = commands_utils.get_deal_claims(deal)
-
     allocations_not_claimed = {allocation_id: alloc for allocation_id, alloc in deal_allocations.items() if str(allocation_id) not in deal_claims}
 
     click.echo(f"Found {len(deal_allocations)} allocations and {len(deal_claims)} claims for deal ID {deal_id}")
