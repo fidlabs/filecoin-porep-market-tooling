@@ -6,10 +6,10 @@ from eth_account.datastructures import SignedMessage
 from web3.auto import w3
 
 from cli import utils
+from cli.commands import utils as commands_utils
 from cli.commands.client._client import client_address, client_private_key
 from cli.services.contracts.porep_market import PoRepMarketDealProposal, PoRepMarketDealState, PoRepMarketDealRequest, PoRepMarket
 from cli.services.contracts.filecoin_pay import FileCoinPay
-from cli.services.contracts.porep_market import PoRepMarketDealRequest
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.web3_service import Web3Service
 
