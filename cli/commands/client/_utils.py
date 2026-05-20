@@ -6,9 +6,10 @@ from eth_account.datastructures import SignedMessage
 from web3.auto import w3
 
 from cli import utils
+from cli.commands import utils as commands_utils
 from cli.commands.client._client import client_address, client_private_key
+from cli.services.contracts.porep_market import PoRepMarketDealProposal, PoRepMarketDealState, PoRepMarketDealRequest, PoRepMarket
 from cli.services.contracts.filecoin_pay import FileCoinPay
-from cli.services.contracts.porep_market import PoRepMarketDealRequest
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.web3_service import Web3Service
 
@@ -64,6 +65,18 @@ def sign_filecoinpay_permit(amount: int, permit_deadline: int) -> SignedMessage:
 
     click.echo(f"EIP-712 message signed for FileCoinPay permit: {utils.private_str_to_log_str(signed_msg.signature.hex())}")
     return signed_msg
+
+def complete_deal(deal: PoRepMarketDealProposal) -> str:
+    if deal.state != PoRepMarketDealState.ACCEPTED:
+        raise click.ClickException(f"Deal id {deal.deal_id} is not in ACCEPTED state, current state: {deal.state}")
+
+    commands_utils.check_allocations_size(deal)
+    utils.confirm(f"Completing deal id {deal.deal_id}: {deal}", default=True, abort=True)
+
+    tx_hash = PoRepMarket().complete_deal(deal.deal_id, client_private_key())
+    click.echo(f"Deal id {deal.deal_id} completed: {tx_hash}")
+
+    return tx_hash
 
 
 def deposit_to_filecoinpay(deposit_amount: int):

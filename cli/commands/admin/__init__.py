@@ -11,6 +11,7 @@ from .register_sps import register_db_sps, register_devnet_sps
 from .terminate_deal import terminate_deal
 from .unblock_sp import unblock_sp
 from .unpause_sp import unpause_sp
+from .set_completion_padding import set_completion_padding
 
 admin.add_command(get_deal_manifest)
 admin.add_command(get_deal)
@@ -27,3 +28,4 @@ admin.add_command(get_db_sps)
 admin.add_command(get_registered_sps)
 admin.add_command(register_db_sps)
 admin.add_command(register_devnet_sps)
+admin.add_command(set_completion_padding)

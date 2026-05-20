@@ -133,7 +133,7 @@ def _deposit_and_approve_operator(deal_id: int):
         f"\nDeposit {deposit_amount_str} {token_name} for deal ID {deal.deal_id} from address {client_address()} and approve operator\n"
         f"  Current token balance: {token_balance_str} {token_name}\n"
         f"  Current FileCoinPay account available funds: {filecoinpay_available_funds_str} {token_name}\n"
-        f"  Operator address: {deal.validator_address}\n"
+        f"  Operator (Validator) address: {deal.validator_address}\n"
         f"  Rate allowance: {'MAX_UINT256' if rate_allowance == utils.MAX_UINT256 else rate_allowance}\n"
         f"  Lockup allowance: {'MAX_UINT256' if lockup_allowance == utils.MAX_UINT256 else lockup_allowance}\n"
         f"  Max lockup period: {'MAX_UINT256' if max_lockup_period == utils.MAX_UINT256 else max_lockup_period}", abort=True)

@@ -158,9 +158,8 @@ class PoRepMarket(ContractService):
 
     # @notice Completes a deal
     # @param dealId The id of the deal proposal
-    # @param actualSizeBytes The actual size of the deal in bytes
-    def complete_deal(self, deal_id: int, actual_size_bytes: int, from_private_key: PrivateKeyType) -> str:
-        return self.sign_and_send_tx(self.contract.functions.completeDeal(deal_id, actual_size_bytes), from_private_key)
+    def complete_deal(self, deal_id: int, from_private_key: PrivateKeyType) -> str:
+        return self.sign_and_send_tx(self.contract.functions.completeDeal(deal_id), from_private_key)
 
     # @notice Terminate a deal
     # @dev Terminates a deal by setting the deal state to terminated
@@ -207,3 +206,13 @@ class PoRepMarket(ContractService):
     # @param dealId The id of the deal proposal
     def reject_accepted_deal(self, deal_id: int, from_private_key: PrivateKeyType) -> str:
         return self.sign_and_send_tx(self.contract.functions.rejectAcceptedDeal(deal_id), from_private_key)
+
+    # @notice Updates the deal completion padding
+    # @param padding The new padding value
+    def set_deal_completion_padding(self, padding: int, from_private_key: PrivateKeyType) -> str:
+        return self.sign_and_send_tx(self.contract.functions.setDealCompletionPadding(padding), from_private_key)
+
+    # @notice Getter for deal completion padding
+    # @return padding Current padding value
+    def get_deal_completion_padding(self) -> int:
+        return self.contract.functions.getDealCompletionPadding().call()

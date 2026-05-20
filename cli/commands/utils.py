@@ -2,6 +2,7 @@ import ipaddress
 import socket
 from urllib.parse import ParseResult
 from urllib.parse import urlparse
+from typing import Dict
 
 import click
 import requests
@@ -229,3 +230,25 @@ def _fetch_manifest(parsed_url: ParseResult, show_manifest: bool | None = None, 
         raise click.ClickException(f"Invalid manifest format: missing key {e}") from e
 
     return manifest
+
+
+def match_deal_allocations(manifest_pieces: list[dict],
+                           state_allocations: Dict[str, dict],
+                           client_allocations: list[int]) -> list[dict]:
+    #
+    manifest_cids = {p["pieceCid"] for p in manifest_pieces}
+
+    return [
+        {"allocationId": alloc_id, "CID": state_allocations[str(alloc_id)].get("Data", {}).get("/")}
+        for alloc_id in client_allocations
+        if str(alloc_id) in state_allocations and state_allocations[str(alloc_id)].get("Data", {}).get("/") in manifest_cids
+    ]
+
+def check_allocations_size(deal: PoRepMarketDealProposal):
+    final_allocation_size = ClientContract().get_size_of_allocations(deal.deal_id)
+    padding = PoRepMarket().get_deal_completion_padding()
+    proposed_size = deal.terms.deal_size_bytes
+    delta = abs(final_allocation_size - proposed_size)
+
+    if delta * 100 > proposed_size * padding:
+        click.echo("\n[WARNING] allocated size is not in padding range! Deal completion will likely revert.")

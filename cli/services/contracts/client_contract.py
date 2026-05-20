@@ -27,9 +27,9 @@ class ClientContract(ContractService):
     # @dev Reverts with InsufficientAllowance if caller doesn't have sufficient allowance
     # @dev Reverts with InvalidAmount when parsing amount from BigInt to uint256 failed
     # @dev Reverts with UnfairDistribution when trying to give too much to single SP
-    def transfer(self, transfer_params: TransferParams, deal_id: int, deal_completed: bool, from_private_key: PrivateKeyType) -> str:
+    def transfer(self, transfer_params: TransferParams, deal_id: int, from_private_key: PrivateKeyType) -> str:
         return self.sign_and_send_tx(self.contract.functions.transfer((transfer_params.to, transfer_params.amount, transfer_params.operator_data),
-                                                                      deal_id, deal_completed), from_private_key)
+                                                                      deal_id), from_private_key)
 
     # @notice Replaces all broken tracked allocations for a completed existing deal.
     # @dev Only callable by RESCUE_ROLE.
@@ -46,3 +46,9 @@ class ClientContract(ContractService):
     # @return allocationIds the allocation ids for the client and provider
     def get_client_allocation_ids_per_deal(self, deal_id: int) -> list[int]:
         return self.contract.functions.getClientAllocationIdsPerDeal(deal_id).call()
+
+    # @notice custom getter to retrieve allocated size in deal
+    # @param dealId The id of the deal
+    # @return sizeOfAllocations size of allocations for the selected deal
+    def get_size_of_allocations(self, deal_id: int) -> int:
+        return self.contract.functions.getSizeOfAllocations(deal_id).call()
