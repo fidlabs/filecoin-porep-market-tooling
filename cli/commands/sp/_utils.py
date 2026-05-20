@@ -90,7 +90,7 @@ def withdraw(amount):
     before = get_balance(sp)
     print_balance(before)
 
-    FileCoinPay().withdraw(amount, USDCToken().address(), sp_private_key())
+    FileCoinPay().withdraw(USDCToken().address(), amount, sp_private_key())
 
     click.echo("\n=== Balances AFTER ===")
     after = get_balance(sp)
@@ -105,7 +105,7 @@ def withdraw_to(amount, to_address: EthAddress):
     to_before = get_balance(to_address)
     print_balance(to_before)
 
-    FileCoinPay().withdraw_to(to_address, amount, USDCToken().address(), sp_private_key())
+    FileCoinPay().withdraw_to(USDCToken().address(), to_address, amount, sp_private_key())
 
     click.echo("\n=== Balances AFTER ===")
     to_after = get_balance(to_address)

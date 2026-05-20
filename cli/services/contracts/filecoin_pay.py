@@ -137,8 +137,8 @@ class FileCoinPay(ContractService):
     def get_account(self, token: EthAddress, owner: EthAddress) -> FileCoinPayAccount:
         return FileCoinPayAccount.from_web3(self.contract.functions.accounts(token, owner).call())
 
-    def withdraw(self, amount: int, token: EthAddress ,from_private_key: PrivateKeyType) -> str:
+    def withdraw(self, token: EthAddress, amount: int, from_private_key: PrivateKeyType) -> str:
         return self.sign_and_send_tx(self.contract.functions.withdraw(token, amount), from_private_key)
 
-    def withdraw_to(self, to: EthAddress,amount: int, token: EthAddress ,from_private_key: PrivateKeyType) -> str:
+    def withdraw_to(self, token: EthAddress, to: EthAddress, amount: int, from_private_key: PrivateKeyType) -> str:
         return self.sign_and_send_tx(self.contract.functions.withdrawTo(token, to, amount), from_private_key)
