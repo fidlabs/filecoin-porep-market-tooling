@@ -83,14 +83,14 @@ def print_delta(before: dict, after: dict) -> None:
     }))
 
 
-def withdraw(amount):
+def withdraw(amount: int) -> str:
     sp = sp_address()
 
     click.echo("\n=== Balances BEFORE ===")
     before = get_balance(sp)
     print_balance(before)
 
-    FileCoinPay().withdraw(USDCToken().address(), amount, sp_private_key())
+    tx_hash = FileCoinPay().withdraw(USDCToken().address(), amount, sp_private_key())
 
     click.echo("\n=== Balances AFTER ===")
     after = get_balance(sp)
@@ -99,13 +99,15 @@ def withdraw(amount):
     click.echo("\n=== Delta ===")
     print_delta(before, after)
 
+    return tx_hash
 
-def withdraw_to(amount, to_address: EthAddress):
+
+def withdraw_to(amount: int, to_address: EthAddress) -> str:
     click.echo("\n=== Balances BEFORE ===")
     to_before = get_balance(to_address)
     print_balance(to_before)
 
-    FileCoinPay().withdraw_to(USDCToken().address(), to_address, amount, sp_private_key())
+    tx_hash = FileCoinPay().withdraw_to(USDCToken().address(), to_address, amount, sp_private_key())
 
     click.echo("\n=== Balances AFTER ===")
     to_after = get_balance(to_address)
@@ -113,4 +115,6 @@ def withdraw_to(amount, to_address: EthAddress):
 
     click.echo("\n=== Delta ===")
     print_delta(to_before, to_after)
+
+    return tx_hash
 
