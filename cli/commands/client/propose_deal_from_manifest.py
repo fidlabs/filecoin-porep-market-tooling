@@ -31,7 +31,7 @@ def _propose_deal_from_manifest(manifest_url: str,
 
     click.echo(f"\nFound {len(pieces)} pieces with size {pieces_size_bytes} bytes "
                f"(= {humanfriendly.format_size(pieces_size_bytes)} = {humanfriendly.format_size(pieces_size_bytes, binary=True)} = "
-               f"{utils.bytes_to_sectors(pieces_size_bytes)} sectors) "
+               f"{utils.bytes_to_sectors(pieces_size_bytes, PoRepMarket().get_sector_size_bytes())} sectors) "
                f"(including dag piece)")
 
     # noinspection PyArgumentList

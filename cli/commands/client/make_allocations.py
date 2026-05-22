@@ -10,8 +10,6 @@ from cli.services.contracts.client_contract import ClientContract, TransferParam
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
 from cli.services.web3_service import Web3Service, ActorId
 
-EPOCHS_PER_DAY = 60 * 24 * 2
-EPOCHS_PER_MONTH = EPOCHS_PER_DAY * 30  # PoRep Market smart contracts assumes month == 30 days
 BATCH_SIZE = 10
 DATACAP_DECIMALS = 18
 
@@ -72,8 +70,12 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
 
     utils.confirm(f"Continue with allocation of remaining {len(pieces_not_allocated)} pieces in {len(batches)} batches?", default=True, abort=True)
 
-    term_min = deal.terms.duration_days * EPOCHS_PER_DAY
-    term_max = term_min + 40 * EPOCHS_PER_DAY  # + 40 days
+    EPOCHS_IN_MONTH = PoRepMarket().get_epochs_in_month()
+    EPOCHS_IN_DAY = EPOCHS_IN_MONTH // 30  # PoRep Market smart contracts assumes month == 30 days
+    assert EPOCHS_IN_DAY * 30 == EPOCHS_IN_MONTH
+
+    term_min = deal.terms.duration_days * EPOCHS_IN_DAY
+    term_max = term_min + 40 * EPOCHS_IN_DAY  # + 40 days
 
     for batch_idx, batch in enumerate(batches):
         current_batch_number = batch_idx + 1
@@ -92,7 +94,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
             batch=batch,
             term_min=term_min,
             term_max=term_max,
-            expiration=Web3Service().get_block_number() + EPOCHS_PER_MONTH
+            expiration=Web3Service().get_block_number() + EPOCHS_IN_MONTH
         )
 
         total_size = sum(size for _, size in batch)

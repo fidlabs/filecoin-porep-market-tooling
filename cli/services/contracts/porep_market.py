@@ -216,3 +216,22 @@ class PoRepMarket(ContractService):
     # @return padding Current padding value
     def get_deal_completion_padding(self) -> int:
         return self.contract.functions.getDealCompletionPadding().call()
+
+    # @notice Size of a single Filecoin sector in bytes (32 GiB)
+    def get_sector_size_bytes(self) -> int:
+        return self.contract.functions.SECTOR_SIZE().call()
+
+    # @notice Gets the SPRegistry contract address from storage
+    # @return ISPRegistry The SPRegistry contract address
+    def get_sp_registry_contract_address(self) -> EthAddress:
+        return self.contract.functions.getSPRegistryContract().call()
+
+    # @notice Gets the client smart contract address from storage
+    # @return address The client smart contract address
+    def get_client_smart_contract_address(self) -> EthAddress:
+        return self.contract.functions.getClientSmartContract().call()
+
+    # @notice Gets the validator factory contract address from storage
+    # @return IValidatorFactory The validator factory contract address
+    def get_validator_factory_contract_address(self) -> EthAddress:
+        return self.contract.functions.getValidatorFactoryContract().call()
