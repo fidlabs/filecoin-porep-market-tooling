@@ -12,7 +12,7 @@ def complete_deal(deal_id: int):
     """
     Complete a deal proposal.
 
-    DEAL_ID - The id of the deal proposal to complete.
+    DEAL_ID - The ID of the deal proposal to complete.
     """
 
     Web3Service().wait_for_pending_transactions(client_address())
