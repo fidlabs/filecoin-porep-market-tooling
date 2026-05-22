@@ -1,13 +1,19 @@
 from eth_account.types import PrivateKeyType
 
 from cli.services.contracts.contract_service import ContractService
-from cli.services.contracts.porep_market import PoRepMarket
 from cli.services.web3_service import EthAddress
 
 
 class ValidatorFactory(ContractService):
+    _VALIDATOR_FACTORY_ADDRESS: EthAddress | None = None
+
     def __init__(self, contract_address: EthAddress | None = None):
-        super().__init__(contract_address or PoRepMarket().get_validator_factory_contract_address(),
+        if not contract_address and not ValidatorFactory._VALIDATOR_FACTORY_ADDRESS:
+            from cli.services.contracts.porep_market import PoRepMarket
+            ValidatorFactory._VALIDATOR_FACTORY_ADDRESS = PoRepMarket().get_validator_factory_contract_address()
+
+        # noinspection PyTypeChecker
+        super().__init__(contract_address or ValidatorFactory._VALIDATOR_FACTORY_ADDRESS,
                          self.abi_dir() / "ValidatorFactory.json")
 
     # @notice Creates a new instance of an upgradeable contract.
