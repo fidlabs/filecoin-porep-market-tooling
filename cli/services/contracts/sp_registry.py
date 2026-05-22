@@ -2,7 +2,6 @@ from eth_account.types import PrivateKeyType
 
 from cli import utils
 from cli.services.contracts.contract_service import ContractService
-from cli.services.contracts.porep_market import PoRepMarket
 from cli.services.web3_service import EthAddress, ActorId
 
 
@@ -66,8 +65,15 @@ class SPRegistryProviderInfo(SPRegistryProvider):
 
 
 class SPRegistry(ContractService):
+    _SP_REGISTRY_ADDRESS: EthAddress | None = None
+
     def __init__(self, contract_address: EthAddress | None = None):
-        super().__init__(contract_address or PoRepMarket().get_sp_registry_contract_address(),
+        if not contract_address and not SPRegistry._SP_REGISTRY_ADDRESS:
+            from cli.services.contracts.porep_market import PoRepMarket
+            SPRegistry._SP_REGISTRY_ADDRESS = PoRepMarket().get_sp_registry_contract_address()
+
+        # noinspection PyTypeChecker
+        super().__init__(contract_address or SPRegistry._SP_REGISTRY_ADDRESS,
                          self.abi_dir() / "SPRegistry.json")
 
     # @notice Register a provider with full configuration in one call

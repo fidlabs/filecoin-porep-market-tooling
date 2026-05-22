@@ -2,7 +2,6 @@ from eth_account.types import PrivateKeyType
 
 from cli import utils
 from cli.services.contracts.contract_service import ContractService
-from cli.services.contracts.porep_market import PoRepMarket
 from cli.services.web3_service import EthAddress
 
 
@@ -18,8 +17,15 @@ class TransferParams:
 
 
 class ClientContract(ContractService):
+    _CLIENT_CONTRACT_ADDRESS: EthAddress | None = None
+
     def __init__(self, contract_address: EthAddress | None = None):
-        super().__init__(contract_address or PoRepMarket().get_client_smart_contract_address(),
+        if not contract_address and not ClientContract._CLIENT_CONTRACT_ADDRESS:
+            from cli.services.contracts.porep_market import PoRepMarket
+            ClientContract._CLIENT_CONTRACT_ADDRESS = PoRepMarket().get_client_smart_contract_address()
+
+        # noinspection PyTypeChecker
+        super().__init__(contract_address or ClientContract._CLIENT_CONTRACT_ADDRESS,
                          self.abi_dir() / "Client.json")
 
     # @notice This function transfers DataCap tokens from the client to the storage provider
