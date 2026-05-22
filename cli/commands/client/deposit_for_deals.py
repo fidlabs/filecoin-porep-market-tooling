@@ -73,7 +73,8 @@ def _deposit_for_deals(deals: list[PoRepMarketDealProposal], months: int):
     filecoinpay_available_funds = filecoinpay_account.funds - filecoinpay_account.lockup_current
     filecoinpay_available_funds_str = utils.str_from_wei(filecoinpay_available_funds, token_decimals)
 
-    total_required_amount = sum(client_utils.calculate_deposit_amount_for_deal(deal, months) for deal in deals)
+    sector_size_bytes = PoRepMarket().get_sector_size_bytes()
+    total_required_amount = sum(client_utils.calculate_deposit_amount_for_deal(deal, months, sector_size_bytes) for deal in deals)
     total_required_amount_str = utils.str_from_wei(total_required_amount, token_decimals)
 
     deposit_amount = total_required_amount - filecoinpay_available_funds

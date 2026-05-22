@@ -14,11 +14,14 @@ from cli.services.contracts.usdc_token import USDCToken
 from cli.services.web3_service import Web3Service
 
 
-def calculate_deposit_amount_for_deal(deal: PoRepMarketDealRequest, deposit_for_months: int = 1) -> int:
+def calculate_deposit_amount_for_deal(deal: PoRepMarketDealRequest, deposit_for_months: int = 1, sector_size_bytes: int | None = None) -> int:
     if deposit_for_months < 0:
         raise RuntimeError("deposit_for_months must be >= 0")
 
-    deal_size_sectors = utils.bytes_to_sectors(deal.terms.deal_size_bytes)
+    if not sector_size_bytes:
+        sector_size_bytes = PoRepMarket().get_sector_size_bytes()
+
+    deal_size_sectors = utils.bytes_to_sectors(deal.terms.deal_size_bytes, sector_size_bytes)
     result = deal_size_sectors * deal.terms.price_per_sector_per_month * deposit_for_months
 
     if result != ceil(result):

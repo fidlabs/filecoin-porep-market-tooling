@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=None)
 
 MAX_UINT256 = 2 ** 256 - 1
-SECTOR_SIZE_BYTES = 32 * 1024 ** 3  # 32 GiB  # TODO LATER take sector size from smart contracts
 
 T = TypeVar("T")
 
@@ -241,5 +240,5 @@ def private_str_to_log_str(private_str) -> str:
     return "*" * 5
 
 
-def bytes_to_sectors(bytes_size: int) -> float:
-    return bytes_size / SECTOR_SIZE_BYTES
+def bytes_to_sectors(bytes_size: int, sector_size_bytes: int) -> float:
+    return bytes_size / sector_size_bytes
