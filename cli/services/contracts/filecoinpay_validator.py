@@ -18,6 +18,5 @@ class FileCoinPayValidator(ContractService):
 
     # @notice Terminates a payment rail, preventing further payments after the rail's lockup period.
     #         After calling this method, the lockup period cannot be changed, and the rail's rate and fixed lockup may only be reduced.
-    # @param railId The ID of the rail to terminate.
-    def terminate_rail(self, rail_id: int, from_private_key: PrivateKeyType) -> str:
-        return self.sign_and_send_tx(self.contract.functions.terminateRail(rail_id), from_private_key)
+    def terminate_rail(self, from_private_key: PrivateKeyType) -> str:
+        return self.sign_and_send_tx(self.contract.functions.terminateRail(), from_private_key)
