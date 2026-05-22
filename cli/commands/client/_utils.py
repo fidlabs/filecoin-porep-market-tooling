@@ -6,10 +6,10 @@ from eth_account.datastructures import SignedMessage
 from web3.auto import w3
 
 from cli import utils
-from cli.commands import utils as commands_utils
 from cli.commands.client._client import client_address, client_private_key
-from cli.services.contracts.porep_market import PoRepMarketDealProposal, PoRepMarketDealState, PoRepMarketDealRequest, PoRepMarket
+from cli.services.contracts.client_contract import ClientContract
 from cli.services.contracts.filecoin_pay import FileCoinPay
+from cli.services.contracts.porep_market import PoRepMarketDealProposal, PoRepMarketDealState, PoRepMarketDealRequest, PoRepMarket
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.web3_service import Web3Service
 
@@ -66,11 +66,12 @@ def sign_filecoinpay_permit(amount: int, permit_deadline: int) -> SignedMessage:
     click.echo(f"EIP-712 message signed for FileCoinPay permit: {utils.private_str_to_log_str(signed_msg.signature.hex())}")
     return signed_msg
 
+
 def complete_deal(deal: PoRepMarketDealProposal) -> str:
     if deal.state != PoRepMarketDealState.ACCEPTED:
         raise click.ClickException(f"Deal id {deal.deal_id} is not in ACCEPTED state, current state: {deal.state}")
 
-    commands_utils.check_allocations_size(deal)
+    check_allocations_size(deal)
     utils.confirm(f"Completing deal id {deal.deal_id}: {deal}", default=True, abort=True)
 
     tx_hash = PoRepMarket().complete_deal(deal.deal_id, client_private_key())
@@ -107,3 +108,13 @@ def deposit_to_filecoinpay(deposit_amount: int):
                                                 client_private_key())
 
     click.echo(f"Deposited {deposit_amount_str} {token_name}: {tx_hash}")
+
+
+def check_allocations_size(deal: PoRepMarketDealProposal):
+    final_allocation_size = ClientContract().get_size_of_allocations(deal.deal_id)
+    padding = PoRepMarket().get_deal_completion_padding()
+    proposed_size = deal.terms.deal_size_bytes
+    delta = abs(final_allocation_size - proposed_size)
+
+    if delta * 100 > proposed_size * padding:
+        click.echo("\n[WARNING] allocated size is not in padding range! Deal completion will likely revert.")

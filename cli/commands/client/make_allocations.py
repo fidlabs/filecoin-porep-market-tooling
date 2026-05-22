@@ -4,6 +4,7 @@ import multibase
 
 from cli import utils
 from cli.commands import utils as commands_utils
+from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address, client_private_key
 from cli.services.contracts.client_contract import ClientContract, TransferParams
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
@@ -117,12 +118,11 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
             click.echo(f"Batch {current_batch_number} done.")
             click.echo(f"Allocated size ({allocation_size}/{deal.terms.deal_size_bytes})")
 
-
     if print_only:
         click.echo("\nAll done!")
         return
 
-    commands_utils.check_allocations_size(deal)
+    client_utils.check_allocations_size(deal)
     tx_hash = PoRepMarket().complete_deal(deal_id, client_private_key())
     click.echo(f"Deal completed successfully: {tx_hash}")
 

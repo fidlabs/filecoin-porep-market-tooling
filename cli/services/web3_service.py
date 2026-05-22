@@ -345,7 +345,6 @@ class Web3Service:
 
         if client is not None:
             return {claim_id: claim for claim_id, claim in response["result"].items() if claim.get("Client") == client}
-            raise RuntimeError(f"Failed to get allocations for actor ID {actor_id}: invalid result {response.get('result')!r}")
 
         return response["result"]
 
