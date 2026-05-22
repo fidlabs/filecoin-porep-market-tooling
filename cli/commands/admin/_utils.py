@@ -16,6 +16,9 @@ def get_db_sps(db_url: str,
                miner_id: ActorId | None = None,
                organization_address: str | None = None) -> list[SPRegistryProvider]:
     #
+    sector_size_bytes = PoRepMarket().get_sector_size_bytes()
+    sectors_per_tib = 1024 ** 4 // sector_size_bytes
+
     def retrievability_guarantees_to_bps(guarantees: list[str]) -> int:
         def _retrievability_guarantee_to_bps(guarantee: str) -> int:
             DECIMALS = 2
@@ -63,7 +66,6 @@ def get_db_sps(db_url: str,
             raise ValueError(f"Unsupported payment type: {payment_types}")
 
         price_per_tib = utils.to_wei(price_per_tib_tokens, USDCToken().decimals())
-        sectors_per_tib = 1024 ** 4 // utils.SECTOR_SIZE_BYTES
         result = price_per_tib / sectors_per_tib
 
         if result != int(result):

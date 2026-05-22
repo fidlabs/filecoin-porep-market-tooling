@@ -15,7 +15,7 @@ def _terminate_completed_deal(deal: PoRepMarketDealProposal) -> str:
     if validator_address != deal.validator_address:
         raise click.ClickException(f"Validator address {validator_address} does not match expected {deal.validator_address} for deal ID {deal.deal_id}")
 
-    return FileCoinPayValidator(deal.validator_address).terminate_rail(deal.rail_id, admin_private_key())
+    return FileCoinPayValidator(deal.validator_address).terminate_rail(admin_private_key())
 
 
 def _terminate_accepted_deal(deal: PoRepMarketDealProposal) -> str:
