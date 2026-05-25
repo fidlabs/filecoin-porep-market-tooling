@@ -47,7 +47,8 @@ def _propose_deal_from_manifest(manifest_url: str,
             price_per_sector_per_month=price_per_sector_per_month,
             duration_days=duration_months * 30,  # PoRep Market smart contracts assumes month == 30 days
         ),
-        manifest_location=manifest_url)
+        manifest_location=manifest_url
+    )
 
     Web3Service().wait_for_pending_transactions(client_address())
     existing_deals = commands_utils.get_client_deals(client_address())
