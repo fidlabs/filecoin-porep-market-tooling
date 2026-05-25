@@ -6,10 +6,10 @@ from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address
+from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarketDealProposal, PoRepMarket
-from cli.services.contracts.usdc_token import USDCToken
-from cli.services.web3_service import Web3Service
+from cli.services.web3_service import Web3Service, EthAddress
 
 
 @click.command()
@@ -65,10 +65,23 @@ def deposit_for_deals(deal_id: int | None = None, months: int = 1):
 
 # deposits USDC funds to FileCoinPay account for X month of storing deals
 def _deposit_for_deals(deals: list[PoRepMarketDealProposal], months: int):
-    filecoinpay_account = FileCoinPay().get_account(USDCToken().address(), client_address())
+    deals_per_token = {}
 
-    token_decimals = USDCToken().decimals()
-    token_name = USDCToken().name()
+    for deal in deals:
+        rail = FileCoinPay().get_rail(deal.rail_id)
+        deals_per_token.setdefault(rail.token, []).append(deal)
+
+    click.echo(f"Found {len(deals_per_token)} unique token(s) across {len(deals)} deal(s)")
+
+    for deal_token, deals_for_token in deals_per_token.items():
+        deal_token_name = ERC20Contract(deal_token).name()
+        click.echo(f"\nProcessing token {deal_token_name} ({deal_token}) for {len(deals_for_token)} deal(s)")
+        __deposit_for_deals(deals_for_token, months, deal_token, deal_token_name)
+
+
+def __deposit_for_deals(deals: list[PoRepMarketDealProposal], months: int, token_address: EthAddress, token_name: str):
+    filecoinpay_account = FileCoinPay().get_account(token_address, client_address())
+    token_decimals = ERC20Contract(token_address).decimals()
 
     filecoinpay_available_funds = filecoinpay_account.funds - filecoinpay_account.lockup_current
     filecoinpay_available_funds_str = utils.str_from_wei(filecoinpay_available_funds, token_decimals)

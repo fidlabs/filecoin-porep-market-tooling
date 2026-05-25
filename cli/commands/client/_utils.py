@@ -14,9 +14,10 @@ from cli.services.contracts.usdc_token import USDCToken
 from cli.services.web3_service import Web3Service
 
 
-def calculate_deposit_amount_for_deal(deal: PoRepMarketDealRequest, deposit_for_months: int = 1, sector_size_bytes: int | None = None) -> int:
-    if deposit_for_months < 0:
-        raise RuntimeError("deposit_for_months must be >= 0")
+def calculate_deposit_amount_for_deal(deal: PoRepMarketDealRequest,
+                                      deposit_for_months: int = 1,
+                                      sector_size_bytes: int | None = None) -> int:
+    assert deposit_for_months > 0
 
     if not sector_size_bytes:
         sector_size_bytes = PoRepMarket().get_sector_size_bytes()
