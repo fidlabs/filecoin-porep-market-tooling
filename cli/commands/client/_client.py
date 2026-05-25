@@ -11,7 +11,8 @@ CLIENT_PRIVATE_KEY: str | None = None
 
 
 @click.group()
-@click.option("--address", help="Client address to use.  [default: derived from the provided private key]")
+@click.option("--address", envvar="CLIENT_ADDRESS", show_envvar=True,
+              help="Client address to use.  [default: derived from the provided private key]")
 @click.option("--private-key", envvar="CLIENT_PRIVATE_KEY", hidden=True)
 @click.option("--confirm-info", is_flag=True, default=False,
               help="Confirm current account info before executing command.  [default: false]")
@@ -53,7 +54,7 @@ def client_private_key() -> PrivateKeyType:
     if not CLIENT_PRIVATE_KEY:
         CLIENT_PRIVATE_KEY = click.prompt("Client private key", hide_input=True)
 
-    commands_utils.validate_address_matches_private_key(client_address(), CLIENT_PRIVATE_KEY)
+    validate_address_matches_private_key(client_address(), CLIENT_PRIVATE_KEY)
 
     assert CLIENT_PRIVATE_KEY
     return CLIENT_PRIVATE_KEY
@@ -87,3 +88,13 @@ def wait():
     """
 
     Web3Service().wait_for_pending_transactions(client_address())
+
+
+def validate_address_matches_private_key(address: EthAddress, private_key: PrivateKeyType | None):
+    if not private_key:
+        raise click.ClickException("Private key is not set")
+
+    derived_address = EthAddress.from_private_key(private_key)
+
+    if derived_address != address:
+        raise click.ClickException(f"Address {address} does not match private key {utils.private_str_to_log_str(private_key)} (expected: {derived_address})")
