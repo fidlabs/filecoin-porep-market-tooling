@@ -64,6 +64,9 @@ class FileCoinPayRailView:
 
     @staticmethod
     def from_web3(data) -> "FileCoinPayRailView":
+        if not EthAddress(data[0]):
+            raise ValueError("Rail not found")
+
         # noinspection PyArgumentList
         return FileCoinPayRailView(
             token=EthAddress(data[0]),
