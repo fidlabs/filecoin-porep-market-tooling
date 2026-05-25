@@ -17,9 +17,9 @@ def get_filecoinpay_account(token_address: str):
     """
 
     _token_address = EthAddress(token_address)
-    token_contract = ERC20Contract(_token_address)
-    token_name = token_contract.name()
-    token_decimals = token_contract.decimals()
+    token = ERC20Contract(_token_address)
+    token_symbol = token.symbol()
+    token_decimals = token.decimals()
     account = FileCoinPay().get_account(_token_address, client_address())
 
     click.echo(utils.json_pretty(
@@ -27,12 +27,13 @@ def get_filecoinpay_account(token_address: str):
             "owner": str(client_address()),
             "token": {
                 "address": str(_token_address),
-                "name": token_name,
+                "name": token.name(),
+                "symbol": token_symbol,
                 "decimals": token_decimals,
-                "balance": f"{utils.str_from_wei(token_contract.balance_of(client_address()), token_decimals)} {token_name}"
+                "balance": f"{utils.str_from_wei(token.balance_of(client_address()), token_decimals)} {token_symbol}"
             },
             "account": {
-                "funds": f"{utils.str_from_wei(account.funds, token_decimals)} {token_name}",
+                "funds": f"{utils.str_from_wei(account.funds, token_decimals)} {token_symbol}",
                 "account": account.__dict__
             }
         }

@@ -86,12 +86,12 @@ def complete_deal(deal: PoRepMarketDealProposal) -> str:
 
 def deposit_to_filecoinpay(deposit_amount: int, token: USDCToken):
     token_decimals = token.decimals()
-    token_name = token.name()
+    token_symbol = token.symbol()
 
     token_balance = token.balance_of(client_address())
     token_balance_str = utils.str_from_wei(token_balance, token_decimals)
 
-    click.echo(f"Token balance: {token_balance_str} {token_name}")
+    click.echo(f"Token balance: {token_balance_str} {token_symbol}")
     click.echo()
 
     if token_balance < deposit_amount:
@@ -99,7 +99,7 @@ def deposit_to_filecoinpay(deposit_amount: int, token: USDCToken):
 
     deposit_amount_str = utils.str_from_wei(deposit_amount, token_decimals)
 
-    utils.confirm(f"Deposit {deposit_amount_str} {token_name} to {client_address()} FileCoinPay account?", abort=True)
+    utils.confirm(f"Deposit {deposit_amount_str} {token_symbol} to {client_address()} FileCoinPay account?", abort=True)
     click.echo()
 
     permit_deadline = get_filecoin_permit_deadline()
@@ -111,7 +111,7 @@ def deposit_to_filecoinpay(deposit_amount: int, token: USDCToken):
                                                 signed_msg.v, utils.uint_to_bytes(signed_msg.r), utils.uint_to_bytes(signed_msg.s),
                                                 client_private_key())
 
-    click.echo(f"Deposited {deposit_amount_str} {token_name}: {tx_hash}")
+    click.echo(f"Deposited {deposit_amount_str} {token_symbol}: {tx_hash}")
 
 
 def check_allocations_size(deal: PoRepMarketDealProposal):

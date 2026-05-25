@@ -75,12 +75,12 @@ def _deposit_for_deals(deals: list[PoRepMarketDealProposal], months: int):
     click.echo(f"Found {len(deals_per_token)} unique token(s) across {len(deals)} deal(s)")
 
     for deal_token, deals_for_token in deals_per_token.items():
-        deal_token_name = ERC20Contract(deal_token).name()
-        click.echo(f"\nProcessing token {deal_token_name} ({deal_token}) for {len(deals_for_token)} deal(s)")
-        __deposit_for_deals(deals_for_token, months, deal_token, deal_token_name)
+        deal_token_symbol = ERC20Contract(deal_token).symbol()
+        click.echo(f"\nProcessing token {deal_token_symbol} ({deal_token}) for {len(deals_for_token)} deal(s)")
+        __deposit_for_deals(deals_for_token, months, deal_token, deal_token_symbol)
 
 
-def __deposit_for_deals(deals: list[PoRepMarketDealProposal], months: int, token_address: EthAddress, token_name: str):
+def __deposit_for_deals(deals: list[PoRepMarketDealProposal], months: int, token_address: EthAddress, token_symbol: str):
     filecoinpay_account = FileCoinPay().get_account(token_address, client_address())
     token_decimals = ERC20Contract(token_address).decimals()
 
@@ -95,9 +95,9 @@ def __deposit_for_deals(deals: list[PoRepMarketDealProposal], months: int, token
     deposit_amount_str = utils.str_from_wei(deposit_amount, token_decimals)
 
     click.echo()
-    click.echo(f"FileCoinPay account token balance: {filecoinpay_available_funds_str} {token_name}")
-    click.echo(f"Total required amount to cover {len(deals)} deal(s) for {months} month(s): {total_required_amount_str} {token_name}")
-    click.echo(f"FileCoinPay account missing balance: {deposit_amount_str if deposit_amount > 0 else 0} {token_name}")
+    click.echo(f"FileCoinPay account token balance: {filecoinpay_available_funds_str} {token_symbol}")
+    click.echo(f"Total required amount to cover {len(deals)} deal(s) for {months} month(s): {total_required_amount_str} {token_symbol}")
+    click.echo(f"FileCoinPay account missing balance: {deposit_amount_str if deposit_amount > 0 else 0} {token_symbol}")
 
     if deposit_amount <= 0:
         click.echo("Existing FileCoinPay funds is sufficient to cover required deposit amount for deals")

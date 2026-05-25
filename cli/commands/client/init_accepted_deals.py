@@ -103,7 +103,7 @@ def _deposit_and_approve_operator(deal_id: int):
         return
 
     token_decimals = USDCToken().decimals()
-    token_name = USDCToken().name()
+    token_symbol = USDCToken().symbol()
 
     filecoinpay_account = FileCoinPay().get_account(USDCToken().address(), client_address())
     filecoinpay_available_funds = filecoinpay_account.funds - filecoinpay_account.lockup_current
@@ -116,8 +116,8 @@ def _deposit_and_approve_operator(deal_id: int):
     deposit_amount_str = utils.str_from_wei(deposit_amount, token_decimals)
 
     if token_balance < deposit_amount:
-        raise click.ClickException(f"Address {client_address()} {token_name} balance {token_balance_str} is "
-                                   f"less than required deposit {deposit_amount_str} {token_name} for deal ID {deal.deal_id}")
+        raise click.ClickException(f"Address {client_address()} {token_symbol} balance {token_balance_str} is "
+                                   f"less than required deposit {deposit_amount_str} {token_symbol} for deal ID {deal.deal_id}")
 
     # These parameters control operator approval limits in the FileCoinPay contract, not EIP-2612 permits
     # Setting all three to MAX_UINT256 grants the operator unrestricted control over payment rates, fund lockup amounts, and lockup periods
@@ -130,9 +130,9 @@ def _deposit_and_approve_operator(deal_id: int):
     # This code now deposit full deposit_amount for the deal only logging the filecoinpay_available_funds
     # This is intentional
     utils.confirm(
-        f"\nDeposit {deposit_amount_str} {token_name} for deal ID {deal.deal_id} from address {client_address()} and approve operator\n"
-        f"  Current token balance: {token_balance_str} {token_name}\n"
-        f"  Current FileCoinPay account available funds: {filecoinpay_available_funds_str} {token_name}\n"
+        f"\nDeposit {deposit_amount_str} {token_symbol} for deal ID {deal.deal_id} from address {client_address()} and approve operator\n"
+        f"  Current token balance: {token_balance_str} {token_symbol}\n"
+        f"  Current FileCoinPay account available funds: {filecoinpay_available_funds_str} {token_symbol}\n"
         f"  Operator (Validator) address: {deal.validator_address}\n"
         f"  Rate allowance: {'MAX_UINT256' if rate_allowance == utils.MAX_UINT256 else rate_allowance}\n"
         f"  Lockup allowance: {'MAX_UINT256' if lockup_allowance == utils.MAX_UINT256 else lockup_allowance}\n"
@@ -154,7 +154,7 @@ def _deposit_and_approve_operator(deal_id: int):
                                                                      max_lockup_period,
                                                                      client_private_key())
 
-    click.echo(f"Deposited {deposit_amount_str} {token_name} and operator approved for deal ID {deal.deal_id}: {tx_hash}")
+    click.echo(f"Deposited {deposit_amount_str} {token_symbol} and operator approved for deal ID {deal.deal_id}: {tx_hash}")
 
 
 def _initialize_rail(deal_id: int):
