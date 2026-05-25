@@ -9,6 +9,7 @@ from cli.commands.client._client import client_address
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarketDealProposal, PoRepMarket
+from cli.services.contracts.usdc_token import USDCToken
 from cli.services.web3_service import Web3Service, EthAddress
 
 
@@ -102,4 +103,4 @@ def __deposit_for_deals(deals: list[PoRepMarketDealProposal], months: int, token
         click.echo("Existing FileCoinPay funds is sufficient to cover required deposit amount for deals")
         return
 
-    client_utils.deposit_to_filecoinpay(deposit_amount)
+    client_utils.deposit_to_filecoinpay(deposit_amount, USDCToken(token_address))

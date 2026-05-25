@@ -14,4 +14,4 @@ def deposit_amount(amount: float):
     AMOUNT - Amount of USDC to deposit in decimal format (e.g., 1.5 for 1.5 USDC).  [x>0]
     """
 
-    client_utils.deposit_to_filecoinpay(utils.to_wei(amount, USDCToken().decimals()))
+    client_utils.deposit_to_filecoinpay(utils.to_wei(amount, USDCToken().decimals()), USDCToken())

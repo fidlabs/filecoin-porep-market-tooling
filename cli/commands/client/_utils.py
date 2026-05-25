@@ -26,7 +26,7 @@ def calculate_deposit_amount_for_deal(deal: PoRepMarketDealRequest,
     result = deal_size_sectors * deal.terms.price_per_sector_per_month * deposit_for_months
 
     if result != ceil(result):
-        utils.confirm(f"Calculated deposit amount {result} != {ceil(result)}. Continue?", default=True, abort=True)
+        utils.confirm(f"Calculated deposit amount {result} != {ceil(result)}. Continue?", default=True, abort=True, session_id="calculated-deposit-amount")
 
     return ceil(result)
 
@@ -36,14 +36,14 @@ def get_filecoin_permit_deadline() -> int:
 
 
 # EIP-712 signing for FileCoinPay permit msg
-def sign_filecoinpay_permit(amount: int, permit_deadline: int) -> SignedMessage:
+def sign_filecoinpay_permit(amount: int, permit_deadline: int, token: USDCToken) -> SignedMessage:
     # signed_msg.signature is sensitive info, should never be logged
     signed_msg = w3.eth.account.sign_typed_data(
         domain_data={
-            "name": USDCToken().name(),
+            "name": token.name(),
             "version": "1",
             "chainId": Web3Service().get_chain_id(),
-            "verifyingContract": USDCToken().address()
+            "verifyingContract": token.address()
         },
         message_types={
             "Permit": [
@@ -58,7 +58,7 @@ def sign_filecoinpay_permit(amount: int, permit_deadline: int) -> SignedMessage:
             "owner": client_address(),
             "spender": FileCoinPay().address(),
             "value": amount,
-            "nonce": USDCToken().nonces(client_address()),
+            "nonce": token.nonces(client_address()),
             "deadline": permit_deadline
         },
         private_key=client_private_key()
@@ -84,11 +84,11 @@ def complete_deal(deal: PoRepMarketDealProposal) -> str:
     return tx_hash
 
 
-def deposit_to_filecoinpay(deposit_amount: int):
-    token_decimals = USDCToken().decimals()
-    token_name = USDCToken().name()
+def deposit_to_filecoinpay(deposit_amount: int, token: USDCToken):
+    token_decimals = token.decimals()
+    token_name = token.name()
 
-    token_balance = USDCToken().balance_of(client_address())
+    token_balance = token.balance_of(client_address())
     token_balance_str = utils.str_from_wei(token_balance, token_decimals)
 
     click.echo(f"Token balance: {token_balance_str} {token_name}")
@@ -103,8 +103,8 @@ def deposit_to_filecoinpay(deposit_amount: int):
     click.echo()
 
     permit_deadline = get_filecoin_permit_deadline()
-    signed_msg = sign_filecoinpay_permit(deposit_amount, permit_deadline)
-    tx_hash = FileCoinPay().deposit_with_permit(USDCToken().address(),
+    signed_msg = sign_filecoinpay_permit(deposit_amount, permit_deadline, token)
+    tx_hash = FileCoinPay().deposit_with_permit(token.address(),
                                                 client_address(),
                                                 deposit_amount,
                                                 permit_deadline,

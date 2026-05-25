@@ -141,7 +141,7 @@ def _deposit_and_approve_operator(deal_id: int):
     click.echo()
 
     permit_deadline = client_utils.get_filecoin_permit_deadline()
-    signed_msg = client_utils.sign_filecoinpay_permit(deposit_amount, permit_deadline)
+    signed_msg = client_utils.sign_filecoinpay_permit(deposit_amount, permit_deadline, USDCToken())
 
     tx_hash = FileCoinPay().deposit_with_permit_and_approve_operator(USDCToken().address(),
                                                                      client_address(),
