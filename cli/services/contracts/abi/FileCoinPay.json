@@ -1,6 +1,5 @@
 [
     {
-        "constant": true,
         "inputs": [
             {
                 "internalType": "address",
@@ -36,12 +35,10 @@
                 "type": "uint256"
             }
         ],
-        "payable": false,
         "stateMutability": "view",
         "type": "function"
     },
     {
-        "constant": false,
         "inputs": [
             {
                 "internalType": "address",
@@ -82,12 +79,10 @@
                 "type": "uint256"
             }
         ],
-        "payable": false,
         "stateMutability": "nonpayable",
         "type": "function"
     },
     {
-        "constant": false,
         "inputs": [
             {
                 "internalType": "contract IERC20",
@@ -127,12 +122,10 @@
         ],
         "name": "depositWithPermit",
         "outputs": [],
-        "payable": false,
         "stateMutability": "nonpayable",
         "type": "function"
     },
     {
-        "constant": false,
         "inputs": [
             {
                 "internalType": "address",
@@ -192,12 +185,91 @@
         ],
         "name": "depositWithPermitAndApproveOperator",
         "outputs": [],
-        "payable": false,
         "stateMutability": "nonpayable",
         "type": "function"
     },
     {
-        "constant": false,
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "railId",
+                "type": "uint256"
+            }
+        ],
+        "name": "getRail",
+        "outputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "contract IERC20",
+                        "name": "token",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "from",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "to",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "operator",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "validator",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "paymentRate",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "lockupPeriod",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "lockupFixed",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "settledUpTo",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "endEpoch",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "commissionRateBps",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "serviceFeeRecipient",
+                        "type": "address"
+                    }
+                ],
+                "internalType": "struct FileCoinPay.RailView",
+                "name": "",
+                "type": "tuple"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
         "inputs": [
             {
                 "internalType": "uint256",
@@ -217,12 +289,10 @@
         ],
         "name": "modifyRailLockup",
         "outputs": [],
-        "payable": false,
         "stateMutability": "nonpayable",
         "type": "function"
     },
     {
-        "constant": false,
         "inputs": [
             {
                 "internalType": "uint256",
@@ -242,12 +312,10 @@
         ],
         "name": "modifyRailPayment",
         "outputs": [],
-        "payable": false,
         "stateMutability": "nonpayable",
         "type": "function"
     },
     {
-        "constant": true,
         "inputs": [
             {
                 "internalType": "contract IERC20",
@@ -298,12 +366,10 @@
                 "type": "uint256"
             }
         ],
-        "payable": false,
         "stateMutability": "view",
         "type": "function"
     },
     {
-        "constant": false,
         "inputs": [
             {
                 "internalType": "uint256",
@@ -313,7 +379,6 @@
         ],
         "name": "terminateRail",
         "outputs": [],
-        "payable": false,
         "stateMutability": "nonpayable",
         "type": "function"
     }
