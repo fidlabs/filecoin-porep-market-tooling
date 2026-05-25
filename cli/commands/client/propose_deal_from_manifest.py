@@ -68,7 +68,7 @@ def _propose_deal_from_manifest(manifest_url: str,
                 f"already exists in PoRep Market: {utils.json_pretty(existing_deal)} "
                 "Continue?", default=not is_active, abort=True)
 
-    token_name = USDCToken().name()
+    token_symbol = USDCToken().symbol()
     deal_duration_months = deal.terms.duration_days // 30  # PoRep Market smart contracts assumes month == 30 days
 
     max_cost_per_month = client_utils.calculate_deposit_amount_for_deal(deal, deposit_for_months=1)
@@ -79,8 +79,8 @@ def _propose_deal_from_manifest(manifest_url: str,
 
     # TODO LATER print account info (you now have ... at address ...)
     utils.confirm(f"\nProposing deal: {utils.json_pretty(deal)}"
-                  f" This will cost you maximum of {max_cost_per_month_str} {token_name} per month. "
-                  f"This is a total of {total_max_cost_str} {token_name} for {duration_months} months. "
+                  f" This will cost you maximum of {max_cost_per_month_str} {token_symbol} per month. "
+                  f"This is a total of {total_max_cost_str} {token_symbol} for {duration_months} months. "
                   f"Continue?", abort=True)
 
     tx_hash = PoRepMarket().propose_deal(deal, client_private_key())
