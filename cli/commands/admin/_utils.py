@@ -62,7 +62,7 @@ def get_db_sps(db_url: str,
         return max([_bandwidth_tier_to_mbps(tier) for tier in tiers]) if tiers else 0
 
     def price_per_tib_tokens_to_per_sector(price_per_tib_tokens: float, payment_types: list[str]) -> int:
-        if not payment_types or len(payment_types) != 1 or payment_types[0] != "axlUSDC":
+        if not payment_types or len(payment_types) != 1 or payment_types[0] != USDCToken().symbol():
             raise ValueError(f"Unsupported payment type: {payment_types}")
 
         price_per_tib = utils.to_wei(price_per_tib_tokens, USDCToken().decimals())

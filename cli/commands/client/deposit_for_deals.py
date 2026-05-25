@@ -64,7 +64,7 @@ def deposit_for_deals(deal_id: int | None = None, months: int = 1):
     _deposit_for_deals(deals, months)
 
 
-# deposits USDC funds to FileCoinPay account for X month of storing deals
+# deposits funds to FileCoinPay account for X month of storing deals
 def _deposit_for_deals(deals: list[PoRepMarketDealProposal], months: int):
     deals_per_token = {}
 
