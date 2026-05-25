@@ -5,7 +5,6 @@ from urllib.parse import urlparse
 
 import click
 import requests
-from eth_account.types import PrivateKeyType
 
 from cli import utils
 from cli._cli import is_dry_run
@@ -97,16 +96,6 @@ def print_info():
     click.echo()
     click.echo(f"DRY_RUN={is_dry_run()}")
     click.echo(f"DEBUG={utils.get_env_required('DEBUG', default='False').capitalize()}")
-
-
-def validate_address_matches_private_key(address: EthAddress, private_key: PrivateKeyType | None):
-    if not private_key:
-        raise click.ClickException("Private key is not set")
-
-    derived_address = EthAddress.from_private_key(private_key)
-
-    if derived_address != address:
-        raise click.ClickException(f"Address {address} does not match private key {utils.private_str_to_log_str(private_key)} (expected: {derived_address})")
 
 
 # retries = None means "ask user"
