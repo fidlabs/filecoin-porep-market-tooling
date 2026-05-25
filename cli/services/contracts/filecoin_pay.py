@@ -5,6 +5,8 @@ from cli.services.contracts.contract_service import ContractService
 from cli.services.web3_service import EthAddress
 
 
+# https://github.com/FilOzone/filecoin-pay
+
 @utils.json_dataclass()
 class FileCoinPayAccount:
     funds: int
@@ -42,6 +44,40 @@ class FileCoinPayOperatorApproval:
             rate_usage=int(data[3]),
             lockup_usage=int(data[4]),
             max_lockup_period=int(data[5])
+        )
+
+
+@utils.json_dataclass()
+class FileCoinPayRailView:
+    token: EthAddress
+    from_address: EthAddress
+    to_address: EthAddress
+    operator: EthAddress
+    validator: EthAddress
+    payment_rate: int
+    lockup_period: int
+    lockup_fixed: int
+    settled_up_to: int
+    end_epoch: int
+    commission_rate_bps: int  # Operator commission rate in basis points (e.g., 100 BPS = 1%)
+    service_fee_recipient: EthAddress  # address to collect operator commission
+
+    @staticmethod
+    def from_web3(data) -> "FileCoinPayRailView":
+        # noinspection PyArgumentList
+        return FileCoinPayRailView(
+            token=EthAddress(data[0]),
+            from_address=EthAddress(data[1]),
+            to_address=EthAddress(data[2]),
+            operator=EthAddress(data[3]),
+            validator=EthAddress(data[4]),
+            payment_rate=int(data[5]),
+            lockup_period=int(data[6]),
+            lockup_fixed=int(data[7]),
+            settled_up_to=int(data[8]),
+            end_epoch=int(data[9]),
+            commission_rate_bps=int(data[10]),
+            service_fee_recipient=EthAddress(data[11])
         )
 
 
@@ -136,3 +172,8 @@ class FileCoinPay(ContractService):
     # The self-balance collects network fees
     def get_account(self, token: EthAddress, owner: EthAddress) -> FileCoinPayAccount:
         return FileCoinPayAccount.from_web3(self.contract.functions.accounts(token, owner).call())
+
+    # @notice Gets the current state of the target rail or reverts if the rail isn't active.
+    # @param railId the ID of the rail.
+    def get_rail(self, rail_id: int) -> FileCoinPayRailView:
+        return FileCoinPayRailView.from_web3(self.contract.functions.getRail(rail_id).call())
