@@ -249,7 +249,7 @@ def _show(self, file=None):
     if file is None:
         file = sys.stderr
 
-    click.secho(f"Error: {self.format_message()}", fg="red", err=True, file=file)
+    click.secho(f"\nError: {self.format_message()}", fg="red", err=True, file=file)
 
 
 click.ClickException.show = _show

@@ -9,6 +9,8 @@ import requests
 from cli import utils
 from cli._cli import is_dry_run
 from cli.services.contracts.client_contract import ClientContract
+from cli.services.contracts.erc20_contract import ERC20Contract
+from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarketDealProposal, PoRepMarket
 from cli.services.contracts.sp_registry import SPRegistry
 from cli.services.web3_service import EthAddress, ActorId
@@ -215,3 +217,26 @@ def _fetch_manifest(parsed_url: ParseResult, show_manifest: bool | None = None, 
         raise click.ClickException(f"Invalid manifest format: missing key {e}") from e
 
     return manifest
+
+
+def get_filecoinpay_account(token_address: str, owner_address: EthAddress):
+    _token_address = EthAddress(token_address)
+    token = ERC20Contract(_token_address)
+    token_symbol = token.symbol()
+    token_decimals = token.decimals()
+    account = FileCoinPay().get_account(_token_address, owner_address)
+
+    return {
+        "owner": str(owner_address),
+        "token": {
+            "address": str(_token_address),
+            "name": token.name(),
+            "symbol": token_symbol,
+            "decimals": token_decimals,
+            "balance": f"{utils.str_from_wei(token.balance_of(owner_address), token_decimals)} {token_symbol}"
+        },
+        "account": {
+            "funds": f"{utils.str_from_wei(account.funds, token_decimals)} {token_symbol}",
+            "account": account.__dict__
+        }
+    }

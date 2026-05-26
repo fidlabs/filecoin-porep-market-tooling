@@ -3,17 +3,14 @@ from .accept_deal import accept_deal
 from .claim_allocations import claim_allocations
 from .get_allocations import get_allocations
 from .get_claims import get_claims
-from .get_deals import get_deal
-from .get_deals import get_deal_manifest
-from .get_deals import get_deal_rail
-from .get_deals import get_deals
+from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals
+from .get_filecoinpay_account import get_filecoinpay_account
 from .get_registered_info import get_registered_info
 from .is_authorized import is_authorized
 from .manage_proposed_deals import manage_proposed_deals
 from .onboard_data import onboard_data
 from .reject_deal import reject_deal
-from .withdraw import withdraw
-from .get_balance import get_balance
+from .withdraw_from_filecoinpay import withdraw_from_filecoinpay
 
 sp.add_command(get_deal_manifest)
 sp.add_command(get_deal_rail)
@@ -30,5 +27,5 @@ sp.add_command(reject_deal)
 sp.add_command(manage_proposed_deals)
 sp.add_command(get_registered_info)
 sp.add_command(get_allocations)
-sp.add_command(withdraw)
-sp.add_command(get_balance)
+sp.add_command(withdraw_from_filecoinpay)
+sp.add_command(get_filecoinpay_account)
