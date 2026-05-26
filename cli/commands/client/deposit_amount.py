@@ -9,13 +9,13 @@ from cli.services.web3_service import EthAddress
 
 @click.command()
 @click.argument("amount", type=click.FloatRange(min=0, min_open=True))
-@click.option("--token-address", envvar="USDC_TOKEN", show_envvar=True, required=True,
-              help="ERC20 token address to deposit to FileCoinPay account.")
+@click.argument("token_address", envvar="USDC_TOKEN")
 def deposit_amount(amount: float, token_address: str):
     """
     Deposit a specified amount of ERC20 token to FileCoinPay account.
 
     AMOUNT - Amount of token to deposit in decimal format (e.g., 1.5 for 1.5 USDC).  [x>0]
+    TOKEN_ADDRESS - Address of the ERC20 token to deposit.  [default: USDC_TOKEN env var]
     """
 
     _token_address = EthAddress(token_address)

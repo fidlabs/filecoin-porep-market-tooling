@@ -1,10 +1,7 @@
 from ._admin import admin, info, wait
 from .block_sp import block_sp
 from .get_db_sps import get_db_sps
-from .get_deals import get_deal
-from .get_deals import get_deal_manifest
-from .get_deals import get_deal_rail
-from .get_deals import get_deals
+from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals
 from .get_devnet_sps import get_devnet_sps
 from .get_registered_sps import get_registered_sps
 from .pause_sp import pause_sp

@@ -122,10 +122,9 @@ class FileCoinPay(ContractService):
                 token, to, amount, deadline, v, r, s, operator, rate_allowance, lockup_allowance, max_lockup_period
             ), from_private_key)
 
-    # @notice Deposits tokens using permit (EIP-2612) approval in a single transaction,
-    #         while also increasing operator approval allowances.
+    # @notice Deposits tokens using permit (EIP-2612) approval in a single transaction, while also increasing operator approval allowances.
     # @param token The ERC20 token address to deposit and for which the operator approval is being increased.
-    #             Note: The token must support EIP-2612 permit functionality.
+    #    Note: The token must support EIP-2612 permit functionality.
     # @param to The address whose account will be credited (must be the permit signer).
     # @param amount The amount of tokens to deposit.
     # @param deadline Permit deadline (timestamp).
@@ -181,8 +180,17 @@ class FileCoinPay(ContractService):
     def get_rail(self, rail_id: int) -> FileCoinPayRailView:
         return FileCoinPayRailView.from_web3(self.contract.functions.getRail(rail_id).call())
 
+    # @notice Withdraws tokens from the caller's account to the caller's account, up to the amount of currently available tokens
+    #     (the tokens not currently locked in rails).
+    # @param token The ERC20 token address to withdraw.
+    # @param amount The amount of tokens to withdraw.
     def withdraw(self, token: EthAddress, amount: int, from_private_key: PrivateKeyType) -> str:
         return self.sign_and_send_tx(self.contract.functions.withdraw(token, amount), from_private_key)
 
+    # @notice Withdraws tokens (`token`) from the caller's account to `to`, up to the amount of currently available tokens
+    #     (the tokens not currently locked in rails).
+    # @param token The ERC20 token address to withdraw.
+    # @param to The address to receive the withdrawn tokens.
+    # @param amount The amount of tokens to withdraw.
     def withdraw_to(self, token: EthAddress, to: EthAddress, amount: int, from_private_key: PrivateKeyType) -> str:
         return self.sign_and_send_tx(self.contract.functions.withdrawTo(token, to, amount), from_private_key)

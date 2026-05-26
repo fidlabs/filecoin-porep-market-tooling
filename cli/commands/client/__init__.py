@@ -2,10 +2,7 @@ from ._client import client, info, wait
 from .complete_deal import complete_deal
 from .deposit_amount import deposit_amount
 from .deposit_for_deals import deposit_for_deals
-from .get_deals import get_deal
-from .get_deals import get_deal_manifest
-from .get_deals import get_deal_rail
-from .get_deals import get_deals
+from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals
 from .get_filecoinpay_account import get_filecoinpay_account
 from .init_accepted_deals import init_accepted_deals
 from .make_allocations import make_allocations
