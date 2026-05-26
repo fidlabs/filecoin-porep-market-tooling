@@ -2,6 +2,7 @@ import dataclasses
 import enum
 import json
 import os
+import sys
 from typing import TypeVar, Callable
 
 import click
@@ -242,3 +243,13 @@ def private_str_to_log_str(private_str) -> str:
 
 def bytes_to_sectors(bytes_size: int, sector_size_bytes: int) -> float:
     return bytes_size / sector_size_bytes
+
+
+def _show(self, file=None):
+    if file is None:
+        file = sys.stderr
+
+    click.secho(f"Error: {self.format_message()}", fg="red", err=True, file=file)
+
+
+click.ClickException.show = _show
