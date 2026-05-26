@@ -11,6 +11,7 @@ mypy.ini
 data/
 
 curio.sh
+curio.bat
 
 aria2-1.37.0-win-64bit-build1/
 
