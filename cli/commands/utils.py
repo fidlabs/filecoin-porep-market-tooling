@@ -1,5 +1,7 @@
 import ipaddress
+import json
 import socket
+from pathlib import Path
 from urllib.parse import ParseResult
 from urllib.parse import urlparse
 
@@ -130,6 +132,30 @@ def fetch_manifest(manifest_url: str,
                     retries -= 1
 
 
+def fetch_local_manifest(manifest_path: str,
+                         show_manifest: bool | None = None,
+                         quiet: bool = False) -> list[dict]:
+    #
+    if not quiet:
+        click.echo(f"Reading manifest from {manifest_path}")
+
+    path = Path(manifest_path).expanduser()
+
+    if not path.exists():
+        raise click.ClickException(f"Manifest file does not exist: {path}")
+    if not path.is_file():
+        raise click.ClickException(f"Manifest path is not a file: {path}")
+
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as e:
+        raise click.ClickException(f"Failed to read manifest file: {e}") from e
+    except ValueError as e:
+        raise click.ClickException(f"Manifest is not a valid JSON: {e}") from e
+
+    return _validate_manifest(manifest, show_manifest, quiet)
+
+
 def validate_and_parse_url(manifest_url: str) -> ParseResult:
     parsed = urlparse(manifest_url)
 
@@ -150,8 +176,6 @@ def validate_and_parse_url(manifest_url: str) -> ParseResult:
 
 
 def _fetch_manifest(parsed_url: ParseResult, show_manifest: bool | None = None, quiet: bool = False) -> list[dict]:
-    MINIMUM_DAG_PIECE_SIZE_BYTES = 1024 * 1024  # 1 MiB
-
     # download manifest
     resp = requests.get(parsed_url.geturl(), headers={"Host": parsed_url.hostname}, timeout=30, allow_redirects=False)
     resp.raise_for_status()
@@ -161,8 +185,14 @@ def _fetch_manifest(parsed_url: ParseResult, show_manifest: bool | None = None, 
     except ValueError as e:
         raise click.ClickException(f"Manifest is not a valid JSON: {e}") from e
 
+    return _validate_manifest(manifest, show_manifest, quiet)
+
+
+def _validate_manifest(manifest: object, show_manifest: bool | None = None, quiet: bool = False) -> list[dict]:
+    MINIMUM_DAG_PIECE_SIZE_BYTES = 1024 * 1024  # 1 MiB
+
     if not quiet:
-        click.echo("Manifest downloaded")
+        click.echo("Manifest loaded")
 
     # show manifest
     if show_manifest or (show_manifest is None and utils.confirm("Show manifest?")):

@@ -20,7 +20,9 @@ DATACAP_DECIMALS = 18
               help="Print transfer params without broadcasting.  [default: false]")
 @click.option("--exclude-dag", is_flag=True, default=False,
               help="Exclude manifest DAG piece. Default is to include it.  [default: false]")
-def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool = False):
+@click.option("--local-manifest", type=click.Path(exists=True),
+              help="Local manifest file to use instead of fetching from the deal proposal.")
+def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool = False, local_manifest: str | None = None):
     """
     Interactively make DDO allocations for an accepted deal in batches (groups).
 
@@ -55,7 +57,10 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
     if deal_claims:
         raise RuntimeError("Some allocations claimed but deal still in ACCEPTED state")
 
-    manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False, quiet=True)
+    if local_manifest:
+        manifest = commands_utils.fetch_local_manifest(local_manifest, show_manifest=False, quiet=True)
+    else:
+        manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False, quiet=True)
     pieces = manifest[0]["pieces"]
 
     if exclude_dag:
