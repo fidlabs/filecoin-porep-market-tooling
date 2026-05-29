@@ -10,7 +10,7 @@ from cli.services.contracts.client_contract import ClientContract, TransferParam
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
 from cli.services.web3_service import Web3Service, ActorId
 
-BATCH_SIZE = 10
+BATCH_SIZE = 500
 DATACAP_DECIMALS = 18
 
 
@@ -115,7 +115,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
             click.echo(f"to={params.to[0].hex()}  amount={params.amount[0].hex()}  operator_data={params.operator_data.hex()}")
         else:
             tx_hash = ClientContract().transfer(params, deal_id, client_private_key())
-            click.echo(f"params: {params}, tx={tx_hash}")
+            click.echo(f"params: {repr(params)}, tx={tx_hash}")
 
             if tx_hash == Web3Service.ZERO_TX_HASH:
                 click.echo("Cannot continue with dry-run mode, exiting.")
