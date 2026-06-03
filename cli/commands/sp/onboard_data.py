@@ -1,5 +1,7 @@
 import json
+import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -33,13 +35,13 @@ def _get_aria2c_path() -> str:
     return str(aria2c_path)
 
 
-def _write_aria2c_input_file(manifest: list[dict], download_host: str, output_dir: Path) -> Path:
+def _write_aria2c_input_file(manifest: list[dict], download_host: str, output_dir: Path, no_summary: bool) -> Path:
     with tempfile.NamedTemporaryFile(delete=False) as f:
         aria2_file = Path(f.name)
 
     pieces = manifest[0]["pieces"]
 
-    click.echo(f"\nDownloading {len(pieces)} .car files:\n")
+    click.echo(f"\nDownloading {len(pieces)} .car files" + (":" if not no_summary else ""))
 
     with open(aria2_file, "w", encoding="utf-8") as f:
         for piece in pieces:
@@ -57,7 +59,11 @@ def _write_aria2c_input_file(manifest: list[dict], download_host: str, output_di
             f.write(f"  out={output_file.name}\n")
             f.write(f"  dir={output_file.parent}\n")
 
-            click.echo(f"  {download_url} -> {output_file}")
+            if not no_summary:
+                click.echo(f"  {download_url} -> {output_file}")
+
+    if not no_summary:
+        click.echo("\n")
 
     return aria2_file.resolve()
 
@@ -81,15 +87,28 @@ def _write_manifest_file(manifest: list[dict], output_dir: Path, deal_id: int) -
 
 @click.command(context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
 @click.argument("deal_id", type=click.IntRange(min=0))
-@click.option("--output-dir", type=click.Path(file_okay=False), required=True, help="Directory to save downloaded pieces.")
-@click.option("--host", help="Host to use for .car files download.  [default: same host as manifest URL]")
+@click.option("--output-dir", type=click.Path(file_okay=False), required=True,
+              help="Directory to save downloaded pieces.")
+@click.option("--host",
+              help="Host to use for .car files download.  [default: same host as manifest URL]")
 @click.option("--port", default=7777, type=click.IntRange(min=1, max=65535), show_default=True,
               help="Port to use for .car files download.")
 @click.option("--force", is_flag=True, default=False,
               help="Force download even if all allocations are claimed.  [default: false]")
+@click.option("--no-summary", is_flag=True, default=False,
+              help="Don't print the initial download summary.  [default: false]")
+@click.option("--claim-allocations", type=click.Choice(["curio", "boost"], case_sensitive=False),
+              help="Claim allocation(s) for each piece right after download using specified software.  [default: none]")
 @click.pass_context
 # TODO add commP files verification after download
-def onboard_data(ctx, deal_id: int, output_dir: str, port: int, host: str | None = None, force: bool = False):
+def onboard_data(ctx,
+                 deal_id: int,
+                 output_dir: str,
+                 port: int,
+                 host: str | None = None,
+                 force: bool = False,
+                 no_summary: bool = False,
+                 claim_allocations: str | None = None):
     """
     \b
     Download data for a deal using aria2 downloader.
@@ -105,6 +124,8 @@ def onboard_data(ctx, deal_id: int, output_dir: str, port: int, host: str | None
     """
 
     aria2c_path = _get_aria2c_path()
+
+    click.echo("Fetching deal details...")
     deal = PoRepMarket().get_deal_proposal(deal_id)
 
     if deal.state != PoRepMarketDealState.COMPLETED:
@@ -129,11 +150,9 @@ def onboard_data(ctx, deal_id: int, output_dir: str, port: int, host: str | None
 
     parsed_url = commands_utils.validate_and_parse_url(host or deal.manifest_location)
     download_host = f"{parsed_url.scheme or 'http'}://{parsed_url.hostname}:{port}"
-    aria2_file = _write_aria2c_input_file(manifest, download_host, _output_dir)
+    aria2_file = _write_aria2c_input_file(manifest, download_host, _output_dir, no_summary)
 
     try:
-        click.echo("\n")
-
         command = [aria2c_path,
                    "-i", str(aria2_file),
                    "-x", "4",
@@ -143,9 +162,21 @@ def onboard_data(ctx, deal_id: int, output_dir: str, port: int, host: str | None
                    "--summary-interval=30",
                    "--console-log-level=warn"] + ctx.args
 
+        if claim_allocations:
+            callback_path = Path(sys.argv[0]).parent / "cli" / "commands" / "sp" / "_aria2_callback.py"
+            command += [f"--on-download-complete={callback_path}"]
+
+            env = {
+                **os.environ,
+                "ARIA2C_CLAIM_ALLOCATIONS_SOFTWARE": claim_allocations,
+                "ARIA2C_DEAL_ID": str(deal_id),
+            }
+        else:
+            env = None  # default argument
+
         utils.confirm(f"\nRunning command:\n  {' '.join(command)}\nContinue?", default=True, abort=True)
         click.echo("\n")
-        subprocess.run(command, check=True)
+        subprocess.run(command, check=True, env=env)
 
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"aria2c failed with exit code {e.returncode}") from e
