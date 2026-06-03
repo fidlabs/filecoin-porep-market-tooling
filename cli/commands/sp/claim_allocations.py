@@ -85,8 +85,9 @@ def _build_allocation_command_boost(boostd_path: str,
 @click.argument("software", type=click.Choice(["curio", "boost"], case_sensitive=False))
 @click.argument("deal_id", type=click.IntRange(min=0))
 @click.option("--cars-dir", type=click.Path(exists=True, file_okay=False), help="Directory containing .cid files, used for boost software.")
+@click.option("--cid", help="CID of the data piece to claim allocation for.  [default: all deal's allocations]")
 @click.pass_context
-def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = None):
+def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = None, cid: str | None = None):
     """
     \b
     Interactively claim DDO allocations for a deal.
@@ -125,6 +126,7 @@ def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = N
     else:
         raise click.ClickException(f"Unsupported software: {software}")
 
+    click.echo("Fetching deal details...")
     deal = PoRepMarket().get_deal_proposal(deal_id)
 
     if deal.state != PoRepMarketDealState.COMPLETED:
@@ -134,14 +136,27 @@ def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = N
     deal_claims = commands_utils.get_deal_claims(deal)
     allocations_not_claimed = {allocation_id: alloc for allocation_id, alloc in deal_allocations.items() if str(allocation_id) not in deal_claims}
 
-    click.echo(f"Found {len(deal_allocations)} allocations and {len(deal_claims)} claims for deal ID {deal_id}")
-    click.echo(f"{len(allocations_not_claimed)} allocations not claimed")
+    if not cid:
+        click.echo(f"Found {len(deal_allocations)} allocations and {len(deal_claims)} claims for deal ID {deal_id}")
+        click.echo(f"{len(allocations_not_claimed)} allocations not claimed")
 
-    if not allocations_not_claimed:
-        return
+        if not allocations_not_claimed:
+            return
 
-    if click.confirm("Print allocations not claimed?", default=False):
-        click.echo(utils.json_pretty(allocations_not_claimed))
+        if click.confirm("Print allocations not claimed?", default=False):
+            click.echo(utils.json_pretty(allocations_not_claimed))
+    else:
+        allocations_not_claimed = {allocation_id: alloc for allocation_id, alloc in allocations_not_claimed.items() if alloc.get("Data", {}).get("/") == cid}
+        deal_claims = {claim_id: claim for claim_id, claim in deal_claims.items() if claim.get("Data", {}).get("/") == cid}
+
+        if allocations_not_claimed:
+            click.echo(f"Found {len(allocations_not_claimed)} allocation(s) not claimed for CID {cid}: {utils.json_pretty(allocations_not_claimed)}")
+        else:
+            if deal_claims:
+                click.echo(f"Allocation(s) for CID {cid} already claimed: {utils.json_pretty(deal_claims)}")
+                return
+            else:
+                raise click.ClickException(f"No allocations / claims found for CID {cid} and deal ID {deal_id}")
 
     for allocation_id, allocation in allocations_not_claimed.items():
         command = build_allocation_command(allocation_id=int(allocation_id),
