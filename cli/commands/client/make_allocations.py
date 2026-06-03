@@ -12,9 +12,6 @@ from cli.services.contracts.client_contract import ClientContract, TransferParam
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
 from cli.services.web3_service import Web3Service, ActorId
 
-BATCH_SIZE = 500
-DATACAP_DECIMALS = 18
-
 
 @click.command()
 @click.argument("deal_id", type=click.IntRange(min=0))
@@ -34,7 +31,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
     1. Fetch deal proposal and manifest for the given DEAL_ID,
     2. prepare DataCap transfer parameters for each batch of pieces,
     3. make Direct Data Onboarding (DDO) allocation for each batch using Client smart contract,
-    4. IMPORTANT: mark deal as completed in the last batch to allow SP to submit the proof and receive payment.
+    4. IMPORTANT: mark deal as completed to allow SP to submit the proof and receive payment.
     """
 
     # TODO improve click.echo here
@@ -110,7 +107,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
         # noinspection PyArgumentList
         params = TransferParams(
             to=(b"\x00\x06",),
-            amount=(utils.uint_to_bytes(utils.to_wei(total_size, DATACAP_DECIMALS), size=None), False),
+            amount=(utils.uint_to_bytes(utils.to_wei(total_size, utils.DATACAP_DECIMALS), size=None), False),
             operator_data=operator_data
         )
 
@@ -118,7 +115,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
             click.echo(f"to={params.to[0].hex()}  amount={params.amount[0].hex()}  operator_data={params.operator_data.hex()}")
         else:
             tx_hash = ClientContract().transfer(params, deal_id, client_private_key())
-            click.echo(f"params: {repr(params)}, tx={tx_hash}")
+            click.echo(f"params: {params!r}, tx={tx_hash}")
 
             if tx_hash == Web3Service.ZERO_TX_HASH:
                 click.echo("Cannot continue with dry-run mode, exiting.")
@@ -128,13 +125,8 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
             click.echo(f"Batch {current_batch_number} done.")
             click.echo(f"Allocated size ({allocation_size}/{deal.terms.deal_size_bytes})")
 
-    if print_only:
-        click.echo("\nAll done!")
-        return
-
-    client_utils.check_allocations_size(deal)
-    tx_hash = PoRepMarket().complete_deal(deal_id, client_private_key())
-    click.echo(f"Deal completed successfully: {tx_hash}")
+    if not print_only:
+        client_utils.complete_deal(deal)
 
     click.echo("\nAll done!")
 
@@ -167,6 +159,8 @@ def _build_operator_data_batch(provider_id: ActorId, batch: list[tuple[str, int]
 
 
 def _batch_pieces(pieces: list[dict]) -> list[list[tuple[str, int]]]:
+    BATCH_SIZE = 500
+
     return [
         [(p["pieceCid"], int(p["pieceSize"])) for p in pieces[i:i + BATCH_SIZE]]
         for i in range(0, len(pieces), BATCH_SIZE)

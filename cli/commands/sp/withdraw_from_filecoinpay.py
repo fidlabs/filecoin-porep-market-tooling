@@ -23,10 +23,9 @@ def withdraw_from_filecoinpay(to_address: str, amount: float, token_address: str
     """
 
     _to_address = EthAddress.from_any(to_address)
-
     _token_address = EthAddress(token_address)
-    token = ERC20Contract(_token_address)
 
+    token = ERC20Contract(_token_address)
     token_decimals = token.decimals()
     token_symbol = token.symbol()
 

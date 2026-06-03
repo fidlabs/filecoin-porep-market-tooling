@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 import click
 import requests
+from eth_account.types import PrivateKeyType
 
 from cli import utils
 from cli._cli import is_dry_run
@@ -41,7 +42,8 @@ def get_all_deals(state: PoRepMarketDealState | str | None = None,
     return result
 
 
-def get_client_deals(_client_address: EthAddress, state: PoRepMarketDealState | None = None) -> list[PoRepMarketDealProposal]:
+def get_client_deals(_client_address: EthAddress,
+                     state: PoRepMarketDealState | None = None) -> list[PoRepMarketDealProposal]:
     all_deals = get_all_deals(state)
     return [deal for deal in all_deals if deal.client_address == _client_address]
 
@@ -162,7 +164,9 @@ def validate_and_parse_url(manifest_url: str) -> ParseResult:
     return parsed
 
 
-def _fetch_manifest(parsed_url: ParseResult, show_manifest: bool | None = None, quiet: bool = False) -> list[dict]:
+def _fetch_manifest(parsed_url: ParseResult,
+                    show_manifest: bool | None = None,
+                    quiet: bool = False) -> list[dict]:
     resp = requests.get(parsed_url.geturl(), headers={"Host": parsed_url.hostname}, timeout=30, allow_redirects=False)
     resp.raise_for_status()
 
@@ -255,3 +259,15 @@ def get_filecoinpay_account(token_address: str, owner_address: EthAddress):
             "account": account.__dict__
         }
     }
+
+
+def reject_deal(deal: PoRepMarketDealProposal, from_private_key: PrivateKeyType, confirm_session_id: str | None = None) -> str:
+    if deal.state != PoRepMarketDealState.PROPOSED:
+        raise click.ClickException(f"Deal ID {deal.deal_id} is in state {deal.state} != PROPOSED")
+
+    utils.confirm(f"Rejecting deal ID {deal.deal_id}: {deal}", default=True, abort=True, session_id=confirm_session_id)
+
+    tx_hash = PoRepMarket().reject_deal(deal.deal_id, from_private_key)
+    click.echo(f"Deal ID {deal.deal_id} rejected: {tx_hash}")
+
+    return tx_hash
