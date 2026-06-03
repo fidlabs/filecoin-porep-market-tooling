@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import cbor2
 import click
 import multibase
@@ -20,7 +22,7 @@ DATACAP_DECIMALS = 18
               help="Print transfer params without broadcasting.  [default: false]")
 @click.option("--exclude-dag", is_flag=True, default=False,
               help="Exclude manifest DAG piece. Default is to include it.  [default: false]")
-@click.option("--local-manifest", type=click.Path(exists=True),
+@click.option("--local-manifest", type=click.Path(exists=True, dir_okay=False),
               help="Local manifest file to use instead of fetching from the deal proposal.")
 def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool = False, local_manifest: str | None = None):
     """
@@ -58,9 +60,10 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
         raise RuntimeError("Some allocations claimed but deal still in ACCEPTED state")
 
     if local_manifest:
-        manifest = commands_utils.fetch_local_manifest(local_manifest, show_manifest=False, quiet=True)
+        manifest = commands_utils.fetch_local_manifest(Path(local_manifest).resolve())
     else:
-        manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False, quiet=True)
+        manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False)
+
     pieces = manifest[0]["pieces"]
 
     if exclude_dag:

@@ -8,6 +8,12 @@ from cli.services.contracts.validator_factory import ValidatorFactory
 from cli.services.web3_service import Web3Service
 
 
+def _terminate_proposed_deal(deal: PoRepMarketDealProposal) -> str:
+    assert deal.state == PoRepMarketDealState.PROPOSED
+
+    return PoRepMarket().reject_deal(deal.deal_id, admin_private_key())
+
+
 def _terminate_completed_deal(deal: PoRepMarketDealProposal) -> str:
     assert deal.state == PoRepMarketDealState.COMPLETED
 
@@ -45,6 +51,12 @@ def terminate_deal(deal_id: int):
     """
     Terminate a deal early. Not all deals can be terminated.
 
+    \b
+    Calls:
+    - `PoRepMarket.rejectAcceptedDeal` for ACCEPTED deals without initialized FileCoinPay rail,
+    - `FileCoinPayValidator.terminateRail` for COMPLETED deals,
+    - `PoRepMarket.rejectDeal` for PROPOSED deals.
+
     DEAL_ID - The ID of the deal to terminate.
     """
 
@@ -56,6 +68,8 @@ def terminate_deal(deal_id: int):
         tx_hash = _terminate_completed_deal(deal)
     elif deal.state == PoRepMarketDealState.ACCEPTED:
         tx_hash = _terminate_accepted_deal(deal)
+    elif deal.state == PoRepMarketDealState.PROPOSED:
+        tx_hash = _terminate_proposed_deal(deal)
     else:
         raise click.ClickException(f"Deal ID {deal_id} is not in a state that can be terminated")
 
