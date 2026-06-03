@@ -115,7 +115,7 @@ def onboard_data(ctx, deal_id: int, output_dir: str, port: int, host: str | None
     allocations_not_claimed = {allocation_id: alloc for allocation_id, alloc in deal_allocations.items() if str(allocation_id) not in deal_claims}
 
     if deal_claims and not allocations_not_claimed and not force:
-        click.echo(f"All {len(deal_allocations)} allocations for deal ID {deal_id} are claimed; no need to download the data. Use --force to download anyway.")
+        click.echo(f"All {len(deal_claims)} allocations for deal ID {deal_id} are claimed; no need to download the data. Use --force to download anyway.")
         return
 
     manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False, retries=10)
