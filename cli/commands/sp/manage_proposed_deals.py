@@ -19,6 +19,7 @@ def manage_proposed_deals(action: str | None = None, provider_id: str | None = N
     """
 
     Web3Service().wait_for_pending_transactions(EthAddress.from_private_key(sp_private_key()))
+
     deals = commands_utils.get_sp_deals(sp_utils.PoRepMarketDealState.PROPOSED,
                                         sp_organization_address() if not provider_id else None,
                                         ActorId(provider_id) if provider_id else None)
@@ -38,7 +39,7 @@ def manage_proposed_deals(action: str | None = None, provider_id: str | None = N
 
             elif answer in ["reject"]:
                 click.echo()
-                sp_utils.reject_deal(deal, confirm_session_id="manage-proposed-deals-reject")
+                commands_utils.reject_deal(deal, sp_private_key(), confirm_session_id="manage-proposed-deals-reject")
 
             elif answer in ["skip"]:
                 continue

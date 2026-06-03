@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=None)
 
 MAX_UINT256 = 2 ** 256 - 1
+DATACAP_DECIMALS = 18
 
 T = TypeVar("T")
 
