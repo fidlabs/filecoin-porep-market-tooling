@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 import click
 import requests
 from eth_account.types import PrivateKeyType
+from requests import RequestException
 
 from cli import utils
 from cli._cli import is_dry_run
@@ -118,7 +119,7 @@ def fetch_manifest(manifest_url: str,
     while True:
         try:
             return _fetch_manifest(parsed_url, show_manifest, quiet)
-        except requests.exceptions.RequestException as e:
+        except RequestException as e:
             if retries is None:
                 if not utils.confirm(f"\nFailed to fetch manifest:\n{e}.\nRetry?", default=True):
                     raise click.ClickException(f"Network error while fetching manifest: {e}") from e
@@ -167,7 +168,13 @@ def validate_and_parse_url(manifest_url: str) -> ParseResult:
 def _fetch_manifest(parsed_url: ParseResult,
                     show_manifest: bool | None = None,
                     quiet: bool = False) -> list[dict]:
+    #
     resp = requests.get(parsed_url.geturl(), headers={"Host": parsed_url.hostname}, timeout=30, allow_redirects=False)
+
+    # don't retry on 4xx errors
+    if 400 <= resp.status_code < 500:
+        raise click.ClickException(f"Failed to fetch manifest: {resp.status_code} {resp.reason} - {resp.text}")
+
     resp.raise_for_status()
 
     if not quiet:
