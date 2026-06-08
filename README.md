@@ -16,7 +16,8 @@ This command-line tool lets **Storage Providers (SPs)** and **Clients** interact
 - **Clients** can propose storage deals, set up payment rails, allocate DataCap, and fund ongoing storage fees.
 - **Storage Providers** can review incoming deals, accept or reject them, download deal data, and claim allocations in Curio or Boost.
 
-You do not need to be a CLI expert to use it. Each command prints what it is about to do and asks for confirmation before sending blockchain transactions (see [Security considerations](#security-considerations)).
+You do not need to be a CLI expert to use it. Each command prints what it is about to do and asks for confirmation before sending blockchain transactions (
+see [Security considerations](#security-considerations)).
 
 ## Installation
 
@@ -30,14 +31,12 @@ cp .env.mainnet .env
 
 Clone this repo if you have not already:
 
-[https://github.com/fidlabs/filecoin-porep-market-tooling](https://github.com/fidlabs/filecoin-porep-market-tooling)
-
-NOTE: this repo is still heavily developed and continuously improved so please make sure to do `git pull` from inside the folder with the code
-to ensure you have the latest version of the code.
-
 ```bash
 git clone https://github.com/fidlabs/filecoin-porep-market-tooling
 ```
+
+NOTE: this repo is still heavily developed and continuously improved so please make sure to do `git pull` from inside the folder with the code
+to ensure you have the latest version of the code.
 
 ## Running the CLI
 
@@ -73,15 +72,15 @@ python3 ./porep_tooling_cli.py client --help
 
 ### Glossary
 
-| Term | Meaning |
-|------|---------|
-| **Deal** | A storage agreement between a client and an SP on the PoRep Market |
-| **Manifest** | A JSON file listing all data pieces (`.car` files) in a deal |
-| **DDO** | Direct Data Onboarding — allocating DataCap directly to an SP |
-| **Allocation** | A DataCap grant for a specific piece of data |
-| **FileCoinPay** | On-chain payment rail for deal storage fees (USDC) |
-| **Rail** | A FileCoinPay payment channel tied to a specific deal |
-| **Validator** | A per-deal smart contract that manages payments |
+| Term            | Meaning                                                            |
+|-----------------|--------------------------------------------------------------------|
+| **Deal**        | A storage agreement between a client and an SP on the PoRep Market |
+| **Manifest**    | A JSON file listing all data pieces (`.car` files) in a deal       |
+| **DDO**         | Direct Data Onboarding — allocating DataCap directly to an SP      |
+| **Allocation**  | A DataCap grant for a specific piece of data                       |
+| **FileCoinPay** | On-chain payment rail for deal storage fees (USDC)                 |
+| **Rail**        | A FileCoinPay payment channel tied to a specific deal              |
+| **Validator**   | A per-deal smart contract that manages payments                    |
 
 ## How a deal progresses
 
@@ -93,13 +92,13 @@ PROPOSED → ACCEPTED → COMPLETED → (SP onboards & gets paid)
  REJECTED / TERMINATED
 ```
 
-| State | What it means | Who acts next |
-|-------|---------------|---------------|
-| **PROPOSED** | The data is prepared and the client has submitted a deal proposal with all required metadata and SLA requirements. | **SP** accepts or rejects |
-| **ACCEPTED** | The Storage Provider has accepted the deal. At this stage, the deal is waiting for the client to make the DataCap allocation. | **Client** initializes payment and makes DataCap allocations |
-| **COMPLETED** | The client has made the DataCap allocation. The deal is now ready to be onboarded by the Storage Provider. | **SP** downloads data and claims allocations |
-| **REJECTED** | SP declined the deal | No further action |
-| **TERMINATED** | Deal was terminated (admin action) | No further action |
+| State          | What it means                                                                                                                 | Who acts next                                                |
+|----------------|-------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------|
+| **PROPOSED**   | The data is prepared and the client has submitted a deal proposal with all required metadata and SLA requirements.            | **SP** accepts or rejects                                    |
+| **ACCEPTED**   | The Storage Provider has accepted the deal. At this stage, the deal is waiting for the client to make the DataCap allocation. | **Client** initializes payment and makes DataCap allocations |
+| **COMPLETED**  | The client has made the DataCap allocation. The deal is now ready to be onboarded by the Storage Provider.                    | **SP** downloads data and claims allocations                 |
+| **REJECTED**   | SP declined the deal                                                                                                          | No further action                                            |
+| **TERMINATED** | Deal was terminated (admin action)                                                                                            | No further action                                            |
 
 Deals in `COMPLETED` state are ready for onboarding. The deal includes a `manifest_location` entry: this tells you where the Singularity manifest is. \
 All the `.car` files referenced are then available for pulling from the standard location of `<manifest_ip>:7777/piece/<CID>`.
@@ -329,7 +328,8 @@ python3 ./porep_tooling_cli.py sp wait
 
 ### Automating multiple deals
 
-For batch processing completed deals, use the included script. Edit `PROVIDER_ID`, `ONBOARD_DATA_OUTPUT_DIR`, and `CLAIM_ALLOCATIONS_SOFTWARE` in the script first:
+For batch processing completed deals, use the included script. Edit `PROVIDER_ID`, `ONBOARD_DATA_OUTPUT_DIR`, and `CLAIM_ALLOCATIONS_SOFTWARE` in the script
+first:
 
 ```bash
 ./tools/sp-pipeline.sh
@@ -395,14 +395,14 @@ python3 ./porep_tooling_cli.py client propose-deal-from-manifest <MANIFEST_URL> 
   --indexing-pct 0
 ```
 
-| Parameter | Meaning | Example |
-|-----------|---------|---------|
-| `--retrievability-bps` | Retrievability SLA in basis points (7550 = 75.50%). Use `0` for "don't care" | `7550` |
-| `--bandwidth-mbps` | Bandwidth guarantee in Mbps. Capped at ~64 Gbps. | `100` |
-| `--price-per-sector-per-month` | Monthly price per 32 GiB sector in USDC smallest units (wei-equivalent) | `2000000` (= 2 USDC) |
-| `--duration-months` | Deal length in months (minimum 6) | `12` |
-| `--latency-ms` | Latency guarantee in milliseconds | `500` |
-| `--indexing-pct` | IPNI indexing guarantee (0–100). Use `0` for "don't care" | `0` |
+| Parameter                      | Meaning                                                                      | Example              |
+|--------------------------------|------------------------------------------------------------------------------|----------------------|
+| `--retrievability-bps`         | Retrievability SLA in basis points (7550 = 75.50%). Use `0` for "don't care" | `7550`               |
+| `--bandwidth-mbps`             | Bandwidth guarantee in Mbps. Capped at ~64 Gbps.                             | `100`                |
+| `--price-per-sector-per-month` | Monthly price per 32 GiB sector in USDC smallest units (wei-equivalent)      | `2000000` (= 2 USDC) |
+| `--duration-months`            | Deal length in months (minimum 6)                                            | `12`                 |
+| `--latency-ms`                 | Latency guarantee in milliseconds                                            | `500`                |
+| `--indexing-pct`               | IPNI indexing guarantee (0–100). Use `0` for "don't care"                    | `0`                  |
 
 The tool will show you the deal size, estimated monthly cost, and total cost before asking for confirmation.
 
@@ -499,77 +499,77 @@ python3 ./porep_tooling_cli.py client --help
 
 ### Storage Provider commands
 
-| Command | What it does | Needs private key? |
-|---------|-------------|-------------------|
-| `sp get-deals [STATE]` | List your deals, optionally filtered by state | No |
-| `sp get-deals [STATE] --provider-id <ID>` | List deals for a specific provider ID | No |
-| `sp get-deal <ID>` | Get details for one deal | No |
-| `sp get-deal-manifest <ID>` | Download and print the deal manifest | No |
-| `sp get-deal-rail <ID>` | Show FileCoinPay rail info for a deal | No |
-| `sp accept-deal <ID>` | Accept a proposed deal | Yes |
-| `sp reject-deal <ID>` | Reject a proposed deal | Yes |
-| `sp manage-proposed-deals [accept\|reject]` | Interactively review all proposed deals | Yes |
-| `sp onboard-data <ID> --output-dir <DIR>` | Download `.car` files for a completed deal | No |
-| `sp get-allocations <ID>` | List DataCap allocations for a deal | No |
-| `sp get-allocations <ID> --not-claimed` | Show only unclaimed allocations | No |
-| `sp get-claims <ID>` | List claimed allocations for a deal | No |
-| `sp claim-allocations curio\|boost <ID>` | Claim allocations in Curio or Boost | No* |
-| `sp get-registered-info [PROVIDER_ID]` | Show your SP registry info | No |
-| `sp is-authorized <PROVIDER_ID>` | Check if your key can manage a provider | No |
-| `sp get-filecoinpay-account` | Show FileCoinPay balances | No |
-| `sp withdraw-from-filecoinpay <TO> <AMOUNT>` | Withdraw USDC earnings | Yes |
-| `sp info` | Show current SP configuration | No |
-| `sp wait` | Wait for pending transactions to confirm | No |
+| Command                                      | What it does                                  | Needs private key? |
+|----------------------------------------------|-----------------------------------------------|--------------------|
+| `sp get-deals [STATE]`                       | List your deals, optionally filtered by state | No                 |
+| `sp get-deals [STATE] --provider-id <ID>`    | List deals for a specific provider ID         | No                 |
+| `sp get-deal <ID>`                           | Get details for one deal                      | No                 |
+| `sp get-deal-manifest <ID>`                  | Download and print the deal manifest          | No                 |
+| `sp get-deal-rail <ID>`                      | Show FileCoinPay rail info for a deal         | No                 |
+| `sp accept-deal <ID>`                        | Accept a proposed deal                        | Yes                |
+| `sp reject-deal <ID>`                        | Reject a proposed deal                        | Yes                |
+| `sp manage-proposed-deals [accept\|reject]`  | Interactively review all proposed deals       | Yes                |
+| `sp onboard-data <ID> --output-dir <DIR>`    | Download `.car` files for a completed deal    | No                 |
+| `sp get-allocations <ID>`                    | List DataCap allocations for a deal           | No                 |
+| `sp get-allocations <ID> --not-claimed`      | Show only unclaimed allocations               | No                 |
+| `sp get-claims <ID>`                         | List claimed allocations for a deal           | No                 |
+| `sp claim-allocations curio\|boost <ID>`     | Claim allocations in Curio or Boost           | No*                |
+| `sp get-registered-info [PROVIDER_ID]`       | Show your SP registry info                    | No                 |
+| `sp is-authorized <PROVIDER_ID>`             | Check if your key can manage a provider       | No                 |
+| `sp get-filecoinpay-account`                 | Show FileCoinPay balances                     | No                 |
+| `sp withdraw-from-filecoinpay <TO> <AMOUNT>` | Withdraw USDC earnings                        | Yes                |
+| `sp info`                                    | Show current SP configuration                 | No                 |
+| `sp wait`                                    | Wait for pending transactions to confirm      | No                 |
 
 \* `claim-allocations` runs external tools (curio/boostd), not blockchain transactions.
 
 ### Client commands
 
-| Command | What it does | Needs private key? |
-|---------|-------------|-------------------|
-| `client propose-deal-from-manifest <URL> [options]` | Propose a new storage deal | Yes |
-| `client get-deals [STATE]` | List your deals | No |
-| `client get-deal <ID>` | Get details for one deal | No |
-| `client get-deal-manifest <ID>` | Download and print the deal manifest | No |
-| `client get-deal-rail <ID>` | Show FileCoinPay rail info | No |
-| `client init-accepted-deals [ID]` | Set up validator, deposit, and rail | Yes |
-| `client make-allocations <ID>` | Allocate DataCap and complete deal | Yes |
-| `client complete-deal <ID>` | Manually mark deal as completed | Yes |
-| `client deposit-for-deals [ID] [--months N]` | Top up FileCoinPay for deals | Yes |
-| `client deposit-amount <AMOUNT>` | Deposit USDC to FileCoinPay | Yes |
-| `client get-filecoinpay-account` | Show FileCoinPay balance | No |
-| `client info` | Show current client configuration | No |
-| `client wait` | Wait for pending transactions to confirm | No |
+| Command                                             | What it does                             | Needs private key? |
+|-----------------------------------------------------|------------------------------------------|--------------------|
+| `client propose-deal-from-manifest <URL> [options]` | Propose a new storage deal               | Yes                |
+| `client get-deals [STATE]`                          | List your deals                          | No                 |
+| `client get-deal <ID>`                              | Get details for one deal                 | No                 |
+| `client get-deal-manifest <ID>`                     | Download and print the deal manifest     | No                 |
+| `client get-deal-rail <ID>`                         | Show FileCoinPay rail info               | No                 |
+| `client init-accepted-deals [ID]`                   | Set up validator, deposit, and rail      | Yes                |
+| `client make-allocations <ID>`                      | Allocate DataCap and complete deal       | Yes                |
+| `client complete-deal <ID>`                         | Manually mark deal as completed          | Yes                |
+| `client deposit-for-deals [ID] [--months N]`        | Top up FileCoinPay for deals             | Yes                |
+| `client deposit-amount <AMOUNT>`                    | Deposit USDC to FileCoinPay              | Yes                |
+| `client get-filecoinpay-account`                    | Show FileCoinPay balance                 | No                 |
+| `client info`                                       | Show current client configuration        | No                 |
+| `client wait`                                       | Wait for pending transactions to confirm | No                 |
 
 ### Utility commands
 
-| Command | What it does |
-|---------|-------------|
-| `info` | Show network and contract configuration |
+| Command             | What it does                                             |
+|---------------------|----------------------------------------------------------|
+| `info`              | Show network and contract configuration                  |
 | `convert <ADDRESS>` | Convert between Ethereum, Filecoin, and Actor ID formats |
-| `--dry-run` | Simulate transactions without broadcasting (global flag) |
+| `--dry-run`         | Simulate transactions without broadcasting (global flag) |
 
 ## Configuration (.env)
 
 Copy `.env.mainnet` to `.env` and fill in the values you need.
 
-| Variable | Required for | Description |
-|----------|-------------|-------------|
-| `RPC_URL` | Everyone | Filecoin RPC endpoint |
-| `SP_PRIVATE_KEY` | SP transactions | Controller wallet private key (0x-prefixed hex) |
-| `SP_ORGANIZATION` | SP commands | Your organization address |
-| `CLIENT_PRIVATE_KEY` | Client transactions | Client wallet private key |
-| `CLIENT_ADDRESS` | Client read-only | Client wallet address |
-| `ADMIN_PRIVATE_KEY` | Admin commands | Admin wallet private key |
-| `USDC_TOKEN` | Payments | USDC token contract address (pre-set for mainnet) |
-| `POREP_MARKET` | Everyone | PoRep Market contract (pre-set for mainnet) |
-| `FILECOIN_PAY` | Payments | FileCoinPay contract (pre-set for mainnet) |
-| `ARIA2C_PATH` | SP download | Path to aria2c binary (default: `aria2c` in PATH) |
-| `CURIO_PATH` | SP Curio claims | Path to curio binary (default: `curio` in PATH) |
-| `BOOSTD_PATH` | SP Boost claims | Path to boostd binary (default: `boostd` in PATH) |
-| `DRY_RUN` | Testing | Set to `true` to simulate without sending transactions |
-| `SP_REGISTRY_DATABASE_URL` | Admin only | SPRegistry database connection string |
-| `DEBUG` | Debugging | Set to `true` for verbose error output |
+| Variable                   | Required for        | Description                                            |
+|----------------------------|---------------------|--------------------------------------------------------|
+| `RPC_URL`                  | Everyone            | Filecoin RPC endpoint                                  |
+| `SP_PRIVATE_KEY`           | SP transactions     | Controller wallet private key (0x-prefixed hex)        |
+| `SP_ORGANIZATION`          | SP commands         | Your organization address                              |
+| `CLIENT_PRIVATE_KEY`       | Client transactions | Client wallet private key                              |
+| `CLIENT_ADDRESS`           | Client read-only    | Client wallet address                                  |
+| `ADMIN_PRIVATE_KEY`        | Admin commands      | Admin wallet private key                               |
+| `USDC_TOKEN`               | Payments            | USDC token contract address (pre-set for mainnet)      |
+| `POREP_MARKET`             | Everyone            | PoRep Market contract (pre-set for mainnet)            |
+| `FILECOIN_PAY`             | Payments            | FileCoinPay contract (pre-set for mainnet)             |
+| `ARIA2C_PATH`              | SP download         | Path to aria2c binary (default: `aria2c` in PATH)      |
+| `CURIO_PATH`               | SP Curio claims     | Path to curio binary (default: `curio` in PATH)        |
+| `BOOSTD_PATH`              | SP Boost claims     | Path to boostd binary (default: `boostd` in PATH)      |
+| `DRY_RUN`                  | Testing             | Set to `true` to simulate without sending transactions |
+| `SP_REGISTRY_DATABASE_URL` | Admin only          | SPRegistry database connection string                  |
+| `DEBUG`                    | Debugging           | Set to `true` for verbose error output                 |
 
 There are 3 ways of providing the user's private key for blockchain transactions and the priority is as follows:
 
@@ -617,7 +617,8 @@ Install aria2: `brew install aria2` (Mac), `sudo apt install aria2` (Debian/Ubun
 
 ### "curio not found" / "boostd not found"
 
-Install [Curio](https://docs.curiostorage.org/installation) or [Boost](https://boost.filecoin.io/getting-started), or set `CURIO_PATH` / `BOOSTD_PATH` in `.env`.
+Install [Curio](https://docs.curiostorage.org/installation) or [Boost](https://boost.filecoin.io/getting-started), or set `CURIO_PATH` / `BOOSTD_PATH` in
+`.env`.
 
 ### "Insufficient token balance"
 
@@ -629,7 +630,8 @@ Your `CLIENT_ADDRESS` and `CLIENT_PRIVATE_KEY` in `.env` do not correspond. Run 
 
 ### "Not authorized for provider"
 
-Your `SP_PRIVATE_KEY` wallet is not registered as a controller for that provider ID. See [control addresses docs](https://lotus.filecoin.io/storage-providers/operate/addresses/#control-addresses).
+Your `SP_PRIVATE_KEY` wallet is not registered as a controller for that provider ID.
+See [control addresses docs](https://lotus.filecoin.io/storage-providers/operate/addresses/#control-addresses).
 
 ### Transactions seem stuck
 
