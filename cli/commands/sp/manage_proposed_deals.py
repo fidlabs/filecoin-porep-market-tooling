@@ -3,8 +3,8 @@ import click
 from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.sp import _utils as sp_utils
-from cli.commands.sp._sp import sp_private_key, sp_organization_address
-from cli.services.web3_service import EthAddress, Web3Service, ActorId
+from cli.commands.sp._sp import sp_signer, sp_organization_address, sp_address
+from cli.services.web3_service import Web3Service, ActorId
 
 
 # TODO LATER print deals states at the end?
@@ -18,7 +18,7 @@ def manage_proposed_deals(action: str | None = None, provider_id: str | None = N
     ACTION - Action to perform on proposed deals.
     """
 
-    Web3Service().wait_for_pending_transactions(EthAddress.from_private_key(sp_private_key()))
+    Web3Service().wait_for_pending_transactions(sp_address())
 
     deals = commands_utils.get_sp_deals(sp_utils.PoRepMarketDealState.PROPOSED,
                                         sp_organization_address() if not provider_id else None,
@@ -39,7 +39,7 @@ def manage_proposed_deals(action: str | None = None, provider_id: str | None = N
 
             elif answer in ["reject"]:
                 click.echo()
-                commands_utils.reject_deal(deal, sp_private_key(), confirm_session_id="manage-proposed-deals-reject")
+                commands_utils.reject_deal(deal, sp_signer(), confirm_session_id="manage-proposed-deals-reject")
 
             elif answer in ["skip"]:
                 continue

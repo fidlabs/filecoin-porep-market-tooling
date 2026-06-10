@@ -4,9 +4,9 @@ from cli.commands import utils as commands_utils
 
 
 @click.command()
-def info():
+def config():
     """
-    Display the current info.
+    Display the current config.
     """
 
     commands_utils.print_info()

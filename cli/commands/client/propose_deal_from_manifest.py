@@ -4,7 +4,7 @@ import humanfriendly
 from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.client import _utils as client_utils
-from cli.commands.client._client import client_private_key, client_address
+from cli.commands.client._client import client_signer, client_address
 from cli.services.contracts.porep_market import PoRepMarketDealRequest, PoRepMarketDealTerms, PoRepMarket, PoRepMarketDealState
 from cli.services.contracts.sp_registry import SPRegistrySLIThresholds
 from cli.services.contracts.usdc_token import USDCToken
@@ -83,7 +83,7 @@ def _propose_deal_from_manifest(manifest_url: str,
                   f"This is a total of {total_max_cost_str} {token_symbol} for {duration_months} months. "
                   f"Continue?", abort=True)
 
-    tx_hash = PoRepMarket().propose_deal(deal, client_private_key())
+    tx_hash = PoRepMarket().propose_deal(deal, client_signer())
     click.echo(f"Created deal proposal from manifest {manifest_url}: {tx_hash}")
 
 

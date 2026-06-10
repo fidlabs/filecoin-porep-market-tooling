@@ -14,3 +14,5 @@ eth_account~=0.13.7
 cbor2~=5.9.0
 py-multibase~=2.0.0
 urllib3~=2.6.3
+rlp~=4.1.0
+eth_utils~=6.0.0

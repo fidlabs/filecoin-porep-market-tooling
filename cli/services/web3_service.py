@@ -1,3 +1,4 @@
+import base64
 import time
 from typing import Dict
 
@@ -26,7 +27,7 @@ class ActorId(int):
             except ValueError as e:
                 raise ValueError(f"Invalid ActorId format: {actor_id!r}") from e
 
-        if not isinstance(actor_id, int) or actor_id < 1000:
+        if not isinstance(actor_id, int) or actor_id < 100:
             raise ValueError(f"Invalid ActorId: {actor_id!r}")
 
         # noinspection PyTypeChecker
@@ -59,10 +60,10 @@ class ActorId(int):
         )
 
         if "error" in response:
-            raise RuntimeError(response["error"])
+            raise RuntimeError(f"Filecoin.StateAccountKey({self}) failed: {response['error']}")
 
         if not response.get("result"):
-            raise RuntimeError(f"Failed to get Filecoin.StateAccountKey({self}): empty result")
+            raise RuntimeError(f"Filecoin.StateAccountKey({self}) failed: empty result")
 
         return FilAddress(response["result"])
 
@@ -141,10 +142,10 @@ class FilAddress(str):
         )
 
         if "error" in response:
-            raise RuntimeError(response["error"])
+            raise RuntimeError(f"Filecoin.StateLookupID({self}) failed: {response['error']}")
 
         if not response.get("result"):
-            raise RuntimeError(f"Failed to get Filecoin.StateLookupID({self}): empty result")
+            raise RuntimeError(f"Filecoin.StateLookupID({self}) failed: empty result")
 
         return ActorId(response["result"])
 
@@ -216,10 +217,10 @@ class EthAddress(str):
         )
 
         if "error" in response:
-            raise RuntimeError(response["error"])
+            raise RuntimeError(f"Filecoin.FilecoinAddressToEthAddress({addr}) failed: {response['error']}")
 
         if not response.get("result") or not Web3.is_address(response["result"]):
-            raise ValueError(f"Failed to get Filecoin.FilecoinAddressToEthAddress({addr}): invalid result {response.get('result')!r}")
+            raise ValueError(f"Filecoin.FilecoinAddressToEthAddress({addr}) failed: invalid result {response.get('result')!r}")
 
         return EthAddress(response["result"])
 
@@ -230,17 +231,17 @@ class EthAddress(str):
         )
 
         if "error" in response:
-            raise RuntimeError(response["error"])
+            raise RuntimeError(f"Filecoin.EthAddressToFilecoinAddress({self}) failed: {response['error']}")
 
         if not response.get("result"):
-            raise ValueError(f"Failed to get Filecoin.EthAddressToFilecoinAddress({self}): empty result")
+            raise ValueError(f"Filecoin.EthAddressToFilecoinAddress({self}) failed: empty result")
 
         if ActorId.is_actor_id(response["result"]):
             return ActorId(response["result"])
         elif FilAddress.is_filecoin_address(response["result"]):
             return FilAddress(response["result"]).to_actor_id()
         else:
-            raise ValueError(f"Failed to get Filecoin.EthAddressToFilecoinAddress({self}): invalid result {response.get('result')!r}")
+            raise ValueError(f"Filecoin.EthAddressToFilecoinAddress({self}) failed: invalid result {response.get('result')!r}")
 
     @staticmethod
     def from_private_key(private_key: PrivateKeyType) -> "EthAddress":
@@ -314,8 +315,63 @@ class Web3Service:
     def wait_for_transaction_receipt(self, tx_hash: HexBytes, timeout: int = 60 * 15, poll_latency: int = 5) -> TxReceipt:
         return self._w3.eth.wait_for_transaction_receipt(tx_hash, timeout=timeout, poll_latency=poll_latency)
 
-    def sign_transaction(self, tx_params: dict, from_private_key: PrivateKeyType) -> SignedTransaction:
-        return self._w3.eth.account.sign_transaction(tx_params, from_private_key)
+    def wallet_balance(self, address: FilAddress | EthAddress | ActorId) -> int:
+        def filecoin_wallet_balance(address: FilAddress | ActorId) -> int:
+            response = self._w3.provider.make_request(
+                RPCEndpoint("Filecoin.WalletBalance"),
+                [address]
+            )
+
+            if "error" in response:
+                raise RuntimeError(f"Filecoin.WalletBalance({address}) failed: {response['error']}")
+
+            if not response.get("result") or not isinstance(response["result"], str):
+                raise RuntimeError(f"Filecoin.WalletBalance({address}) failed: invalid result {response.get('result')!r}")
+
+            try:
+                return int(response["result"])
+            except ValueError as e:
+                raise RuntimeError(f"Filecoin.WalletBalance({address}) failed: invalid balance format {response['result']!r}") from e
+
+        if isinstance(address, FilAddress) or isinstance(address, ActorId):
+            return filecoin_wallet_balance(address)
+        elif isinstance(address, EthAddress):
+            return self._w3.eth.get_balance(address)
+        else:
+            raise ValueError(f"Unsupported address type: {address!r}")
+
+    def wallet_sign(self, from_address: FilAddress, raw_bytes: bytes, lotus_token: str) -> bytes:
+        _w3 = Web3(Web3.HTTPProvider(utils.get_env_required("RPC_URL"), request_kwargs={"headers": {"Authorization": f"Bearer {lotus_token}"}}))
+
+        response = _w3.provider.make_request(
+            RPCEndpoint("Filecoin.WalletSign"),
+            [from_address, base64.b64encode(raw_bytes).decode()]
+        )
+
+        if "error" in response:
+            raise RuntimeError(f"Filecoin.WalletSign failed: {response['error']}")
+
+        if not response.get("result") or not isinstance(response["result"], dict):
+            raise RuntimeError(f"Filecoin.WalletSign failed: invalid result {response.get('result')!r}")
+
+        result = response["result"]
+        sig_type = result.get("Type", 0)
+
+        if sig_type != 3:
+            raise RuntimeError(f"Lotus returned signature type {sig_type!r} — expected 3 (SigTypeDelegated). "
+                               f"Use a delegated (f410) address for FEVM signing, not BLS (f3) or secp256k1 (f1).")
+
+        data_b64 = result.get("Data")
+
+        if not isinstance(data_b64, str) or not data_b64:
+            raise RuntimeError(f"Filecoin.WalletSign failed: invalid Data field {data_b64!r}")
+
+        sig_bytes = base64.b64decode(data_b64)
+
+        if len(sig_bytes) != 65:
+            raise RuntimeError(f"Filecoin.WalletSign failed: unexpected signature length: {len(sig_bytes)} bytes (expected 65)")
+
+        return sig_bytes
 
     def state_get_allocations(self, actor_id: ActorId) -> Dict[str, dict]:
         response = self._w3.provider.make_request(
@@ -324,10 +380,10 @@ class Web3Service:
         )
 
         if "error" in response:
-            raise RuntimeError(response["error"])
+            raise RuntimeError(f"Filecoin.StateGetAllocations({actor_id}) failed: {response['error']}")
 
         if response.get("result") is None or not isinstance(response["result"], dict):
-            raise RuntimeError(f"Failed to get Filecoin.StateGetAllocations({actor_id}): invalid result {response.get('result')!r}")
+            raise RuntimeError(f"Filecoin.StateGetAllocations({actor_id}) failed: invalid result {response.get('result')!r}")
 
         return response["result"]
 
@@ -338,10 +394,10 @@ class Web3Service:
         )
 
         if "error" in response:
-            raise RuntimeError(response["error"])
+            raise RuntimeError(f"Filecoin.StateGetClaims({actor_id}) failed: {response['error']}")
 
         if response.get("result") is None or not isinstance(response["result"], dict):
-            raise RuntimeError(f"Failed to get Filecoin.StateGetClaims({actor_id}): invalid result {response.get('result')!r}")
+            raise RuntimeError(f"Filecoin.StateGetClaims({actor_id}) failed: invalid result {response.get('result')!r}")
 
         if client is not None:
             return {claim_id: claim for claim_id, claim in response["result"].items() if claim.get("Client") == client}

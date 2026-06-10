@@ -135,9 +135,7 @@ def get_db_sps(db_url: str,
             continue
 
         if FilAddress.is_filecoin_address(org.organization_address):
-            # TODO LATER remove me
-            _MOCK_F_ORG_ADDR = utils.get_env_required("_MOCK_F_ORG_ADDR", default="", required_type=EthAddress).strip().lower()
-            organization_address = EthAddress(_MOCK_F_ORG_ADDR) if _MOCK_F_ORG_ADDR else EthAddress.from_filecoin_address(org.organization_address)
+            organization_address = EthAddress.from_filecoin_address(org.organization_address)
 
             if not utils.confirm(f"Converted organization {org.organization_address} [db_id {org.id}] Filecoin f-address "
                                  f"to EVM 0x-address {organization_address}. "

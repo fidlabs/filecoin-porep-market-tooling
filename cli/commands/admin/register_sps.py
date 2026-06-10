@@ -2,7 +2,7 @@ import click
 
 from cli import utils
 from cli.commands.admin import _utils as admin_utils
-from cli.commands.admin._admin import admin_private_key, admin_address
+from cli.commands.admin._admin import admin_signer, admin_address
 from cli.services.contracts.sp_registry import SPRegistry, SPRegistryProvider, SPRegistryProviderInfo
 from cli.services.web3_service import Web3Service, ActorId
 
@@ -25,7 +25,7 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
             tx_hash = SPRegistry().set_deal_duration_limits(provider.provider_id,
                                                             provider.min_deal_duration_days,
                                                             provider.max_deal_duration_days,
-                                                            admin_private_key())
+                                                            admin_signer())
 
             click.echo(f"Updated (max_deal_duration_days, min_deal_duration_days) for Storage Provider {provider.provider_id}: {tx_hash}")
 
@@ -40,7 +40,7 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
             #
             tx_hash = SPRegistry().set_price(provider.provider_id,
                                              provider.price_per_sector_per_month,
-                                             admin_private_key())
+                                             admin_signer())
 
             click.echo(f"Updated price_per_sector_per_month for Storage Provider {provider.provider_id}: {tx_hash}")
 
@@ -55,7 +55,7 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
             #
             tx_hash = SPRegistry().set_capabilities(provider.provider_id,
                                                     provider.capabilities,
-                                                    admin_private_key())
+                                                    admin_signer())
 
             click.echo(f"Updated capabilities for Storage Provider {provider.provider_id}: {tx_hash}")
 
@@ -70,7 +70,7 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
             #
             tx_hash = SPRegistry().set_payee(provider.provider_id,
                                              provider.payee_address,
-                                             admin_private_key())
+                                             admin_signer())
 
             click.echo(f"Updated payee_address for Storage Provider {provider.provider_id}: {tx_hash}")
 
@@ -85,7 +85,7 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
             #
             tx_hash = SPRegistry().update_available_space(provider.provider_id,
                                                           provider.available_bytes,
-                                                          admin_private_key())
+                                                          admin_signer())
 
             click.echo(f"Updated available_bytes for Storage Provider {provider.provider_id}: {tx_hash}")
 
@@ -142,7 +142,7 @@ def _register_sps(providers: list[SPRegistryProvider]):
                 click.echo("Skipped this provider")
                 continue
 
-            tx_hash = SPRegistry().register_provider_for(provider, admin_private_key())
+            tx_hash = SPRegistry().register_provider_for(provider, admin_signer())
             click.echo(f"Provider {provider.provider_id} registered: {tx_hash}")
 
 

@@ -1,7 +1,7 @@
 import click
 
 from cli import utils
-from cli.commands.admin._admin import admin_private_key, admin_address
+from cli.commands.admin._admin import admin_signer, admin_address
 from cli.services.contracts.filecoinpay_validator import FileCoinPayValidator
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState, PoRepMarketDealProposal
 from cli.services.contracts.validator_factory import ValidatorFactory
@@ -11,7 +11,7 @@ from cli.services.web3_service import Web3Service
 def _terminate_proposed_deal(deal: PoRepMarketDealProposal) -> str:
     assert deal.state == PoRepMarketDealState.PROPOSED
 
-    return PoRepMarket().reject_deal(deal.deal_id, admin_private_key())
+    return PoRepMarket().reject_deal(deal.deal_id, admin_signer())
 
 
 def _terminate_completed_deal(deal: PoRepMarketDealProposal) -> str:
@@ -21,7 +21,7 @@ def _terminate_completed_deal(deal: PoRepMarketDealProposal) -> str:
     if validator_address != deal.validator_address:
         raise click.ClickException(f"Validator address {validator_address} does not match expected {deal.validator_address} for deal ID {deal.deal_id}")
 
-    return FileCoinPayValidator(deal.validator_address).terminate_rail(admin_private_key())
+    return FileCoinPayValidator(deal.validator_address).terminate_rail(admin_signer())
 
 
 def _terminate_accepted_deal(deal: PoRepMarketDealProposal) -> str:
@@ -35,7 +35,7 @@ def _terminate_accepted_deal(deal: PoRepMarketDealProposal) -> str:
         assert deal.state == PoRepMarketDealState.ACCEPTED
         assert not deal.rail_id
 
-        return PoRepMarket().reject_accepted_deal(deal.deal_id, admin_private_key())
+        return PoRepMarket().reject_accepted_deal(deal.deal_id, admin_signer())
 
     assert deal.state == PoRepMarketDealState.ACCEPTED
 
