@@ -6,7 +6,7 @@ from eth_account.datastructures import SignedMessage
 from web3.auto import w3
 
 from cli import utils
-from cli.commands.client._client import client_address, client_private_key
+from cli.commands.client._client import client_address, client_signer
 from cli.services.contracts.client_contract import ClientContract
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import PoRepMarketDealProposal, PoRepMarketDealState, PoRepMarketDealRequest, PoRepMarket
@@ -61,7 +61,7 @@ def sign_filecoinpay_permit(amount: int, permit_deadline: int, token: USDCToken)
             "nonce": token.nonces(client_address()),
             "deadline": permit_deadline
         },
-        private_key=client_private_key()
+        private_key=client_signer()
     )
 
     if not signed_msg.v or not signed_msg.r or not signed_msg.s or not signed_msg.signature:
@@ -78,7 +78,7 @@ def complete_deal(deal: PoRepMarketDealProposal) -> str:
     check_allocations_size(deal)
     utils.confirm(f"Completing deal id {deal.deal_id}: {deal}", default=True, abort=True)
 
-    tx_hash = PoRepMarket().complete_deal(deal.deal_id, client_private_key())
+    tx_hash = PoRepMarket().complete_deal(deal.deal_id, client_signer())
     click.echo(f"Deal id {deal.deal_id} completed: {tx_hash}")
 
     return tx_hash
@@ -109,7 +109,7 @@ def deposit_to_filecoinpay(deposit_amount: int, token: USDCToken):
                                                 deposit_amount,
                                                 permit_deadline,
                                                 signed_msg.v, utils.uint_to_bytes(signed_msg.r), utils.uint_to_bytes(signed_msg.s),
-                                                client_private_key())
+                                                client_signer())
 
     click.echo(f"Deposited {deposit_amount_str} {token_symbol}: {tx_hash}")
 

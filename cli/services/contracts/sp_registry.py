@@ -1,7 +1,6 @@
-from eth_account.types import PrivateKeyType
-
 from cli import utils
 from cli.services.contracts.contract_service import ContractService
+from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress, ActorId
 
 
@@ -78,7 +77,7 @@ class SPRegistry(ContractService):
 
     # @notice Register a provider with full configuration in one call
     # @dev Admin convenience function for testnet onboarding. NOT in ISPRegistry interface.
-    def register_provider_for(self, provider: SPRegistryProvider, from_private_key: PrivateKeyType) -> str:
+    def register_provider_for(self, provider: SPRegistryProvider, signer: TxSigner) -> str:
         capabilities = provider.capabilities
 
         return self.sign_and_send_tx(
@@ -91,7 +90,7 @@ class SPRegistry(ContractService):
                 provider.payee_address,
                 provider.min_deal_duration_days,
                 provider.max_deal_duration_days
-            ), from_private_key)
+            ), signer)
 
     # @notice Check if a provider is registered
     # @param provider_id The provider actor ID
@@ -130,54 +129,54 @@ class SPRegistry(ContractService):
                                  provider_id: ActorId,
                                  min_deal_duration_days: int,
                                  max_deal_duration_days: int,
-                                 from_private_key: PrivateKeyType) -> str:
+                                 signer: TxSigner) -> str:
         #
         return self.sign_and_send_tx(
             self.contract.functions.setDealDurationLimits(
                 provider_id,
                 min_deal_duration_days,
                 max_deal_duration_days
-            ), from_private_key)
+            ), signer)
 
     # @notice Update provider's available storage capacity
     # @param provider_id The provider to update
     # @param available_bytes New available capacity in bytes
-    def update_available_space(self, provider_id: ActorId, available_bytes: int, from_private_key: PrivateKeyType) -> str:
+    def update_available_space(self, provider_id: ActorId, available_bytes: int, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.updateAvailableSpace(
                 provider_id,
                 available_bytes
-            ), from_private_key)
+            ), signer)
 
     # @notice Set SLI capabilities for a provider
     # @param provider_id The provider to update
     # @param capabilities The SLI capabilities this provider guarantees
-    def set_capabilities(self, provider_id: ActorId, capabilities: SPRegistrySLIThresholds, from_private_key: PrivateKeyType) -> str:
+    def set_capabilities(self, provider_id: ActorId, capabilities: SPRegistrySLIThresholds, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.setCapabilities(
                 provider_id,
                 (capabilities.retrievability_bps, capabilities.bandwidth_mbps, capabilities.latency_ms, capabilities.indexing_pct)
-            ), from_private_key)
+            ), signer)
 
     # @notice Set the monthly price per sector for a provider
     # @param provider_id The provider to update
     # @param price_per_sector_per_month The monthly ERC20 token price per 32 GiB sector in smallest units (0 to disable auto-approve)
-    def set_price(self, provider_id: ActorId, price_per_sector_per_month: int, from_private_key: PrivateKeyType) -> str:
+    def set_price(self, provider_id: ActorId, price_per_sector_per_month: int, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.setPrice(
                 provider_id,
                 price_per_sector_per_month
-            ), from_private_key)
+            ), signer)
 
     # @notice Set the payment recipient address for a provider
     # @param provider_id The provider to update
     # @param payee_address The address that will receive payments for this provider
-    def set_payee(self, provider_id: ActorId, payee_address: EthAddress, from_private_key: PrivateKeyType) -> str:
+    def set_payee(self, provider_id: ActorId, payee_address: EthAddress, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.setPayee(
                 provider_id,
                 payee_address
-            ), from_private_key)
+            ), signer)
 
     # @notice Check if address is authorized to act on behalf of a provider
     # @dev Admin and OPERATOR_ROLE always return true. Otherwise checks MinerUtils.isControllingAddress.
@@ -189,32 +188,32 @@ class SPRegistry(ContractService):
 
     # @notice Block a provider (admin only, excluded from matching)
     # @param provider The provider to block
-    def block_provider(self, provider_id: ActorId, from_private_key: PrivateKeyType) -> str:
+    def block_provider(self, provider_id: ActorId, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.blockProvider(provider_id),
-            from_private_key
+            signer
         )
 
     # @notice Unblock a provider (admin only)
     # @param provider The provider to unblock
-    def unblock_provider(self, provider_id: ActorId, from_private_key: PrivateKeyType) -> str:
+    def unblock_provider(self, provider_id: ActorId, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.unblockProvider(provider_id),
-            from_private_key
+            signer
         )
 
     # @notice Pause a provider (excluded from matching)
     # @param provider The provider to pause
-    def pause_provider(self, provider_id: ActorId, from_private_key: PrivateKeyType) -> str:
+    def pause_provider(self, provider_id: ActorId, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.pauseProvider(provider_id),
-            from_private_key
+            signer
         )
 
     # @notice Unpause a provider (available for matching)
     # @param provider The provider to unpause
-    def unpause_provider(self, provider_id: ActorId, from_private_key: PrivateKeyType) -> str:
+    def unpause_provider(self, provider_id: ActorId, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.unpauseProvider(provider_id),
-            from_private_key
+            signer
         )

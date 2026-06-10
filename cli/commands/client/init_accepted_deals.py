@@ -5,7 +5,7 @@ import click
 from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.client import _utils as client_utils
-from cli.commands.client._client import client_address, client_private_key
+from cli.commands.client._client import client_address, client_signer
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.filecoinpay_validator import FileCoinPayValidator
 from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarketDealProposal, PoRepMarket
@@ -84,7 +84,7 @@ def _deploy_and_set_validator(deal_id: int):
 
     utils.confirm(f"\nDeploy and set validator for deal ID {deal.deal_id}?", default=True, abort=True)
 
-    tx_hash = ValidatorFactory().create(deal.deal_id, client_private_key())
+    tx_hash = ValidatorFactory().create(deal.deal_id, client_signer())
     click.echo(f"Validator deployed for deal ID {deal.deal_id}: {tx_hash}")
 
 
@@ -152,7 +152,7 @@ def _deposit_and_approve_operator(deal_id: int):
                                                                      rate_allowance,
                                                                      lockup_allowance,
                                                                      max_lockup_period,
-                                                                     client_private_key())
+                                                                     client_signer())
 
     click.echo(f"Deposited {deposit_amount_str} {token_symbol} and operator approved for deal ID {deal.deal_id}: {tx_hash}")
 
@@ -176,7 +176,7 @@ def _initialize_rail(deal_id: int):
 
     utils.confirm(f"\nInitialize FileCoinPay rail for deal ID {deal.deal_id}?", default=True, abort=True)
 
-    tx_hash = FileCoinPayValidator(deal.validator_address).create_rail(USDCToken().address(), client_private_key())
+    tx_hash = FileCoinPayValidator(deal.validator_address).create_rail(USDCToken().address(), client_signer())
 
     click.echo(f"FileCoinPay rail initialized for deal ID {deal.deal_id}: {tx_hash}")
 

@@ -2,7 +2,7 @@ import click
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.commands.sp._sp import sp_private_key, sp_address
+from cli.commands.sp._sp import sp_signer, sp_address
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.web3_service import EthAddress
@@ -48,7 +48,7 @@ def withdraw_from_filecoinpay(to_address: str, amount: float, token_address: str
     tx_hash = FileCoinPay().withdraw_to(_token_address,
                                         EthAddress.from_any(to_address),
                                         _amount,
-                                        sp_private_key())
+                                        sp_signer())
 
     click.echo(f"Withdraw transaction sent: {tx_hash}")
     print_token_balance(_to_address)

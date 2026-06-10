@@ -7,7 +7,7 @@ import multibase
 from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.client import _utils as client_utils
-from cli.commands.client._client import client_address, client_private_key
+from cli.commands.client._client import client_address, client_signer
 from cli.services.contracts.client_contract import ClientContract, TransferParams
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
 from cli.services.web3_service import Web3Service, ActorId
@@ -114,7 +114,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
         if print_only:
             click.echo(f"to={params.to[0].hex()}  amount={params.amount[0].hex()}  operator_data={params.operator_data.hex()}")
         else:
-            tx_hash = ClientContract().transfer(params, deal_id, client_private_key())
+            tx_hash = ClientContract().transfer(params, deal_id, client_signer())
             click.echo(f"params: {params!r}, tx={tx_hash}")
 
             if tx_hash == Web3Service.ZERO_TX_HASH:

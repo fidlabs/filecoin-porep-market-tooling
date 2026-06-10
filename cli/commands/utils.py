@@ -7,7 +7,6 @@ from urllib.parse import urlparse
 
 import click
 import requests
-from eth_account.types import PrivateKeyType
 from requests import RequestException
 
 from cli import utils
@@ -17,7 +16,9 @@ from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarketDealProposal, PoRepMarket
 from cli.services.contracts.sp_registry import SPRegistry
-from cli.services.web3_service import EthAddress, ActorId
+from cli.services.contracts.validator_factory import ValidatorFactory
+from cli.services.txsigner import TxSigner
+from cli.services.web3_service import EthAddress, ActorId, FilAddress
 from cli.services.web3_service import Web3Service
 
 
@@ -86,20 +87,74 @@ def get_deal_claims(deal: PoRepMarketDealProposal) -> dict[str, dict]:
     return {claim_id: claim for claim_id, claim in claims.items() if int(claim_id) in deal_allocations}
 
 
-def print_info():
-    # noinspection PyBroadException
+# pylint: disable=broad-exception-caught
+def print_info(account_address: EthAddress | None = None, account_name: str = "Account"):
+    if account_address:
+        try:
+            account_f_address = FilAddress.from_any(account_address) if account_address else None
+            account_f_address_err = ""
+        except Exception as e:
+            account_f_address = None
+            account_f_address_err = f"Error converting account address to Filecoin format: {e}"
+
+        try:
+            account_actor_id = ActorId.from_any(account_address) if account_address else None
+            account_actor_id_err = ""
+        except Exception as e:
+            account_actor_id = None
+            account_actor_id_err = f"Error converting account address to Actor ID format: {e}"
+
+        try:
+            account_fil_balance = Web3Service().wallet_balance(account_address) if isinstance(account_address, EthAddress) else None
+            account_fil_balance_str = f"{utils.str_from_wei(account_fil_balance, utils.FIL_TOKEN_DECIMALS)} FIL" if account_fil_balance else ""
+            account_fil_balance_err = ""
+        except Exception as e:
+            account_fil_balance_str = ""
+            account_fil_balance_err = f"Error fetching account FIL balance: {e}"
+
+        click.echo(f"{account_name} wallet f-address: {account_f_address or account_f_address_err}")
+        click.echo(f"{account_name} wallet actor ID: {account_actor_id or account_actor_id_err}")
+        click.echo(f"{account_name} wallet FIL balance: {account_fil_balance_str or account_fil_balance_err}")
+        click.echo()
+
     try:
-        click.echo(f"Chain ID: {Web3Service().get_chain_id()}")
-
-    # pylint: disable=broad-exception-caught
+        chain_id = Web3Service().get_chain_id()
+        chain_id_err = ""
     except Exception as e:
-        click.echo(f"Error getting chain ID: {e}\n")
+        chain_id = None
+        chain_id_err = f"Error getting chain ID: {e}"
 
+    try:
+        sp_registry_address = SPRegistry().address()
+        sp_registry_address_err = ""
+    except Exception as e:
+        sp_registry_address = None
+        sp_registry_address_err = f"Error getting SP Registry address: {e}"
+
+    try:
+        validator_factory_address = ValidatorFactory().address()
+        validator_factory_address_err = ""
+    except Exception as e:
+        validator_factory_address = None
+        validator_factory_address_err = f"Error getting Validator Factory address: {e}"
+
+    try:
+        client_contract_address = ClientContract().address()
+        client_contract_address_err = ""
+    except Exception as e:
+        client_contract_address = None
+        client_contract_address_err = f"Error getting Client Contract address: {e}"
+
+    click.echo(f"Chain ID: {chain_id or chain_id_err}")
+    click.echo()
     click.echo(f"RPC_URL={utils.get_env('RPC_URL', required=False)}")
     click.echo()
     click.echo(f"POREP_MARKET={utils.get_env('POREP_MARKET', required=False)}")
     click.echo(f"FILECOIN_PAY={utils.get_env('FILECOIN_PAY', required=False)}")
     click.echo(f"USDC_TOKEN={utils.get_env('USDC_TOKEN', required=False)}")
+    click.echo(f"SP_REGISTRY={sp_registry_address or sp_registry_address_err}")
+    click.echo(f"VALIDATOR_FACTORY={validator_factory_address or validator_factory_address_err}")
+    click.echo(f"CLIENT_CONTRACT={client_contract_address or client_contract_address_err}")
     click.echo()
     click.echo(f"DRY_RUN={is_dry_run()}")
     click.echo(f"DEBUG={utils.get_env_required('DEBUG', default='False').capitalize()}")
@@ -268,13 +323,13 @@ def get_filecoinpay_account(token_address: str, owner_address: EthAddress):
     }
 
 
-def reject_deal(deal: PoRepMarketDealProposal, from_private_key: PrivateKeyType, confirm_session_id: str | None = None) -> str:
+def reject_deal(deal: PoRepMarketDealProposal, signer: TxSigner, confirm_session_id: str | None = None) -> str:
     if deal.state != PoRepMarketDealState.PROPOSED:
         raise click.ClickException(f"Deal ID {deal.deal_id} is in state {deal.state} != PROPOSED")
 
     utils.confirm(f"Rejecting deal ID {deal.deal_id}: {deal}", default=True, abort=True, session_id=confirm_session_id)
 
-    tx_hash = PoRepMarket().reject_deal(deal.deal_id, from_private_key)
+    tx_hash = PoRepMarket().reject_deal(deal.deal_id, signer)
     click.echo(f"Deal ID {deal.deal_id} rejected: {tx_hash}")
 
     return tx_hash

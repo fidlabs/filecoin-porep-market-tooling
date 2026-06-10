@@ -1,13 +1,15 @@
 import click
 from eth_account.types import PrivateKeyType
-from web3.auto import w3
+from eth_typing import HexStr
 
 from cli import utils
 from cli.commands import utils as commands_utils
+from cli.services.txsigner import TxSigner, PrivateKeyTxSigner, LotusWalletTxSigner
 from cli.services.web3_service import EthAddress, Web3Service
 
 CLIENT_ADDRESS: str | None = None
 CLIENT_PRIVATE_KEY: str | None = None
+CLIENT_LOTUS_WALLET: str | None = None
 
 
 @click.group()
@@ -16,13 +18,19 @@ CLIENT_PRIVATE_KEY: str | None = None
 @click.option("--private-key", envvar="CLIENT_PRIVATE_KEY", hidden=True)
 @click.option("--confirm-info", is_flag=True, default=False,
               help="Confirm current account info before executing command.  [default: false]")
-def client(address: str | None = None, private_key: str | None = None, confirm_info: bool = False):
+@click.option("--lotus-wallet", envvar="CLIENT_LOTUS_WALLET", show_envvar=True,
+              help="Client Lotus wallet address used for signing blockchain transactions. Must be delegated f410 address or standard EVM address.")
+def client(address: str | None = None, private_key: str | None = None, confirm_info: bool = False, lotus_wallet: str | None = None):
     """
     Client commands for interacting with the PoRep Market.
     """
 
-    global CLIENT_PRIVATE_KEY
-    CLIENT_PRIVATE_KEY = private_key
+    if private_key:
+        global CLIENT_PRIVATE_KEY
+        CLIENT_PRIVATE_KEY = private_key
+    else:
+        global CLIENT_LOTUS_WALLET
+        CLIENT_LOTUS_WALLET = lotus_wallet
 
     global CLIENT_ADDRESS
     CLIENT_ADDRESS = address
@@ -35,36 +43,40 @@ def client(address: str | None = None, private_key: str | None = None, confirm_i
 
 # lazy initialization
 def client_address() -> EthAddress:
-    global CLIENT_ADDRESS
-
-    if not CLIENT_ADDRESS:
-        if CLIENT_PRIVATE_KEY:
-            CLIENT_ADDRESS = w3.eth.account.from_key(CLIENT_PRIVATE_KEY).address
-        else:
-            raise click.ClickException("Neither client address nor private key is set")
-
-    assert CLIENT_ADDRESS
-    return EthAddress(CLIENT_ADDRESS)
+    return EthAddress(CLIENT_ADDRESS) if CLIENT_ADDRESS else client_signer().address()
 
 
 # lazy initialization
-def client_private_key() -> PrivateKeyType:
+def client_signer() -> TxSigner:
     global CLIENT_PRIVATE_KEY
 
-    if not CLIENT_PRIVATE_KEY:
+    if CLIENT_PRIVATE_KEY:
+        if CLIENT_ADDRESS:
+            validate_address_matches_private_key(client_address(), HexStr(CLIENT_PRIVATE_KEY))
+
+        return PrivateKeyTxSigner(HexStr(CLIENT_PRIVATE_KEY))
+
+    elif CLIENT_LOTUS_WALLET:
+        return LotusWalletTxSigner(CLIENT_LOTUS_WALLET, utils.get_env_required("CLIENT_LOTUS_TOKEN"))
+
+    else:
         CLIENT_PRIVATE_KEY = click.prompt("Client private key", hide_input=True)
-
-    validate_address_matches_private_key(client_address(), CLIENT_PRIVATE_KEY)
-
-    assert CLIENT_PRIVATE_KEY
-    return CLIENT_PRIVATE_KEY
+        assert CLIENT_PRIVATE_KEY
+        return PrivateKeyTxSigner(HexStr(CLIENT_PRIVATE_KEY))
 
 
 def _info():
-    click.echo(f"Client wallet address: {CLIENT_ADDRESS or ''}")
+    try:
+        _client_address = client_address() if CLIENT_PRIVATE_KEY or CLIENT_LOTUS_WALLET else None
+        _client_address_err = ""
+    # pylint: disable=broad-exception-caught
+    except Exception as e:
+        _client_address = None
+        _client_address_err = f"Error getting account address: {e}"
+
+    click.echo(f"Client wallet eth-address: {_client_address or _client_address_err}")
     click.echo(f"Client wallet private key: {utils.private_str_to_log_str(CLIENT_PRIVATE_KEY)}")
-    click.echo()
-    commands_utils.print_info()
+    commands_utils.print_info(_client_address, "Client")
 
 
 @click.command()
@@ -76,7 +88,7 @@ def info(test_keys: bool = False):
     """
 
     if test_keys:
-        _ = client_private_key()  # validate only
+        _ = client_signer()  # validate only
 
     _info()
 

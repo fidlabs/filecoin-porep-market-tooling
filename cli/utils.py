@@ -12,6 +12,7 @@ load_dotenv(dotenv_path=None)
 
 MAX_UINT256 = 2 ** 256 - 1
 DATACAP_DECIMALS = 18
+FIL_TOKEN_DECIMALS = 18
 
 T = TypeVar("T")
 
@@ -208,10 +209,6 @@ def uint_to_bytes(x: int, size: int | None = 32) -> bytes:
         raise ValueError(f"Invalid size: {size}")
 
     return x.to_bytes(size, "big")
-
-
-def int_from_bytes(xbytes: bytes) -> int:
-    return int.from_bytes(xbytes, "big")
 
 
 def private_str_to_log_str(private_str) -> str:

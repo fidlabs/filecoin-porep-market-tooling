@@ -1,7 +1,7 @@
 import click
 
 from cli import utils
-from cli.commands.admin._admin import admin_private_key, admin_address
+from cli.commands.admin._admin import admin_signer, admin_address
 from cli.services.contracts.sp_registry import SPRegistry
 from cli.services.web3_service import Web3Service, ActorId
 
@@ -24,5 +24,5 @@ def block_sp(provider_id: str):
     utils.confirm(f"Blocking Storage Provider {str(provider.provider_id)}: "
                   f"{utils.json_pretty(provider)}", abort=True)
 
-    tx_hash = SPRegistry().block_provider(provider.provider_id, admin_private_key())
+    tx_hash = SPRegistry().block_provider(provider.provider_id, admin_signer())
     click.echo(f"Storage Provider {str(provider.provider_id)} blocked: {tx_hash}")

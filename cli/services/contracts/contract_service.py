@@ -5,13 +5,13 @@ from pathlib import Path
 import click
 import eth_abi
 from eth_account.datastructures import SignedTransaction
-from eth_account.types import PrivateKeyType
 from eth_typing import ABIElement
 from hexbytes import HexBytes
 from web3.exceptions import ContractCustomError, Web3RPCError
 
 from cli import utils
 from cli._cli import is_dry_run
+from cli.services.txsigner import TxSigner
 from cli.services.web3_service import Web3Service, EthAddress
 
 
@@ -130,11 +130,11 @@ class ContractService:
 
         return self.web3.send_raw_transaction(signed_tx)
 
-    def _sign_and_send_tx(self, transaction, tx_params: dict, from_private_key: PrivateKeyType, dry_run: bool = False) -> str:
+    def _sign_and_send_tx(self, transaction, tx_params: dict, signer: TxSigner, dry_run: bool = False) -> str:
         # transaction.args is sensitive info, should never be logged
         # tx_params.data is sensitive info, should never be logged
 
-        signed_tx = self.web3.sign_transaction(tx_params, from_private_key)
+        signed_tx = signer.sign_transaction(tx_params)
 
         if dry_run:
             return Web3Service.ZERO_TX_HASH
@@ -159,10 +159,10 @@ class ContractService:
         self.logger.warning(f"Transaction succeeded: {tx_hash.to_0x_hex()}: {_tx_to_log_string(transaction, tx_params)}")
         return tx_hash.to_0x_hex()
 
-    def sign_and_send_tx(self, transaction, from_private_key: PrivateKeyType) -> str:
+    def sign_and_send_tx(self, transaction, signer: TxSigner) -> str:
         # transaction.args is sensitive info, should never be logged
 
-        from_address = EthAddress.from_private_key(from_private_key)
+        from_address = signer.address()
         nonce = self.web3.get_address_nonce(from_address)
         tx_params = None
 
@@ -182,15 +182,18 @@ class ContractService:
                                  f"==   gas: {tx_params['gas']}\n"
                                  f"==   value: {tx_params['value']} wei\n"
                                  f"== This is the final confirmation", default=_dry_run):
+                #
                 click.echo("Enabling dry-run mode. This transaction WILL NOT be executed.")
                 _dry_run = True
 
             click.echo()
-            return self._sign_and_send_tx(transaction, tx_params, from_private_key, _dry_run)
+            return self._sign_and_send_tx(transaction, tx_params, signer, _dry_run)
+
         except ContractCustomError as cce:
             reason = self.__decode_contract_error_name(cce)
             self.logger.error(f"Transaction reverted with error: {reason}: {_tx_to_log_string(transaction, tx_params)}")
             raise click.ClickException(f"Transaction reverted with error: {reason}") from cce
+
         except Web3RPCError as rpc_err:
             reason = rpc_err.rpc_response["error"]["message"] if (rpc_err.rpc_response and
                                                                   "error" in rpc_err.rpc_response and
@@ -199,6 +202,7 @@ class ContractService:
 
             self.logger.error(f"Web3 RPC error: {reason}: {_tx_to_log_string(transaction, tx_params)}")
             raise click.ClickException(f"Web3 RPC error: {reason}") from rpc_err
+
         except Exception as e:
             reason = str(e)
             self.logger.error(f"Transaction failed: {reason}: {_tx_to_log_string(transaction, tx_params)}")

@@ -1,10 +1,9 @@
 import enum
 
-from eth_account.types import PrivateKeyType
-
 from cli import utils
 from cli.services.contracts.contract_service import ContractService
 from cli.services.contracts.sp_registry import SPRegistrySLIThresholds
+from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress, ActorId
 
 
@@ -126,7 +125,7 @@ class PoRepMarket(ContractService):
                          self.abi_dir() / "PoRepMarket.json")
 
     # @notice Proposes a deal
-    def propose_deal(self, deal: PoRepMarketDealRequest, from_private_key: PrivateKeyType) -> str:
+    def propose_deal(self, deal: PoRepMarketDealRequest, signer: TxSigner) -> str:
         requirements = deal.requirements
         terms = deal.terms
 
@@ -135,7 +134,7 @@ class PoRepMarket(ContractService):
                 (requirements.retrievability_bps, requirements.bandwidth_mbps, requirements.latency_ms, requirements.indexing_pct),
                 (terms.deal_size_bytes, terms.price_per_sector_per_month, terms.duration_days),
                 deal.manifest_location
-            ), from_private_key)
+            ), signer)
 
     # @notice Gets a deal proposal
     # @param deal_id The id of the deal proposal
@@ -153,26 +152,26 @@ class PoRepMarket(ContractService):
 
     # @notice Accepts a deal
     # @param dealId The id of the deal proposal
-    def accept_deal(self, deal_id: int, from_private_key: PrivateKeyType) -> str:
-        return self.sign_and_send_tx(self.contract.functions.acceptDeal(deal_id), from_private_key)
+    def accept_deal(self, deal_id: int, signer: TxSigner) -> str:
+        return self.sign_and_send_tx(self.contract.functions.acceptDeal(deal_id), signer)
 
     # @notice Completes a deal
     # @param dealId The id of the deal proposal
-    def complete_deal(self, deal_id: int, from_private_key: PrivateKeyType) -> str:
-        return self.sign_and_send_tx(self.contract.functions.completeDeal(deal_id), from_private_key)
+    def complete_deal(self, deal_id: int, signer: TxSigner) -> str:
+        return self.sign_and_send_tx(self.contract.functions.completeDeal(deal_id), signer)
 
     # @notice Terminate a deal
     # @dev Terminates a deal by setting the deal state to terminated
     # @param dealId The id of the deal proposal
     # @param terminator The address that terminated the deal
     # @param endEpoch The Filecoin epoch at which the deal was terminated
-    def terminate_deal(self, deal_id: int, terminator: EthAddress, end_epoch: int, from_private_key: PrivateKeyType) -> str:
-        return self.sign_and_send_tx(self.contract.functions.terminateDeal(deal_id, terminator, end_epoch), from_private_key)
+    def terminate_deal(self, deal_id: int, terminator: EthAddress, end_epoch: int, signer: TxSigner) -> str:
+        return self.sign_and_send_tx(self.contract.functions.terminateDeal(deal_id, terminator, end_epoch), signer)
 
     # @notice Rejects a deal
     # @param dealId The id of the deal proposal
-    def reject_deal(self, deal_id: int, from_private_key: PrivateKeyType) -> str:
-        return self.sign_and_send_tx(self.contract.functions.rejectDeal(deal_id), from_private_key)
+    def reject_deal(self, deal_id: int, signer: TxSigner) -> str:
+        return self.sign_and_send_tx(self.contract.functions.rejectDeal(deal_id), signer)
 
     # @notice Gets all completed deals
     # @return completedDeals Array of completed deal proposals
@@ -183,8 +182,8 @@ class PoRepMarket(ContractService):
     # @dev Updates the rail id for a deal proposal
     # @param dealId The id of the deal proposal
     # @param railId The id of the rail
-    def update_rail_id(self, deal_id: int, rail_id: int, from_private_key: PrivateKeyType) -> str:
-        return self.sign_and_send_tx(self.contract.functions.updateRailId(deal_id, rail_id), from_private_key)
+    def update_rail_id(self, deal_id: int, rail_id: int, signer: TxSigner) -> str:
+        return self.sign_and_send_tx(self.contract.functions.updateRailId(deal_id, rail_id), signer)
 
     # @notice Maximum deal duration in days. See PoRepTypes.MAX_DEAL_DURATION_DAYS.
     # @dev Any provider limit above this is unreachable: PoRepMarket rejects deals with durationDays > 1278.
@@ -204,13 +203,13 @@ class PoRepMarket(ContractService):
     # @notice Rejects a deal in Accepted state before rail is set
     # @dev Only callable by the admin
     # @param dealId The id of the deal proposal
-    def reject_accepted_deal(self, deal_id: int, from_private_key: PrivateKeyType) -> str:
-        return self.sign_and_send_tx(self.contract.functions.rejectAcceptedDeal(deal_id), from_private_key)
+    def reject_accepted_deal(self, deal_id: int, signer: TxSigner) -> str:
+        return self.sign_and_send_tx(self.contract.functions.rejectAcceptedDeal(deal_id), signer)
 
     # @notice Updates the deal completion padding
     # @param padding The new padding value
-    def set_deal_completion_padding(self, padding: int, from_private_key: PrivateKeyType) -> str:
-        return self.sign_and_send_tx(self.contract.functions.setDealCompletionPadding(padding), from_private_key)
+    def set_deal_completion_padding(self, padding: int, signer: TxSigner) -> str:
+        return self.sign_and_send_tx(self.contract.functions.setDealCompletionPadding(padding), signer)
 
     # @notice Getter for deal completion padding
     # @return padding Current padding value

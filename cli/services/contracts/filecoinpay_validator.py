@@ -1,6 +1,5 @@
-from eth_account.types import PrivateKeyType
-
 from cli.services.contracts.contract_service import ContractService
+from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress
 
 
@@ -13,10 +12,10 @@ class FileCoinPayValidator(ContractService):
     # @dev Only callable by the client
     # @dev Sets railID in contract state and updates the PoRepMarket with the created rail ID
     # @param token The ERC20 token to use for the payment rail
-    def create_rail(self, token_address: EthAddress, from_private_key: PrivateKeyType) -> str:
-        return self.sign_and_send_tx(self.contract.functions.createRail(token_address), from_private_key)
+    def create_rail(self, token_address: EthAddress, signer: TxSigner) -> str:
+        return self.sign_and_send_tx(self.contract.functions.createRail(token_address), signer)
 
     # @notice Terminates a payment rail, preventing further payments after the rail's lockup period.
     #         After calling this method, the lockup period cannot be changed, and the rail's rate and fixed lockup may only be reduced.
-    def terminate_rail(self, from_private_key: PrivateKeyType) -> str:
-        return self.sign_and_send_tx(self.contract.functions.terminateRail(), from_private_key)
+    def terminate_rail(self, signer: TxSigner) -> str:
+        return self.sign_and_send_tx(self.contract.functions.terminateRail(), signer)

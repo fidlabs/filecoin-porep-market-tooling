@@ -1,7 +1,6 @@
-from eth_account.types import PrivateKeyType
-
 from cli import utils
 from cli.services.contracts.contract_service import ContractService
+from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress
 
 
@@ -34,19 +33,21 @@ class ClientContract(ContractService):
     # @dev Reverts with InsufficientAllowance if caller doesn't have sufficient allowance
     # @dev Reverts with InvalidAmount when parsing amount from BigInt to uint256 failed
     # @dev Reverts with UnfairDistribution when trying to give too much to single SP
-    def transfer(self, transfer_params: TransferParams, deal_id: int, from_private_key: PrivateKeyType) -> str:
-        return self.sign_and_send_tx(self.contract.functions.transfer((transfer_params.to, transfer_params.amount, transfer_params.operator_data),
-                                                                      deal_id), from_private_key)
+    def transfer(self, transfer_params: TransferParams, deal_id: int, signer: TxSigner) -> str:
+        return self.sign_and_send_tx(
+            self.contract.functions.transfer(
+                (transfer_params.to, transfer_params.amount, transfer_params.operator_data), deal_id
+            ), signer)
 
     # @notice Replaces all broken tracked allocations for a completed existing deal.
     # @dev Only callable by RESCUE_ROLE.
     # @param dealId The id of the deal to rescue.
     # @param params The DataCap transfer parameters that create replacement allocations.
-    def rescue_deal_allocations(self, deal_id: int, transfer_params: TransferParams, from_private_key: PrivateKeyType) -> str:
+    def rescue_deal_allocations(self, deal_id: int, transfer_params: TransferParams, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.rescueDealAllocations(
-                deal_id, (transfer_params.to, transfer_params.amount, transfer_params.operator_data)),
-            from_private_key)
+                deal_id, (transfer_params.to, transfer_params.amount, transfer_params.operator_data)
+            ), signer)
 
     # @notice custom getter to retrieve allocation ids per client and provider
     # @param dealId the id of the deal

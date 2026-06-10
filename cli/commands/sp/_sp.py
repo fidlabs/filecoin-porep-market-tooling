@@ -1,13 +1,15 @@
 import click
-from eth_account.types import PrivateKeyType
+from eth_typing import HexStr
 
 from cli import utils
 from cli.commands import utils as commands_utils
+from cli.services.txsigner import TxSigner, PrivateKeyTxSigner, LotusWalletTxSigner
 from cli.services.web3_service import EthAddress, Web3Service, FilAddress
 
 SP_ORGANIZATION: str | None = None
 SP_ORGANIZATION_ADDRESS: str | None = None
 SP_PRIVATE_KEY: str | None = None
+SP_LOTUS_WALLET: str | None = None
 
 
 @click.group()
@@ -15,13 +17,19 @@ SP_PRIVATE_KEY: str | None = None
 @click.option("--private-key", envvar="SP_PRIVATE_KEY", hidden=True)
 @click.option("--confirm-info", is_flag=True, default=False,
               help="Confirm current account info before executing command.  [default: false]")
-def sp(private_key: str | None = None, organization: str | None = None, confirm_info: bool = False):
+@click.option("--lotus-wallet", envvar="SP_LOTUS_WALLET", show_envvar=True,
+              help="SP Lotus wallet address used for signing blockchain transactions. Must be delegated f410 address or standard EVM address.")
+def sp(private_key: str | None = None, organization: str | None = None, confirm_info: bool = False, lotus_wallet: str | None = None):
     """
     Storage Provider commands for interacting with the PoRep Market.
     """
 
-    global SP_PRIVATE_KEY
-    SP_PRIVATE_KEY = private_key
+    if private_key:
+        global SP_PRIVATE_KEY
+        SP_PRIVATE_KEY = private_key
+    else:
+        global SP_LOTUS_WALLET
+        SP_LOTUS_WALLET = lotus_wallet
 
     global SP_ORGANIZATION
     SP_ORGANIZATION = organization
@@ -32,6 +40,7 @@ def sp(private_key: str | None = None, organization: str | None = None, confirm_
         click.echo("\n\n")
 
 
+# TODO from_any?
 # lazy initialization
 def sp_organization_address() -> EthAddress:
     if not SP_ORGANIZATION:
@@ -58,29 +67,42 @@ def sp_organization_address() -> EthAddress:
     return EthAddress(SP_ORGANIZATION_ADDRESS)
 
 
-# returns SP's wallet address which might be different that sp_organization()
+# returns SP's wallet address which might be different that sp_organization_address()
 def sp_address() -> EthAddress:
-    return EthAddress.from_private_key(sp_private_key())
+    return sp_signer().address()
 
 
 # lazy initialization
-def sp_private_key() -> PrivateKeyType:
+def sp_signer() -> TxSigner:
     global SP_PRIVATE_KEY
 
-    if not SP_PRIVATE_KEY:
-        SP_PRIVATE_KEY = click.prompt("SP private key", hide_input=True)
+    if SP_PRIVATE_KEY:
+        return PrivateKeyTxSigner(HexStr(SP_PRIVATE_KEY))
 
-    assert SP_PRIVATE_KEY
-    return SP_PRIVATE_KEY
+    elif SP_LOTUS_WALLET:
+        return LotusWalletTxSigner(SP_LOTUS_WALLET, utils.get_env_required("SP_LOTUS_TOKEN"))
+
+    else:
+        SP_PRIVATE_KEY = click.prompt("SP private key", hide_input=True)
+        assert SP_PRIVATE_KEY
+        return PrivateKeyTxSigner(HexStr(SP_PRIVATE_KEY))
 
 
 def _info():
+    try:
+        _sp_address = sp_address() if SP_PRIVATE_KEY or SP_LOTUS_WALLET else None
+        _sp_address_err = ""
+    # pylint: disable=broad-exception-caught
+    except Exception as e:
+        _sp_address = None
+        _sp_address_err = f"Error getting account address: {e}"
+
     click.echo(f"SP organization address: {sp_organization_address() if SP_ORGANIZATION else ''}")
     click.echo(f"SP organization: {SP_ORGANIZATION or ''}")
-    click.echo(f"SP wallet address: {sp_address() if SP_PRIVATE_KEY else ''}")
-    click.echo(f"SP wallet private key: {utils.private_str_to_log_str(SP_PRIVATE_KEY)}")
     click.echo()
-    commands_utils.print_info()
+    click.echo(f"SP wallet eth-address: {_sp_address or _sp_address_err}")
+    click.echo(f"SP wallet private key: {utils.private_str_to_log_str(SP_PRIVATE_KEY)}")
+    commands_utils.print_info(_sp_address, "SP wallet")
 
 
 @click.command()
