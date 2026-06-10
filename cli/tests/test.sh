@@ -19,8 +19,8 @@ set +a
 
 (
   # misc tests
-  python3 "${CLI_PATH}"             >/dev/null &&
-  python3 "${CLI_PATH}" info --help >/dev/null &&
+  python3 "${CLI_PATH}"               >/dev/null &&
+  python3 "${CLI_PATH}" config --help >/dev/null &&
 
   python3 "${CLI_PATH}" client --address "0x5CF0365dA2F0a83c70Dfb4b96067c0e3cd2Ea951" info                          >/dev/null &&
   python3 "${CLI_PATH}" admin --private-key "b73163861add8c8280f62958432131b7a5e69a9276a3cfa26fcaa92ff356fadc" info >/dev/null &&
