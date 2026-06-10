@@ -23,13 +23,13 @@ class TxSigner:
     """
 
     def address(self) -> EthAddress:
-        pass
+        raise NotImplementedError
 
     def sign_transaction(self, tx_params: dict) -> SignedTransaction:
-        pass
+        raise NotImplementedError
 
     def sign_typed_data(self, domain_data: dict, message_types: dict, message_data: dict) -> SignedMessage:
-        pass
+        raise NotImplementedError
 
 
 class PrivateKeyTxSigner(TxSigner):

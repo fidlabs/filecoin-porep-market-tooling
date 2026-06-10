@@ -8,14 +8,15 @@ from cli.services.txsigner import TxSigner, PrivateKeyTxSigner, LotusWalletTxSig
 from cli.services.web3_service import EthAddress, Web3Service
 
 CLIENT_ADDRESS: str | None = None
+CLIENT_ETH_ADDRESS: EthAddress | None = None
 CLIENT_PRIVATE_KEY: str | None = None
 CLIENT_LOTUS_WALLET: str | None = None
 
 
 @click.group()
-@click.option("--address", envvar="CLIENT_ADDRESS", show_envvar=True,
-              help="Client address to use.  [default: derived from the provided private key]")
 @click.option("--private-key", envvar="CLIENT_PRIVATE_KEY", hidden=True)
+@click.option("--address", envvar="CLIENT_ADDRESS", show_envvar=True,
+              help="Client address to use. Can be any format possible.  [default: derived from the provided private key / lotus wallet]")
 @click.option("--confirm-info", is_flag=True, default=False,
               help="Confirm current account info before executing command.  [default: false]")
 @click.option("--lotus-wallet", envvar="CLIENT_LOTUS_WALLET", show_envvar=True,
@@ -43,7 +44,25 @@ def client(address: str | None = None, private_key: str | None = None, confirm_i
 
 # lazy initialization
 def client_address() -> EthAddress:
-    return EthAddress(CLIENT_ADDRESS) if CLIENT_ADDRESS else client_signer().address()
+    global CLIENT_ETH_ADDRESS
+
+    if not CLIENT_ETH_ADDRESS:
+        if CLIENT_ADDRESS:
+            CLIENT_ETH_ADDRESS = EthAddress.from_any(CLIENT_ADDRESS)
+        elif CLIENT_PRIVATE_KEY:
+            CLIENT_ETH_ADDRESS = EthAddress.from_private_key(HexStr(CLIENT_PRIVATE_KEY))
+        elif CLIENT_LOTUS_WALLET:
+            CLIENT_ETH_ADDRESS = EthAddress.from_any(CLIENT_LOTUS_WALLET)
+        else:
+            raise click.ClickException("Client address is not set and cannot be derived from private key or Lotus wallet")
+
+        if CLIENT_ADDRESS and CLIENT_ETH_ADDRESS != CLIENT_ADDRESS:
+            click.echo(f"Converted client address {CLIENT_ADDRESS} to EVM 0x-address {CLIENT_ETH_ADDRESS}.")
+            click.echo(f"Set client address to {CLIENT_ETH_ADDRESS} to avoid this prompt next time")
+            click.echo("\n")
+
+    assert CLIENT_ETH_ADDRESS
+    return CLIENT_ETH_ADDRESS
 
 
 # lazy initialization
@@ -68,13 +87,11 @@ def client_signer() -> TxSigner:
 def _info():
     try:
         _client_address = client_address() if CLIENT_PRIVATE_KEY or CLIENT_LOTUS_WALLET else None
-        _client_address_err = ""
     # pylint: disable=broad-exception-caught
     except Exception as e:
         _client_address = None
-        _client_address_err = f"Error getting account address: {e}"
+        click.echo(f"Error getting client address: {e}")
 
-    click.echo(f"Client wallet eth-address: {_client_address or _client_address_err}")
     click.echo(f"Client wallet private key: {utils.private_str_to_log_str(CLIENT_PRIVATE_KEY)}")
     commands_utils.print_info(_client_address, "Client")
 

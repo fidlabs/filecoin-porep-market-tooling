@@ -78,8 +78,8 @@ def _propose_deal_from_manifest(manifest_url: str,
     total_max_cost_str = utils.str_from_wei(total_max_cost, USDCToken().decimals())
 
     # TODO LATER print account info (you now have ... at address ...)
-    utils.confirm(f"\nProposing deal: {utils.json_pretty(deal)}"
-                  f" This will cost you maximum of {max_cost_per_month_str} {token_symbol} per month. "
+    utils.confirm(f"\nProposing deal: {utils.json_pretty(deal)}\n\n"
+                  f"This will cost you maximum of {max_cost_per_month_str} {token_symbol} per month. "
                   f"This is a total of {total_max_cost_str} {token_symbol} for {duration_months} months. "
                   f"Continue?", abort=True)
 
@@ -131,13 +131,13 @@ def propose_deal_from_manifest(manifest_url: str,
 
 # TODO LATER remove me
 @click.command(hidden=True)
-@click.argument("manifest_url", default="http://117.55.199.67:9090/api/preparation/fsboard/piece")
+@click.argument("manifest_url")
 def propose_deal_from_manifest_mocked(manifest_url: str):
     retrievability_bps = 10
     bandwidth_mbps = 1
     price_per_sector_per_month = utils.to_wei(2, USDCToken().decimals())  # 2 USDC per sector per month
     # price_per_sector_per_month = 1
-    duration_months = 3
+    duration_months = 6
     latency_ms = 999
     indexing_pct = 1
 

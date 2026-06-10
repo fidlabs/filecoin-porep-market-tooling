@@ -90,71 +90,52 @@ def get_deal_claims(deal: PoRepMarketDealProposal) -> dict[str, dict]:
 # pylint: disable=broad-exception-caught
 def print_info(account_address: EthAddress | None = None, account_name: str = "Account"):
     if account_address:
-        try:
-            account_f_address = FilAddress.from_any(account_address) if account_address else None
-            account_f_address_err = ""
-        except Exception as e:
-            account_f_address = None
-            account_f_address_err = f"Error converting account address to Filecoin format: {e}"
+        click.echo(f"{account_name} wallet eth-address: {account_address}")
 
         try:
-            account_actor_id = ActorId.from_any(account_address) if account_address else None
-            account_actor_id_err = ""
+            click.echo(f"{account_name} wallet f-address: {FilAddress.from_any(account_address)}")
         except Exception as e:
-            account_actor_id = None
-            account_actor_id_err = f"Error converting account address to Actor ID format: {e}"
+            click.echo(f"Error converting account address to Filecoin format: {e}")
 
         try:
-            account_fil_balance = Web3Service().wallet_balance(account_address) if isinstance(account_address, EthAddress) else None
-            account_fil_balance_str = f"{utils.str_from_wei(account_fil_balance, utils.FIL_TOKEN_DECIMALS)} FIL" if account_fil_balance else ""
-            account_fil_balance_err = ""
+            click.echo(f"{account_name} wallet actor ID: {ActorId.from_any(account_address)}")
         except Exception as e:
-            account_fil_balance_str = ""
-            account_fil_balance_err = f"Error fetching account FIL balance: {e}"
+            click.echo(f"Error converting account address to Actor ID format: {e}")
 
-        click.echo(f"{account_name} wallet f-address: {account_f_address or account_f_address_err}")
-        click.echo(f"{account_name} wallet actor ID: {account_actor_id or account_actor_id_err}")
-        click.echo(f"{account_name} wallet FIL balance: {account_fil_balance_str or account_fil_balance_err}")
+        try:
+            click.echo(f"{account_name} wallet FIL balance: {utils.str_from_wei(Web3Service().wallet_balance(account_address), utils.FIL_TOKEN_DECIMALS)} FIL")
+        except Exception as e:
+            click.echo(f"Error fetching account FIL balance: {e}")
+
         click.echo()
 
     try:
-        chain_id = Web3Service().get_chain_id()
-        chain_id_err = ""
+        click.echo(f"Chain ID: {Web3Service().get_chain_id()}")
     except Exception as e:
-        chain_id = None
-        chain_id_err = f"Error getting chain ID: {e}"
+        click.echo(f"Error fetching chain ID: {e}")
 
-    try:
-        sp_registry_address = SPRegistry().address()
-        sp_registry_address_err = ""
-    except Exception as e:
-        sp_registry_address = None
-        sp_registry_address_err = f"Error getting SP Registry address: {e}"
-
-    try:
-        validator_factory_address = ValidatorFactory().address()
-        validator_factory_address_err = ""
-    except Exception as e:
-        validator_factory_address = None
-        validator_factory_address_err = f"Error getting Validator Factory address: {e}"
-
-    try:
-        client_contract_address = ClientContract().address()
-        client_contract_address_err = ""
-    except Exception as e:
-        client_contract_address = None
-        client_contract_address_err = f"Error getting Client Contract address: {e}"
-
-    click.echo(f"Chain ID: {chain_id or chain_id_err}")
     click.echo()
     click.echo(f"RPC_URL={utils.get_env('RPC_URL', required=False)}")
     click.echo()
     click.echo(f"POREP_MARKET={utils.get_env('POREP_MARKET', required=False)}")
     click.echo(f"FILECOIN_PAY={utils.get_env('FILECOIN_PAY', required=False)}")
     click.echo(f"USDC_TOKEN={utils.get_env('USDC_TOKEN', required=False)}")
-    click.echo(f"SP_REGISTRY={sp_registry_address or sp_registry_address_err}")
-    click.echo(f"VALIDATOR_FACTORY={validator_factory_address or validator_factory_address_err}")
-    click.echo(f"CLIENT_CONTRACT={client_contract_address or client_contract_address_err}")
+
+    try:
+        click.echo(f"SP_REGISTRY={SPRegistry().address()}")
+    except Exception as e:
+        click.echo(f"Error fetching SP Registry address: {e}")
+
+    try:
+        click.echo(f"VALIDATOR_FACTORY={ValidatorFactory().address()}")
+    except Exception as e:
+        click.echo(f"Error fetching Validator Factory address: {e}")
+
+    try:
+        click.echo(f"CLIENT_CONTRACT={ClientContract().address()}")
+    except Exception as e:
+        click.echo(f"Error fetching Client Contract address: {e}")
+
     click.echo()
     click.echo(f"DRY_RUN={is_dry_run()}")
     click.echo(f"DEBUG={utils.get_env_required('DEBUG', default='False').capitalize()}")
