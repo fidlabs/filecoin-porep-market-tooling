@@ -16,7 +16,7 @@ def set_role(contract_address: str, role: str, account: str):
     Grant a role to an address on a contract that implements AccessControlUpgradeable.
 
     CONTRACT_ADDRESS - The address of the contract to modify role on. Can be any format possible.
-    ROLE - The role to modify. Must be a hex string, a decimal string, or an alphanumeric string.
+    ROLE - The role to modify. Can be a hex, integer or alpha-only string.
     ACCOUNT - The address to grant the role to. Can be any format possible.
     """
 
@@ -31,7 +31,7 @@ def set_role(contract_address: str, role: str, account: str):
     elif role.isalpha():
         role_bytes = keccak256(role.encode("utf-8"))
     else:
-        raise ValueError("Role must be a hex string, a decimal string, or an alphanumeric string")
+        raise click.UsageError("Role must be a hex, integer or alpha-only string")
 
     account_str = f"{account} ({_account})" if account != _account else account
     contract_address_str = f"{contract_address} ({_contract_address})" if contract_address != _contract_address else contract_address

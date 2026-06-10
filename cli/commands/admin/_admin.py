@@ -35,7 +35,12 @@ def admin(private_key: str | None = None, confirm_info: bool = False, lotus_wall
 
 
 def admin_address() -> EthAddress:
-    return admin_signer().address()
+    if ADMIN_PRIVATE_KEY:
+        return EthAddress.from_private_key(HexStr(ADMIN_PRIVATE_KEY))
+    elif ADMIN_LOTUS_WALLET:
+        return EthAddress.from_any(ADMIN_LOTUS_WALLET)
+    else:
+        raise click.ClickException("Admin private key or Lotus wallet is not set")
 
 
 # lazy initialization
@@ -57,13 +62,11 @@ def admin_signer() -> TxSigner:
 def _info():
     try:
         _admin_address = admin_address() if ADMIN_PRIVATE_KEY or ADMIN_LOTUS_WALLET else None
-        _admin_address_err = ""
     # pylint: disable=broad-exception-caught
     except Exception as e:
         _admin_address = None
-        _admin_address_err = f"Error getting account address: {e}"
+        click.echo(f"Error getting admin address: {e}")
 
-    click.echo(f"Admin wallet eth-address: {_admin_address or _admin_address_err}")
     click.echo(f"Admin wallet private key: {utils.private_str_to_log_str(ADMIN_PRIVATE_KEY)}")
     commands_utils.print_info(_admin_address, "Admin")
 

@@ -319,13 +319,13 @@ class Web3Service:
         def filecoin_wallet_balance(address: FilAddress | ActorId) -> int:
             response = self._w3.provider.make_request(
                 RPCEndpoint("Filecoin.WalletBalance"),
-                [address]
+                [str(address)]
             )
 
             if "error" in response:
                 raise RuntimeError(f"Filecoin.WalletBalance({address}) failed: {response['error']}")
 
-            if not response.get("result") or not isinstance(response["result"], str):
+            if response.get("result") is None or not isinstance(response["result"], str):
                 raise RuntimeError(f"Filecoin.WalletBalance({address}) failed: invalid result {response.get('result')!r}")
 
             try:

@@ -3,7 +3,6 @@ from math import ceil
 
 import click
 from eth_account.datastructures import SignedMessage
-from web3.auto import w3
 
 from cli import utils
 from cli.commands.client._client import client_address, client_signer
@@ -38,7 +37,7 @@ def get_filecoin_permit_deadline() -> int:
 # EIP-712 signing for FileCoinPay permit msg
 def sign_filecoinpay_permit(amount: int, permit_deadline: int, token: USDCToken) -> SignedMessage:
     # signed_msg.signature is sensitive info, should never be logged
-    signed_msg = w3.eth.account.sign_typed_data(
+    signed_msg = client_signer().sign_typed_data(
         domain_data={
             "name": token.name(),
             "version": "1",
@@ -60,8 +59,7 @@ def sign_filecoinpay_permit(amount: int, permit_deadline: int, token: USDCToken)
             "value": amount,
             "nonce": token.nonces(client_address()),
             "deadline": permit_deadline
-        },
-        private_key=client_signer()
+        }
     )
 
     if not signed_msg.v or not signed_msg.r or not signed_msg.s or not signed_msg.signature:
