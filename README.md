@@ -15,13 +15,14 @@ Developed for admins, clients, and SPs to **manage their market interactions** f
 
 ```bash
 python3 --version
+git clone https://github.com/fidlabs/filecoin-porep-market-tooling && cd filecoin-porep-market-tooling
 python3 -m pip install -r requirements.txt
 cp .env.mainnet .env
 ```
 
 ## Running the CLI
 
-Make sure you have the required environment variables (see `.env`). \
+Make sure you have the required environment variables set (see `.env`). \
 Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
 
 ## Important notes
@@ -29,14 +30,13 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
 - The app **does not store any state** locally - all state is retrieved from the blockchain by design.
 - The app stores all blockchain transaction logs to `logs/`.
 - Default behaviour is to wait for each transaction to succeed after sending it.
-- The app operates on EVM 0x-addresses and **FEVM smart contract** and does not fully support Filecoin f-addresses.
-- There are 3 ways of providing the user's private key for blockchain transactions and the priority is as follows:
-    1. `[ADMIN|CLIENT|SP]_PRIVATE_KEY` variable in the system environment variables,
-    2. `[ADMIN|CLIENT|SP]_PRIVATE_KEY` variable in the local `.env` file,
+- The app operates on **FEVM smart contracts** (thus EVM 0x-addresses) but fully supports Filecoin f-addresses with proper conversion.
+- There are multiple ways of providing the user's private key for blockchain transactions and the priority is as follows:
+    1. `[ADMIN|CLIENT|SP]_PRIVATE_KEY` variable in the system environment variables or in the local `.env` file,
+    2. `[ADMIN|CLIENT|SP]_LOTUS_WALLET` and `[ADMIN|CLIENT|SP]_LOTUS_TOKEN` variables when using Lotus wallet,
     3. if non of those are set, the app will prompt the user to input the private key for required operations in a secure manner.
-- The app expects the private key to be 32-byte raw private key (hex, 0x-prefixed).
-- Read-only commands do not require private key set, though some of them require user's address (`client --address` and `sp --organization`).
-- Rule of thumb: the private key you set is the one that signs and sends transactions, \
+- Read-only commands do not require private key / lotus wallet set, though some of them require user's address (`client --address` and `sp --organization`).
+- Rule of thumb: the private key / lotus wallet you set is the one that signs and sends transactions, \
   so always use the one with correct permissions / approvals / rights for the transaction you want to send.
 - Make sure the address for blockchain transactions you use has enough FIL for gas fees and is **initialized on the Filecoin network**.
 - The app prints output of read-only commands in json format to be easily parsable by other tools.
@@ -51,6 +51,8 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
   All interactions are between the user's machine and the provided `RPC_URL` blockchain.
 - The app does not log any sensitive information to the console or to the log files.
   All transaction logs are stored without any sensitive information.
+- When using Lotus wallet for blockcain transaction signing, the **private key never leaves the Lotus wallet** and is not exposed to the app. \
+  This is the reccomended way of using the app.
 
 ## Typical SP workflow
 
