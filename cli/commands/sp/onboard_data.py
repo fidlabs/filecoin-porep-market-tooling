@@ -152,7 +152,8 @@ def onboard_data(ctx,
     cids_not_claimed = [alloc.get("Data", {}).get("/") for alloc in allocations_not_claimed.values()]
     pieces_not_claimed = [piece for piece in pieces if piece["pieceCid"] in cids_not_claimed]
 
-    allocations_not_matched = [cid for cid in cids_not_claimed if cid not in {piece["pieceCid"] for piece in pieces}]
+    pieces_cids = {piece["pieceCid"] for piece in pieces}
+    allocations_not_matched = [cid for cid in cids_not_claimed if cid not in pieces_cids]
     if allocations_not_matched:
         raise click.ClickException(f"Cannot match all unclaimed allocations to manifest pieces. "
                                    f"Unclaimed allocations: {len(allocations_not_claimed)}, matching manifest pieces: {len(pieces_not_claimed)}. "
