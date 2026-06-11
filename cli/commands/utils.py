@@ -250,6 +250,7 @@ def _validate_manifest(manifest: object, quiet=False) -> list[dict]:
                     "pieceCid" in piece and
                     "pieceType" in piece and
                     "pieceSize" in piece and
+                    "fileSize" in piece and
                     "preparationId" in piece and
                     "attachmentId" in piece and
                     "storagePath" in piece

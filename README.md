@@ -51,7 +51,7 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
   All interactions are between the user's machine and the provided `RPC_URL` blockchain.
 - The app does not log any sensitive information to the console or to the log files.
   All transaction logs are stored without any sensitive information.
-- When using Lotus wallet for blockcain transaction signing, the **private key never leaves the Lotus wallet** and is not exposed to the app. \
+- When using Lotus wallet for blockchain transaction signing, the **private key never leaves the Lotus wallet** and is not exposed to the app. \
   This is the recommended way of using the app.
 
 ## Typical SP workflow
