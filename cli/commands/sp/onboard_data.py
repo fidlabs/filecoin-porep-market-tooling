@@ -6,6 +6,7 @@ import tempfile
 from pathlib import Path
 
 import click
+import humanfriendly
 
 from cli import utils
 from cli.commands import utils as commands_utils
@@ -35,13 +36,14 @@ def _get_aria2c_path() -> str:
     return str(aria2c_path)
 
 
-def _write_aria2c_input_file(manifest: list[dict], download_host: str, output_dir: Path, no_summary: bool) -> Path:
+def _write_aria2c_input_file(pieces: list[dict], download_host: str, output_dir: Path, no_summary: bool) -> Path:
     with tempfile.NamedTemporaryFile(delete=False) as f:
         aria2_file = Path(f.name)
 
-    pieces = manifest[0]["pieces"]
-
-    click.echo(f"\nDownloading {len(pieces)} .car files" + (":" if not no_summary else ""))
+    pieces_size_bytes = sum(piece.get("fileSize", 0) for piece in pieces)
+    click.echo(f"\nDownloading {len(pieces)} .car files with total fileSize "
+               f"{humanfriendly.format_size(pieces_size_bytes)} = {humanfriendly.format_size(pieces_size_bytes, binary=True)} = "
+               f"{utils.bytes_to_sectors(pieces_size_bytes, PoRepMarket().get_sector_size_bytes())} sectors" + (":" if not no_summary else ""))
 
     with open(aria2_file, "w", encoding="utf-8") as f:
         for piece in pieces:
@@ -63,6 +65,7 @@ def _write_aria2c_input_file(manifest: list[dict], download_host: str, output_di
                 click.echo(f"  {download_url} -> {output_file}")
 
     if not no_summary:
+        click.echo("(use --no-summary to skip this summary)")
         click.echo("\n")
 
     return aria2_file.resolve()
@@ -82,6 +85,7 @@ def _write_manifest_file(manifest: list[dict], output_dir: Path, deal_id: int) -
     with open(manifest_file, "w", encoding="utf-8") as f:
         f.write(utils.json_pretty(manifest))
 
+    click.echo(f"Deal manifest saved to {manifest_file}\n")
     return manifest_file.resolve()
 
 
@@ -139,7 +143,27 @@ def onboard_data(ctx,
         click.echo(f"All {len(deal_claims)} allocations for deal ID {deal_id} are claimed; no need to download the data. Use --force to download anyway.")
         return
 
+    click.echo(f"Found {len(allocations_not_claimed)} allocations not claimed and {len(deal_claims)} claims for deal ID {deal_id}, "
+               f"{len(deal_allocations) + len(deal_claims)} total")
+
     manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False, retries=10)
+    pieces = manifest[0]["pieces"]
+
+    cids_not_claimed = [alloc.get("Data", {}).get("/") for alloc in allocations_not_claimed.values()]
+    pieces_not_claimed = [piece for piece in pieces if piece["pieceCid"] in cids_not_claimed]
+
+    allocations_not_matched = [cid for cid in cids_not_claimed if cid not in {piece["pieceCid"] for piece in pieces}]
+    if allocations_not_matched:
+        raise click.ClickException(f"Cannot match all unclaimed allocations to manifest pieces. "
+                                   f"Unclaimed allocations: {len(allocations_not_claimed)}, matching manifest pieces: {len(pieces_not_claimed)}. "
+                                   f"Allocation CIDs not matched to manifest pieces: {allocations_not_matched}")
+
+    pieces_claimed = [piece for piece in pieces if piece not in pieces_not_claimed]
+    if pieces_claimed and not force:
+        click.echo(f"Skipping download of {len(pieces_claimed)} already claimed pieces. Use --force to download them anyway.")
+
+    if not force:
+        click.echo(f"Matched all {len(pieces_not_claimed)} pieces to download for unclaimed allocations.")
 
     _output_dir = Path(output_dir).resolve()
     _output_dir.mkdir(parents=True, exist_ok=True)
@@ -150,7 +174,7 @@ def onboard_data(ctx,
 
     parsed_url = commands_utils.validate_and_parse_url(host or deal.manifest_location)
     download_host = f"{parsed_url.scheme or 'http'}://{parsed_url.hostname}:{port}"
-    aria2_file = _write_aria2c_input_file(manifest, download_host, _output_dir, no_summary)
+    aria2_file = _write_aria2c_input_file(pieces_not_claimed if not force else pieces, download_host, _output_dir, no_summary)
 
     try:
         command = [aria2c_path,
