@@ -40,10 +40,11 @@ def _write_aria2c_input_file(pieces: list[dict], download_host: str, output_dir:
     with tempfile.NamedTemporaryFile(delete=False) as f:
         aria2_file = Path(f.name)
 
-    pieces_size_bytes = sum(piece.get("fileSize", 0) for piece in pieces)
-    click.echo(f"\nDownloading {len(pieces)} .car files with total fileSize "
-               f"{humanfriendly.format_size(pieces_size_bytes)} = {humanfriendly.format_size(pieces_size_bytes, binary=True)} = "
-               f"{utils.bytes_to_sectors(pieces_size_bytes, PoRepMarket().get_sector_size_bytes())} sectors" + (":" if not no_summary else ""))
+    pieces_filesize_bytes = sum(piece.get("fileSize", 0) for piece in pieces)
+    pieces_piecesize_bytes = sum(piece.get("pieceSize", 0) for piece in pieces)
+    click.echo(f"Downloading {len(pieces)} .car files with total fileSize "
+               f"{humanfriendly.format_size(pieces_filesize_bytes)} = {humanfriendly.format_size(pieces_filesize_bytes, binary=True)}, "
+               f"{utils.bytes_to_sectors(pieces_piecesize_bytes, PoRepMarket().get_sector_size_bytes())} sectors" + (":" if not no_summary else ""))
 
     with open(aria2_file, "w", encoding="utf-8") as f:
         for piece in pieces:
@@ -72,6 +73,7 @@ def _write_aria2c_input_file(pieces: list[dict], download_host: str, output_dir:
 
 
 def _write_manifest_file(manifest: list[dict], output_dir: Path, deal_id: int) -> Path:
+    click.echo()
     manifest_file = output_dir / f"manifest_{deal_id}.json"
 
     if manifest_file.exists():
@@ -138,33 +140,25 @@ def onboard_data(ctx,
     deal_allocations = commands_utils.get_deal_allocations(deal)
     deal_claims = commands_utils.get_deal_claims(deal)
     allocations_not_claimed = {allocation_id: alloc for allocation_id, alloc in deal_allocations.items() if str(allocation_id) not in deal_claims}
+    cids_claimed = [claim.get("Data", {}).get("/") for claim in deal_claims.values()]
 
     if deal_claims and not allocations_not_claimed and not force:
         click.echo(f"All {len(deal_claims)} allocations for deal ID {deal_id} are claimed; no need to download the data. Use --force to download anyway.")
         return
+
+    if not deal_claims and not allocations_not_claimed:
+        raise click.ClickException(f"No allocations found for deal ID {deal_id} but deal in COMPLETED state.")
 
     click.echo(f"Found {len(allocations_not_claimed)} allocations not claimed and {len(deal_claims)} claims for deal ID {deal_id}, "
                f"{len(deal_allocations) + len(deal_claims)} total")
 
     manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False, retries=10)
     pieces = manifest[0]["pieces"]
+    pieces_claimed = [piece for piece in pieces if piece["pieceCid"] in cids_claimed]
+    pieces_to_download = [piece for piece in pieces if piece not in pieces_claimed]
 
-    cids_not_claimed = [alloc.get("Data", {}).get("/") for alloc in allocations_not_claimed.values()]
-    pieces_not_claimed = [piece for piece in pieces if piece["pieceCid"] in cids_not_claimed]
-
-    pieces_cids = {piece["pieceCid"] for piece in pieces}
-    allocations_not_matched = [cid for cid in cids_not_claimed if cid not in pieces_cids]
-    if allocations_not_matched:
-        raise click.ClickException(f"Cannot match all unclaimed allocations to manifest pieces. "
-                                   f"Unclaimed allocations: {len(allocations_not_claimed)}, matching manifest pieces: {len(pieces_not_claimed)}. "
-                                   f"Allocation CIDs not matched to manifest pieces: {allocations_not_matched}")
-
-    pieces_claimed = [piece for piece in pieces if piece not in pieces_not_claimed]
     if pieces_claimed and not force:
         click.echo(f"Skipping download of {len(pieces_claimed)} already claimed pieces. Use --force to download them anyway.")
-
-    if not force:
-        click.echo(f"Matched all {len(pieces_not_claimed)} pieces to download for unclaimed allocations.")
 
     _output_dir = Path(output_dir).resolve()
     _output_dir.mkdir(parents=True, exist_ok=True)
@@ -175,7 +169,7 @@ def onboard_data(ctx,
 
     parsed_url = commands_utils.validate_and_parse_url(host or deal.manifest_location)
     download_host = f"{parsed_url.scheme or 'http'}://{parsed_url.hostname}:{port}"
-    aria2_file = _write_aria2c_input_file(pieces_not_claimed if not force else pieces, download_host, _output_dir, no_summary)
+    aria2_file = _write_aria2c_input_file(pieces_to_download if not force else pieces, download_host, _output_dir, no_summary)
 
     try:
         command = [aria2c_path,
