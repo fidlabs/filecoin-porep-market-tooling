@@ -85,26 +85,6 @@ def _write_manifest_file(manifest: list[dict], output_dir: Path, deal_id: int) -
 
     return manifest_file.resolve()
 
-def _get_sptool_path() -> str:
-    sptool_path = utils.get_env_required("SPTOOL_PATH", default="sptool")
-
-    if sptool_path != "sptool":
-        sptool_path = Path(sptool_path).resolve()
-
-    # noinspection PyBroadException
-    try:
-        subprocess.run([sptool_path, "--version"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-
-    # pylint: disable=broad-exception-caught
-    except Exception as e:
-        click.echo("sptool not found. Please install sptool to use this command.\n"
-                   "See https://docs.curiostorage.org/installation for more information.\n"
-                   "Set the SPTOOL_PATH environment variable if sptool is installed but not in PATH.\n")
-
-        raise click.ClickException(f"{sptool_path} not found:\n{e}") from e
-
-    return str(sptool_path)
-
 
 @click.command(context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
 @click.argument("deal_id", type=click.IntRange(min=0))
