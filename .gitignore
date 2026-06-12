@@ -5,6 +5,7 @@ mypy.ini
 
 .env
 .env.devnet
+.env.e2e
 logs/
 data/
 curio.sh
