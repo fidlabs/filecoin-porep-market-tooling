@@ -8,22 +8,23 @@ from cli import utils
 
 
 @click.command()
-@click.option("--pieces-dir", type=click.Path(exists=True, file_okay=False), required=True,
-              help="Directory containing the downloaded pieces and their manifest.")
-def verify_commp(pieces_dir: str) -> None:
+@click.argument("cars_dir", type=click.Path(exists=True, file_okay=False))
+def verify_commp(cars_dir: str):
     """
-    Verify the commP of downloaded pieces against their manifest.
+    Verify the commP of downloaded .car files against their manifest.
 
     Expects manifest.json (or the manifest_<dealId>.json written by onboard-data)
-    to be in the pieces directory.
+    to be in the given directory.
+
+    CARS_DIR - Directory containing .car files and their manifest.
     """
 
-    _pieces_dir = Path(pieces_dir).resolve()
+    _cars_dir = Path(cars_dir).resolve()
 
-    with open(_find_manifest_file(_pieces_dir), "r", encoding="utf-8") as f:
+    with open(_find_manifest_file(_cars_dir), "r", encoding="utf-8") as f:
         manifest = json.load(f)
 
-    car_files = {path.name for path in _pieces_dir.glob("*.car")}
+    car_files = {path.name for path in _cars_dir.glob("*.car")}
     expected_car_files = {piece["storagePath"] for piece in manifest[0]["pieces"]}
 
     if car_files != expected_car_files:
@@ -32,9 +33,10 @@ def verify_commp(pieces_dir: str) -> None:
             f"missing={sorted(expected_car_files - car_files)}, extra={sorted(car_files - expected_car_files)}"
         )
 
-    verify_pieces(manifest, _pieces_dir)
+    verify_pieces(manifest, _cars_dir)
 
-def verify_pieces(manifest: list[dict], pieces_dir: Path) -> None:
+
+def verify_pieces(manifest: list[dict], pieces_dir: Path):
     sptool_path = _get_sptool_path()
 
     pieces = manifest[0]["pieces"]
@@ -70,7 +72,6 @@ def verify_pieces(manifest: list[dict], pieces_dir: Path) -> None:
         raise click.ClickException(f"commP verification failed for {failed} of {len(pieces)} piece(s)")
 
     click.secho(f"Verified all {len(pieces)} piece(s).", fg="green")
-
 
 
 def _get_sptool_path() -> str:
@@ -122,16 +123,20 @@ def _parse_commp_output(output: str) -> dict:
 
 def _get_commp_warnings(result: dict, piece: dict) -> list[str]:
     warnings = []
+
     if result["commp_cid"] != piece["pieceCid"]:
         warnings.append(f"CommP CID mismatch: {result['commp_cid']} != {piece['pieceCid']}")
+
     if int(result["piece_size"]) != piece["pieceSize"]:
         warnings.append(f"Piece size mismatch: {result['piece_size']} != {piece['pieceSize']}")
+
     if int(result["car_file_size"]) != piece["fileSize"]:
         warnings.append(f"Car file size mismatch: {result['car_file_size']} != {piece['fileSize']}")
+
     return warnings
 
 
-def _format_commp_warnings(warnings: list[str]) -> None:
+def _format_commp_warnings(warnings: list[str]):
     for i, warning in enumerate(warnings):
         prefix = "└──" if i == len(warnings) - 1 else "├──"
         click.secho(f"  {prefix} {warning}", fg="yellow")
