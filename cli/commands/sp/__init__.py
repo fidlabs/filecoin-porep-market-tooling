@@ -8,7 +8,8 @@ from .get_filecoinpay_account import get_filecoinpay_account
 from .get_registered_info import get_registered_info
 from .is_authorized import is_authorized
 from .manage_proposed_deals import manage_proposed_deals
-from .onboard_data import onboard_data, verify_commp
+from .onboard_data import onboard_data
+from .verify_commp import verify_commp
 from .reject_deal import reject_deal
 from .withdraw_from_filecoinpay import withdraw_from_filecoinpay
 
