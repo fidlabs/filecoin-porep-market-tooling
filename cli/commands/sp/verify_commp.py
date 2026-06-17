@@ -24,8 +24,8 @@ def verify_commp(cars_dir: str):
     with open(_find_manifest_file(_cars_dir), "r", encoding="utf-8") as f:
         manifest = json.load(f)
 
-    car_files = {path.name for path in _cars_dir.glob("*.car")}
-    expected_car_files = {piece["storagePath"] for piece in manifest[0]["pieces"]}
+    car_files = {path.relative_to(_cars_dir).as_posix() for path in _cars_dir.rglob("*.car")}
+    expected_car_files = {Path(piece["storagePath"]).as_posix() for piece in manifest[0]["pieces"]}
 
     if car_files != expected_car_files:
         raise click.ClickException(
@@ -43,7 +43,11 @@ def verify_pieces(manifest: list[dict], pieces_dir: Path):
     failed = 0
 
     for piece in pieces:
-        car_path = (pieces_dir / piece["storagePath"]).resolve()
+        storage_path = piece["storagePath"]
+        car_path = (pieces_dir / storage_path).resolve()
+
+        if pieces_dir not in car_path.parents:
+            raise click.ClickException(f"Invalid manifest piece storagePath: {storage_path}")
 
         if not car_path.is_file():
             click.secho(f"x {car_path}", fg="yellow")
@@ -123,15 +127,25 @@ def _parse_commp_output(output: str) -> dict:
 
 def _get_commp_warnings(result: dict, piece: dict) -> list[str]:
     warnings = []
+    required_fields = ["commp_cid", "piece_size", "car_file_size"]
+    missing = [k for k in required_fields if result.get(k) is None]
+    if missing:
+        warnings.append(f"Unexpected sptool output (missing {', '.join(missing)})")
+        return warnings
 
-    if result["commp_cid"] != piece["pieceCid"]:
-        warnings.append(f"CommP CID mismatch: {result['commp_cid']} != {piece['pieceCid']}")
+    try:
+        if result["commp_cid"] != piece.get("pieceCid"):
+            warnings.append(f"CommP CID mismatch: {result['commp_cid']} != {piece.get('pieceCid')}")
 
-    if int(result["piece_size"]) != piece["pieceSize"]:
-        warnings.append(f"Piece size mismatch: {result['piece_size']} != {piece['pieceSize']}")
+        if int(result["piece_size"]) != piece.get("pieceSize"):
+            warnings.append(f"Piece size mismatch: {result['piece_size']} != {piece.get('pieceSize')}")
 
-    if int(result["car_file_size"]) != piece["fileSize"]:
-        warnings.append(f"Car file size mismatch: {result['car_file_size']} != {piece['fileSize']}")
+        expected_file_size = piece.get("fileSize")
+        if expected_file_size is not None and int(result["car_file_size"]) != expected_file_size:
+            warnings.append(f"Car file size mismatch: {result['car_file_size']} != {expected_file_size}")
+
+    except ValueError as e:
+        warnings.append(f"Unexpected sptool output value: {e}")
 
     return warnings
 
