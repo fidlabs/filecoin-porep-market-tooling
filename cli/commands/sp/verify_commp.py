@@ -5,49 +5,110 @@ from pathlib import Path
 import click
 
 from cli import utils
+from cli.commands.config import commands_utils
+from cli.services.contracts.porep_market import PoRepMarket
 
 
 @click.command()
-@click.argument("cars_dir", type=click.Path(exists=True, file_okay=False))
-def verify_commp(cars_dir: str):
+@click.argument("car_file_paths", nargs=-1, type=click.Path(exists=True, file_okay=True))
+def verify_commp(car_file_paths: list[str]):
     """
-    Verify the commP of downloaded .car files against their manifest.
+    Compute and print the commP of one or more .car files.
 
-    Expects manifest.json (or the manifest_<dealId>.json written by onboard-data)
-    to be in the given directory.
+    Unlike verify-commp-manifest/verify-commp-deal, this does not compare
+    against a manifest; it just prints the commP, piece size and car file size.
 
-    CARS_DIR - Directory containing .car files and their manifest.
+    CAR_FILE_PATHS - One or more paths to .car files, separated by spaces.
+    A shell glob is expanded by the shell into multiple paths, e.g. /tmp/test-pieces/*.
+
+    \b
+    Examples:
+      verify-commp /tmp/test-pieces/baga6ea4seaq....car
+      verify-commp /tmp/test-pieces/*
     """
 
-    _cars_dir = Path(cars_dir).resolve()
+    click.echo("Verifying commP of given files...")
 
-    with open(_find_manifest_file(_cars_dir), "r", encoding="utf-8") as f:
+    commps = []
+    for car_file_path in car_file_paths:
+        _car_file_path = Path(car_file_path).resolve()
+        if not _car_file_path.is_file():
+            raise click.ClickException(f"{_car_file_path} is not a file")
+
+        result = run_commp_command(_car_file_path)
+        result["car_file_path"] = _car_file_path.as_posix()
+        commps.append(result)
+
+    click.echo(utils.json_pretty(commps))
+
+
+@click.command()
+@click.argument("manifest_file_path", type=click.Path(exists=True, file_okay=True))
+@click.argument("car_files_dir", type=click.Path(exists=True, file_okay=True))
+def verify_commp_manifest(manifest_file_path: str, car_files_dir: list[str]):
+    """
+    Verify the commP of .car files against a manifest file.
+
+    Each piece in the manifest is matched to a .car file in CAR_FILES_DIR by its
+    storagePath, and its commP, piece size and car file size are checked.
+
+    MANIFEST_FILE_PATH - Path to the manifest JSON file (e.g. the manifest_<dealId>.json written by onboard-data).
+    CAR_FILES_DIR - Directory containing the .car files referenced by the manifest.
+    """
+
+    _cars_dir = Path(car_files_dir).resolve()
+
+    if not _cars_dir.is_dir():
+        raise click.ClickException(f"CAR_FILES_DIR is not a directory: {_cars_dir}")
+
+    with open(manifest_file_path, "r", encoding="utf-8") as f:
         manifest = json.load(f)
-
-    car_files = {path.relative_to(_cars_dir).as_posix() for path in _cars_dir.rglob("*.car")}
-    expected_car_files = {Path(piece["storagePath"]).as_posix() for piece in manifest[0]["pieces"]}
-
-    if car_files != expected_car_files:
-        raise click.ClickException(
-            f"CAR files in pieces directory do not match manifest: "
-            f"missing={sorted(expected_car_files - car_files)}, extra={sorted(car_files - expected_car_files)}"
-        )
 
     verify_pieces(manifest, _cars_dir)
 
 
-def verify_pieces(manifest: list[dict], pieces_dir: Path):
-    sptool_path = _get_sptool_path()
+@click.command()
+@click.argument("deal_id", type=click.IntRange(min=1))
+@click.argument("car_files_dir", type=click.Path(exists=True, file_okay=True))
+def verify_commp_deal(deal_id: int, car_files_dir: list[str]):
+    """
+    Verify the commP of .car files against a deal's manifest.
 
+    Fetches the deal's manifest, then matches each piece to a .car file in
+    CAR_FILES_DIR by its storagePath and checks its commP, piece size and car file size.
+
+    DEAL_ID - ID of the deal whose manifest to verify against.
+    CAR_FILES_DIR - Directory containing the .car files for the deal.
+    """
+
+    _cars_dir = Path(car_files_dir).resolve()
+
+    if not _cars_dir.is_dir():
+        raise click.ClickException(f"CAR_FILES_DIR is not a directory: {_cars_dir}")
+
+    deal = PoRepMarket().get_deal_proposal(deal_id)
+    manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False, quiet=True, retries=10)
+    verify_pieces(manifest, _cars_dir)
+
+
+def run_commp_command(car_path: str):
+    result = subprocess.run(
+        [_get_sptool_path(), "--actor", "any", "toolbox", "mk12-client", "commp", str(car_path)],
+        check=True, capture_output=True, text=True)
+
+    return _parse_commp_output(result.stdout)
+
+
+def verify_pieces(manifest: list[dict], car_files_dir: Path):
     pieces = manifest[0]["pieces"]
     failed = 0
+    expected_car_files = {Path(piece["storagePath"]).as_posix() for piece in pieces}
+    if len(expected_car_files) != len(manifest[0]["pieces"]):
+        raise click.ClickException(f"Expected {len(expected_car_files)} car files, but found {len(manifest[0]['pieces'])} in manifest")
 
     for piece in pieces:
         storage_path = piece["storagePath"]
-        car_path = (pieces_dir / storage_path).resolve()
-
-        if pieces_dir not in car_path.parents:
-            raise click.ClickException(f"Invalid manifest piece storagePath: {storage_path}")
+        car_path = (car_files_dir / storage_path).resolve()
 
         if not car_path.is_file():
             click.secho(f"x {car_path}", fg="yellow")
@@ -55,13 +116,12 @@ def verify_pieces(manifest: list[dict], pieces_dir: Path):
             failed += 1
             continue
 
-        command = [sptool_path, "--actor", "any", "toolbox", "mk12-client", "commp", str(car_path)]
         try:
-            output = subprocess.run(command, check=True, capture_output=True, text=True).stdout
+            result = run_commp_command(car_path)
         except subprocess.CalledProcessError as e:
             raise click.ClickException(f"Failed to compute commP for {car_path}:\n{e.stderr}") from e
 
-        warnings = _get_commp_warnings(_parse_commp_output(output), piece)
+        warnings = _get_commp_warnings(result, piece)
 
         if warnings:
             click.secho(f"x {car_path}", fg="yellow")
@@ -97,20 +157,6 @@ def _get_sptool_path() -> str:
         raise click.ClickException(f"{sptool_path} not found:\n{e}") from e
 
     return str(sptool_path)
-
-
-def _find_manifest_file(pieces_dir: Path) -> Path:
-    manifest_file = pieces_dir / "manifest.json"
-    if manifest_file.exists():
-        return manifest_file
-
-    candidates = sorted(pieces_dir.glob("manifest_*.json"))
-    if len(candidates) == 1:
-        return candidates[0]
-    if len(candidates) > 1:
-        raise click.ClickException(f"Multiple manifest files found in {pieces_dir}: {[c.name for c in candidates]}")
-
-    raise click.ClickException(f"Manifest file not found in {pieces_dir} (expected manifest.json or manifest_<dealId>.json)")
 
 
 def _parse_commp_output(output: str) -> dict:
