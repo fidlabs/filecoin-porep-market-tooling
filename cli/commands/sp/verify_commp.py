@@ -1,4 +1,4 @@
-import json
+import functools
 import subprocess
 from pathlib import Path
 
@@ -10,8 +10,8 @@ from cli.services.contracts.porep_market import PoRepMarket
 
 
 @click.command()
-@click.argument("car_file_paths", nargs=-1, type=click.Path(exists=True, file_okay=True))
-def verify_commp(car_file_paths: list[str]):
+@click.argument("car_file_paths", nargs=-1, type=click.Path(exists=True, file_okay=True, dir_okay=False, path_type=Path))
+def verify_commp(car_file_paths: tuple[Path]):
     """
     Compute and print the commP of one or more .car files.
 
@@ -31,21 +31,21 @@ def verify_commp(car_file_paths: list[str]):
 
     commps = []
     for car_file_path in car_file_paths:
-        _car_file_path = Path(car_file_path).resolve()
-        if not _car_file_path.is_file():
-            raise click.ClickException(f"{_car_file_path} is not a file")
+        try:
+            result = run_commp_command(car_file_path)
+        except subprocess.CalledProcessError as e:
+            raise click.ClickException(f"Failed to compute commP for {car_file_path}:\n{e.stderr}") from e
 
-        result = run_commp_command(_car_file_path)
-        result["car_file_path"] = _car_file_path.as_posix()
+        result["car_file_path"] = car_file_path.as_posix()
         commps.append(result)
 
     click.echo(utils.json_pretty(commps))
 
 
 @click.command()
-@click.argument("manifest_file_path", type=click.Path(exists=True, file_okay=True))
-@click.argument("car_files_dir", type=click.Path(exists=True, file_okay=True))
-def verify_commp_manifest(manifest_file_path: str, car_files_dir: list[str]):
+@click.argument("manifest_file_path", type=click.Path(exists=True, dir_okay=False, file_okay=True, path_type=Path))
+@click.argument("car_files_dir", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+def verify_commp_manifest(manifest_file_path: Path, car_files_dir: Path):
     """
     Verify the commP of .car files against a manifest file.
 
@@ -56,21 +56,15 @@ def verify_commp_manifest(manifest_file_path: str, car_files_dir: list[str]):
     CAR_FILES_DIR - Directory containing the .car files referenced by the manifest.
     """
 
-    _cars_dir = Path(car_files_dir).resolve()
+    manifest = commands_utils.fetch_local_manifest(manifest_file_path.resolve())
 
-    if not _cars_dir.is_dir():
-        raise click.ClickException(f"CAR_FILES_DIR is not a directory: {_cars_dir}")
-
-    with open(manifest_file_path, "r", encoding="utf-8") as f:
-        manifest = json.load(f)
-
-    verify_pieces(manifest, _cars_dir)
+    verify_pieces(manifest, car_files_dir)
 
 
 @click.command()
 @click.argument("deal_id", type=click.IntRange(min=1))
-@click.argument("car_files_dir", type=click.Path(exists=True, file_okay=True))
-def verify_commp_deal(deal_id: int, car_files_dir: list[str]):
+@click.argument("car_files_dir", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path))
+def verify_commp_deal(deal_id: int, car_files_dir: Path):
     """
     Verify the commP of .car files against a deal's manifest.
 
@@ -81,14 +75,9 @@ def verify_commp_deal(deal_id: int, car_files_dir: list[str]):
     CAR_FILES_DIR - Directory containing the .car files for the deal.
     """
 
-    _cars_dir = Path(car_files_dir).resolve()
-
-    if not _cars_dir.is_dir():
-        raise click.ClickException(f"CAR_FILES_DIR is not a directory: {_cars_dir}")
-
     deal = PoRepMarket().get_deal_proposal(deal_id)
     manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False, quiet=True, retries=10)
-    verify_pieces(manifest, _cars_dir)
+    verify_pieces(manifest, car_files_dir)
 
 
 def run_commp_command(car_path: str):
@@ -109,6 +98,12 @@ def verify_pieces(manifest: list[dict], car_files_dir: Path):
     for piece in pieces:
         storage_path = piece["storagePath"]
         car_path = (car_files_dir / storage_path).resolve()
+
+        if car_files_dir not in car_path.parents:
+            click.secho(f"x {car_path}", fg="yellow")
+            _format_commp_warnings([f"File not found: {car_path}"])
+            failed += 1
+            continue
 
         if not car_path.is_file():
             click.secho(f"x {car_path}", fg="yellow")
@@ -138,6 +133,7 @@ def verify_pieces(manifest: list[dict], car_files_dir: Path):
     click.secho(f"Verified all {len(pieces)} piece(s).", fg="green")
 
 
+@functools.lru_cache(maxsize=1)
 def _get_sptool_path() -> str:
     sptool_path = utils.get_env_required("SPTOOL_PATH", default="sptool")
 
