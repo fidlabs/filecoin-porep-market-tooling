@@ -77,7 +77,10 @@ def _deposit_for_deals(deals: list[PoRepMarketDealProposal], months: int):
     for deal_token, deals_for_token in deals_per_token.items():
         deal_token_symbol = ERC20Contract(deal_token).symbol()
         click.echo(f"\nProcessing token {deal_token_symbol} ({deal_token}) for {len(deals_for_token)} deal(s)")
-        __deposit_for_deals(deals_for_token, months, deal_token, deal_token_symbol)
+        try:
+            __deposit_for_deals(deals_for_token, months, deal_token, deal_token_symbol)
+        except click.Abort:
+            click.echo("Skipped this token")
 
 
 def __deposit_for_deals(deals: list[PoRepMarketDealProposal], months: int, token_address: EthAddress, token_symbol: str):

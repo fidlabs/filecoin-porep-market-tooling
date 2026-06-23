@@ -24,14 +24,14 @@ def _propose_deal_from_manifest(manifest_url: str,
     #
     manifest = commands_utils.fetch_manifest(manifest_url)
     pieces = manifest[0]["pieces"]
-    pieces_size_bytes = sum(piece["pieceSize"] for piece in pieces)
+    pieces_size_bytes = sum(piece.get("pieceSize", 0) for piece in pieces)
 
     if pieces_size_bytes <= 0:
         raise ValueError("Invalid deal size")
 
-    click.echo(f"\nFound {len(pieces)} pieces with size {pieces_size_bytes} bytes "
-               f"(= {humanfriendly.format_size(pieces_size_bytes)} = {humanfriendly.format_size(pieces_size_bytes, binary=True)} = "
-               f"{utils.bytes_to_sectors(pieces_size_bytes, PoRepMarket().get_sector_size_bytes())} sectors) "
+    click.echo(f"\nFound {len(pieces)} pieces with total pieceSize "
+               f"{humanfriendly.format_size(pieces_size_bytes)} = {humanfriendly.format_size(pieces_size_bytes, binary=True)} = "
+               f"{utils.bytes_to_sectors(pieces_size_bytes, PoRepMarket().get_sector_size_bytes())} sectors "
                f"(including dag piece)")
 
     # noinspection PyArgumentList

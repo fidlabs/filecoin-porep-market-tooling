@@ -145,7 +145,7 @@ def print_info(account_address: EthAddress | None = None, account_name: str = "A
 def fetch_manifest(manifest_url: str,
                    show_manifest: bool | None = None,
                    retries: int | None = None,
-                   quiet: bool = False) -> list[dict]:
+                   quiet=False) -> list[dict]:
     #
     if not quiet:
         click.echo(f"Fetching manifest from {manifest_url}")
@@ -171,7 +171,7 @@ def fetch_manifest(manifest_url: str,
                     retries -= 1
 
 
-def fetch_local_manifest(manifest_path: Path) -> list[dict]:
+def fetch_local_manifest(manifest_path: Path, quiet=False) -> list[dict]:
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except OSError as e:
@@ -179,7 +179,7 @@ def fetch_local_manifest(manifest_path: Path) -> list[dict]:
     except ValueError as e:
         raise click.ClickException(f"Manifest is not a valid JSON: {e}") from e
 
-    return _validate_manifest(manifest)
+    return _validate_manifest(manifest, quiet)
 
 
 def validate_and_parse_url(manifest_url: str) -> ParseResult:
@@ -203,7 +203,7 @@ def validate_and_parse_url(manifest_url: str) -> ParseResult:
 
 def _fetch_manifest(parsed_url: ParseResult,
                     show_manifest: bool | None = None,
-                    quiet: bool = False) -> list[dict]:
+                    quiet=False) -> list[dict]:
     #
     resp = requests.get(parsed_url.geturl(), headers={"Host": parsed_url.hostname}, timeout=30, allow_redirects=False)
 
@@ -226,10 +226,10 @@ def _fetch_manifest(parsed_url: ParseResult,
         click.echo_via_pager("\n".join([f"{i + 1}. {line}" for i, line in enumerate(_manifest.splitlines())]))
         click.echo()
 
-    return _validate_manifest(manifest)
+    return _validate_manifest(manifest, quiet)
 
 
-def _validate_manifest(manifest: object) -> list[dict]:
+def _validate_manifest(manifest: object, quiet=False) -> list[dict]:
     MINIMUM_DAG_PIECE_SIZE_BYTES = 1024 * 1024  # 1 MiB
 
     try:
@@ -250,6 +250,7 @@ def _validate_manifest(manifest: object) -> list[dict]:
                     "pieceCid" in piece and
                     "pieceType" in piece and
                     "pieceSize" in piece and
+                    "fileSize" in piece and
                     "preparationId" in piece and
                     "attachmentId" in piece and
                     "storagePath" in piece
@@ -261,6 +262,9 @@ def _validate_manifest(manifest: object) -> list[dict]:
         pieces = manifest[0]["pieces"]
         data_pieces = [piece for piece in pieces if piece["pieceType"] == "data"]
         dag_pieces = [piece for piece in pieces if piece["pieceType"] == "dag"]
+
+        if not quiet:
+            click.echo(f"Found {len(data_pieces)} data piece(s) and {len(dag_pieces)} dag piece(s), {len(pieces)} total")
 
         if len(pieces) <= 1 or len(data_pieces) != len(pieces) - 1 or len(dag_pieces) != 1:
             raise click.ClickException("Invalid manifest pieces: must contain exactly one dag piece and at least one data piece")
