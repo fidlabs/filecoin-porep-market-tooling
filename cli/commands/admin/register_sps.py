@@ -12,7 +12,11 @@ def __update_provider_params(provider: SPRegistryProvider | SPRegistryProviderIn
                              different_parameters: dict):
     #
     if provider.organization_address != registered_info.organization_address:
-        raise RuntimeError(f"Organization address cannot be updated for Storage Provider {provider.provider_id}")
+        if not utils.confirm(f"organization_address cannot be updated for Storage Provider {provider.provider_id}, continue with other parameters?",
+                             default=True):
+            #
+            click.echo("Skipped this provider")
+            return
 
     if (provider.max_deal_duration_days, provider.min_deal_duration_days) != (registered_info.max_deal_duration_days, registered_info.min_deal_duration_days):
         _different_parameters = {k: v for k, v in different_parameters.items() if k in ["max_deal_duration_days", "min_deal_duration_days"]}
@@ -111,17 +115,11 @@ def _register_sps(providers: list[SPRegistryProvider]):
                                     getattr(registered_info, k) != getattr(provider, k)}
 
             if not different_parameters:
-                click.echo(f"Provider {provider.provider_id} already registered with same parameters")
+                click.echo(f"Storage Provider {provider.provider_id} already registered with same parameters")
                 continue
 
-            if provider.organization_address != registered_info.organization_address:
-                click.echo(f"\nCannot update Storage Provider info: different organization_address for provider {provider.provider_id}: "
-                           f"{different_parameters['organization_address']}")
-                #
-                continue
-
-            if not utils.confirm(f"\nProvider {provider.provider_id} already registered with different parameters\n"
-                                 f"Do you want to update Storage Provider {provider.provider_id} parameters?\n"
+            if not utils.confirm(f"\nStorage Provider {provider.provider_id} already registered with different parameters\n"
+                                 f"Do you want to update SP {provider.provider_id} parameters?\n"
                                  f"{utils.json_pretty(different_parameters)}", session_id="update-provider"):
                 #
                 click.echo("Skipped this provider")
