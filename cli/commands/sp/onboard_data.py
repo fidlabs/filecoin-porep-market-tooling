@@ -10,6 +10,7 @@ import humanfriendly
 
 from cli import utils
 from cli.commands import utils as commands_utils
+from cli.commands.sp.verify_commp import verify_pieces
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
 
 
@@ -106,7 +107,6 @@ def _write_manifest_file(manifest: list[dict], output_dir: Path, deal_id: int) -
 @click.option("--claim-allocations", type=click.Choice(["curio", "boost"], case_sensitive=False),
               help="Claim allocation(s) for each piece right after download using specified software.  [default: none]")
 @click.pass_context
-# TODO add commP files verification after download
 def onboard_data(ctx,
                  deal_id: int,
                  output_dir: str,
@@ -197,8 +197,13 @@ def onboard_data(ctx,
         click.echo("\n")
         subprocess.run(command, check=True, env=env)
 
+        if utils.confirm("Verify commP of downloaded pieces?", default=False):
+            click.echo("\nVerifying commP of downloaded pieces:")
+            verify_pieces(manifest, _output_dir)
+
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"aria2c failed with exit code {e.returncode}") from e
 
     finally:
         aria2_file.unlink(missing_ok=True)
+
