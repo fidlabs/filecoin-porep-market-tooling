@@ -8,8 +8,9 @@ from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address, client_signer
-from cli.services.contracts.client_contract import ClientContract, TransferParams
-from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
+from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceAdapter, TransferParams
+from cli.services.contracts.porep_market import PoRepMarket
+from cli.services.contracts.types.deal import PoRepMarketDealState
 from cli.services.web3_service import Web3Service, ActorId
 
 
@@ -28,16 +29,17 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
     DEAL_ID: ID of the deal to make DDO allocations for.
 
     \b
-    1. Fetch deal proposal and manifest for the given DEAL_ID,
+    1. Fetch deal and manifest for the given DEAL_ID,
     2. prepare DataCap transfer parameters for each batch of pieces,
-    3. make Direct Data Onboarding (DDO) allocation for each batch using Client smart contract,
-    4. IMPORTANT: mark deal as completed to allow SP to submit the proof and receive payment.
+    3. make Direct Data Onboarding (DDO) allocation for each batch using the DataCap evidence adapter,
+    4. IMPORTANT: finish DataCap posting to allow SP to submit the proof and receive payment.
     """
 
     # TODO improve click.echo here
     Web3Service().wait_for_pending_transactions(client_address())
 
-    deal = PoRepMarket().get_deal_proposal(deal_id)
+    deal_view = PoRepMarket().get_deal_view(deal_id)
+    deal = deal_view.deal
 
     if deal.state != PoRepMarketDealState.ACCEPTED:
         raise click.ClickException(f"Deal ID {deal_id} is in state {deal.state} != ACCEPTED")
@@ -47,6 +49,11 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
 
     if not deal.validator_address:
         raise click.ClickException(f"Deal ID {deal_id} does not have a validator set")
+
+    evidence_adapter = DataCapEvidenceAdapter(deal.evidence_adapter_address)
+
+    if evidence_adapter.is_data_cap_posting_finished(deal_id):
+        raise click.ClickException(f"DataCap posting for deal ID {deal_id} is already finished; no more allocations can be made")
 
     deal_allocations = commands_utils.get_deal_allocations(deal)
     deal_claims = commands_utils.get_deal_claims(deal)
@@ -59,7 +66,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
     if local_manifest:
         manifest = commands_utils.fetch_local_manifest(Path(local_manifest).resolve())
     else:
-        manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False)
+        manifest = commands_utils.fetch_manifest(deal_view.data.manifest_location, show_manifest=False)
 
     pieces = manifest[0]["pieces"]
 
@@ -79,7 +86,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
     EPOCHS_IN_DAY = EPOCHS_IN_MONTH // 30  # PoRep Market smart contracts assumes month == 30 days
     assert EPOCHS_IN_DAY * 30 == EPOCHS_IN_MONTH
 
-    term_min = deal.terms.duration_days * EPOCHS_IN_DAY
+    term_min = deal_view.terms.duration_epochs
     term_max = term_min + 40 * EPOCHS_IN_DAY  # + 40 days
 
     for batch_idx, batch in enumerate(batches):
@@ -114,19 +121,19 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
         if print_only:
             click.echo(f"to={params.to[0].hex()}  amount={params.amount[0].hex()}  operator_data={params.operator_data.hex()}")
         else:
-            tx_hash = ClientContract().transfer(params, deal_id, client_signer())
+            tx_hash = evidence_adapter.submit_data_cap_batch(params, deal_id, client_signer())
             click.echo(f"params: {params!r}, tx={tx_hash}")
 
             if tx_hash == Web3Service.ZERO_TX_HASH:
                 click.echo("Cannot continue with dry-run mode, exiting.")
                 return
 
-            allocation_size = ClientContract().get_size_of_allocations(deal_id)
+            allocation_size = evidence_adapter.get_allocated_bytes(deal_id)
             click.echo(f"Batch {current_batch_number} done.")
-            click.echo(f"Allocated size ({allocation_size}/{deal.terms.deal_size_bytes})")
+            click.echo(f"Allocated size ({allocation_size}/{deal_view.terms.requested_size_bytes})")
 
     if not print_only:
-        client_utils.complete_deal(deal)
+        client_utils.finish_data_cap_posting(deal)
 
     click.echo("\nAll done!")
 

@@ -1,5 +1,5 @@
 from ._client import client, info, wait
-from .complete_deal import complete_deal
+from .finalize_deal import finalize_deal
 from .deposit_amount import deposit_amount
 from .deposit_for_deals import deposit_for_deals
 from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals
@@ -23,4 +23,4 @@ client.add_command(propose_deal_from_manifest_mocked)
 client.add_command(init_accepted_deals)
 client.add_command(deposit_for_deals)
 client.add_command(make_allocations)
-client.add_command(complete_deal)
+client.add_command(finalize_deal)

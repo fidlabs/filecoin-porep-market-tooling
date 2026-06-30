@@ -14,7 +14,7 @@ def get_claims(deal_id: int):
     DEAL_ID - The ID of the deal to get DDO allocation claims for.
     """
 
-    deal = PoRepMarket().get_deal_proposal(deal_id)
+    deal = PoRepMarket().get_deal(deal_id)
     claims = commands_utils.get_deal_claims(deal)
 
     click.echo(utils.json_pretty(claims))

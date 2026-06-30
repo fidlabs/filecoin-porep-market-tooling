@@ -4,7 +4,8 @@ from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.client._client import client_address
 from cli.services.contracts.filecoin_pay import FileCoinPay
-from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarket
+from cli.services.contracts.porep_market import PoRepMarket
+from cli.services.contracts.types.deal import PoRepMarketDealState
 
 
 @click.command()
@@ -16,7 +17,7 @@ def get_deal_manifest(deal_id: int):
     DEAL_ID - Deal ID to fetch manifest for.
     """
 
-    deal = PoRepMarket().get_deal_proposal(deal_id)
+    deal = PoRepMarket().get_deal_data(deal_id)
     manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False, quiet=True, retries=10)
     click.echo(utils.json_pretty(manifest))
 
@@ -30,7 +31,7 @@ def get_deal_rail(deal_id: int):
     DEAL_ID - Deal ID to fetch.
     """
 
-    click.echo(FileCoinPay().get_rail(PoRepMarket().get_deal_proposal(deal_id).rail_id))
+    click.echo(FileCoinPay().get_rail(PoRepMarket().get_deal(deal_id).rail_id))
 
 
 @click.command()
@@ -42,7 +43,7 @@ def get_deal(deal_id: int):
     DEAL_ID - Deal ID to fetch.
     """
 
-    click.echo(PoRepMarket().get_deal_proposal(deal_id))
+    click.echo(PoRepMarket().get_deal_view(deal_id))
 
 
 @click.command()

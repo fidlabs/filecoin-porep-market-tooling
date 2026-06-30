@@ -2,10 +2,11 @@ import click
 
 from cli import utils
 from cli.commands.sp._sp import sp_signer
-from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarketDealProposal, PoRepMarket
+from cli.services.contracts.porep_market import PoRepMarket
+from cli.services.contracts.types.deal import PoRepMarketDeal, PoRepMarketDealState
 
 
-def accept_deal(deal: PoRepMarketDealProposal, confirm_session_id: str | None = None) -> str:
+def accept_deal(deal: PoRepMarketDeal, confirm_session_id: str | None = None) -> str:
     if deal.state != PoRepMarketDealState.PROPOSED:
         raise click.ClickException(f"Deal ID {deal.deal_id} is in state {deal.state} != PROPOSED")
 
