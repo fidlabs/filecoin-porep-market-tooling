@@ -8,13 +8,13 @@ from cli.services.web3_service import Web3Service
 
 @click.command()
 @click.argument("deal_id", type=click.IntRange(min=0))
-def complete_deal(deal_id: int):
+def finalize_deal(deal_id: int):
     """
-    Complete a deal proposal.
+    Finalize an active deal after service has finished.
 
-    DEAL_ID - The ID of the deal proposal to complete.
+    DEAL_ID - The ID of the deal to finalize.
     """
 
     Web3Service().wait_for_pending_transactions(client_address())
 
-    client_utils.complete_deal(PoRepMarket().get_deal_proposal(deal_id))
+    client_utils.finalize_deal(PoRepMarket().get_deal(deal_id))

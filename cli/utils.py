@@ -159,6 +159,8 @@ def json_pretty(json_data, sort_keys: bool = False):
     def _json_pretty(data):
         if issubclass(type(data), enum.Enum):
             return data.name
+        if isinstance(data, (bytes, bytearray)):
+            return "0x" + data.hex()
         if hasattr(data, "__dict__") and data.__dict__:
             return _json_pretty(data.__dict__)
         if isinstance(data, list):

@@ -11,19 +11,22 @@ from requests import RequestException
 
 from cli import utils
 from cli._cli import is_dry_run
-from cli.services.contracts.client_contract import ClientContract
+from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceAdapter
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.filecoin_pay import FileCoinPay
-from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarketDealProposal, PoRepMarket
+from cli.services.contracts.porep_market import PoRepMarket
 from cli.services.contracts.sp_registry import SPRegistry
+from cli.services.contracts.types.deal import PoRepMarketDeal, PoRepMarketDealState
 from cli.services.contracts.validator_factory import ValidatorFactory
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress, ActorId, FilAddress
 from cli.services.web3_service import Web3Service
 
+_EVIDENCE_IDS_PAGE_SIZE = 500
+
 
 def get_all_deals(state: PoRepMarketDealState | str | None = None,
-                  organization: EthAddress | None = None) -> list[PoRepMarketDealProposal]:
+                  organization: EthAddress | None = None) -> list[PoRepMarketDeal]:
     #
     _state = PoRepMarketDealState.from_string(str(state)) if state else None
 
@@ -45,14 +48,14 @@ def get_all_deals(state: PoRepMarketDealState | str | None = None,
 
 
 def get_client_deals(_client_address: EthAddress,
-                     state: PoRepMarketDealState | None = None) -> list[PoRepMarketDealProposal]:
+                     state: PoRepMarketDealState | None = None) -> list[PoRepMarketDeal]:
     all_deals = get_all_deals(state)
     return [deal for deal in all_deals if deal.client_address == _client_address]
 
 
 def get_sp_deals(state: PoRepMarketDealState | None = None,
                  organization_address: EthAddress | None = None,
-                 provider_id: ActorId | None = None) -> list[PoRepMarketDealProposal]:
+                 provider_id: ActorId | None = None) -> list[PoRepMarketDeal]:
     #
     if provider_id:
         assert not organization_address
@@ -73,17 +76,49 @@ def get_sp_deals(state: PoRepMarketDealState | None = None,
     return result
 
 
-def get_deal_allocations(deal: PoRepMarketDealProposal) -> dict[str, dict]:
-    deal_allocations = ClientContract().get_client_allocation_ids_per_deal(deal.deal_id)
+def get_deal_evidence_adapter(deal: PoRepMarketDeal) -> DataCapEvidenceAdapter:
+    return DataCapEvidenceAdapter(deal.evidence_adapter_address)
 
-    allocations = Web3Service().state_get_allocations(ClientContract().address().to_actor_id())
+
+def get_deal_allocation_ids(deal: PoRepMarketDeal) -> list[int]:
+    adapter = get_deal_evidence_adapter(deal)
+
+    ids: list[int] = []
+    offset = 0
+    while True:
+        page, total = adapter.get_allocation_ids_per_deal(deal.deal_id, offset, _EVIDENCE_IDS_PAGE_SIZE)
+        ids.extend(int(allocation_id) for allocation_id in page)
+        offset += len(page)
+
+        if not page or offset >= total:
+            return ids
+
+
+def get_deal_claim_ids(deal: PoRepMarketDeal) -> list[int]:
+    adapter = get_deal_evidence_adapter(deal)
+
+    ids: list[int] = []
+    offset = 0
+    while True:
+        page, total = adapter.get_claim_ids(deal.deal_id, offset, _EVIDENCE_IDS_PAGE_SIZE)
+        ids.extend(int(claim_id) for claim_id in page)
+        offset += len(page)
+
+        if not page or offset >= total:
+            return ids
+
+
+def get_deal_allocations(deal: PoRepMarketDeal) -> dict[str, dict]:
+    deal_allocations = get_deal_allocation_ids(deal)
+
+    allocations = Web3Service().state_get_allocations(get_deal_evidence_adapter(deal).address().to_actor_id())
     return {allocation_id: allocation for allocation_id, allocation in allocations.items() if int(allocation_id) in deal_allocations}
 
 
-def get_deal_claims(deal: PoRepMarketDealProposal) -> dict[str, dict]:
-    deal_allocations = ClientContract().get_client_allocation_ids_per_deal(deal.deal_id)
+def get_deal_claims(deal: PoRepMarketDeal) -> dict[str, dict]:
+    deal_allocations = get_deal_allocation_ids(deal)
 
-    claims = Web3Service().state_get_claims(deal.provider_id, ClientContract().address().to_actor_id())
+    claims = Web3Service().state_get_claims(deal.provider_id, get_deal_evidence_adapter(deal).address().to_actor_id())
     return {claim_id: claim for claim_id, claim in claims.items() if int(claim_id) in deal_allocations}
 
 
@@ -132,9 +167,9 @@ def print_info(account_address: EthAddress | None = None, account_name: str = "A
         click.echo(f"Error fetching Validator Factory address: {e}")
 
     try:
-        click.echo(f"CLIENT_CONTRACT={ClientContract().address()}")
+        click.echo(f"EVIDENCE_ADAPTER={DataCapEvidenceAdapter().address()}")
     except Exception as e:
-        click.echo(f"Error fetching Client Contract address: {e}")
+        click.echo(f"Error fetching Evidence Adapter address: {e}")
 
     click.echo()
     click.echo(f"DRY_RUN={is_dry_run()}")
@@ -308,7 +343,7 @@ def get_filecoinpay_account(token_address: str, owner_address: EthAddress):
     }
 
 
-def reject_deal(deal: PoRepMarketDealProposal, signer: TxSigner, confirm_session_id: str | None = None) -> str:
+def reject_deal(deal: PoRepMarketDeal, signer: TxSigner, confirm_session_id: str | None = None) -> str:
     if deal.state != PoRepMarketDealState.PROPOSED:
         raise click.ClickException(f"Deal ID {deal.deal_id} is in state {deal.state} != PROPOSED")
 

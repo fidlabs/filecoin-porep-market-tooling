@@ -10,15 +10,15 @@ from cli.services.web3_service import Web3Service
 @click.argument("padding", type=click.IntRange(min=0, max=100))
 def set_completion_padding(padding: int):
     """
-    Set new deal completion padding.
+    Set new deal activation padding.
 
     PADDING - New padding value to be set.
     """
 
     Web3Service().wait_for_pending_transactions(admin_address())
 
-    current_padding = PoRepMarket().get_deal_completion_padding()
-    utils.confirm(f"Setting new deal completion padding. Current: {current_padding} -> New: {padding}", abort=True)
+    current_padding = PoRepMarket().get_deal_activation_padding()
+    utils.confirm(f"Setting new deal activation padding. Current: {current_padding} -> New: {padding}", abort=True)
 
-    tx_hash = PoRepMarket().set_deal_completion_padding(padding, admin_signer())
-    click.echo(f"New padding set: {tx_hash}")
+    tx_hash = PoRepMarket().set_deal_activation_padding(padding, admin_signer())
+    click.echo(f"New activation padding set: {tx_hash}")

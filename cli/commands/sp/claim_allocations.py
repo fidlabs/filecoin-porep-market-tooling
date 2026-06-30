@@ -5,8 +5,8 @@ import click
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.services.contracts.client_contract import ClientContract
-from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealProposal, PoRepMarketDealState
+from cli.services.contracts.porep_market import PoRepMarket
+from cli.services.contracts.types.deal import PoRepMarketDeal, PoRepMarketDealState
 from cli.services.web3_service import FilAddress
 
 
@@ -53,16 +53,16 @@ def _get_boostd_path() -> str:
 
 
 def _build_allocation_command_curio(curio_path: str,
-                                    client_contract_filecoin_address: FilAddress,
+                                    evidence_adapter_filecoin_address: FilAddress,
                                     allocation_id: int,
-                                    deal: PoRepMarketDealProposal) -> list[str]:
+                                    deal: PoRepMarketDeal) -> list[str]:
     return [
         curio_path,
         "market",
         "ddo",
         "--actor",
         str(deal.provider_id),
-        client_contract_filecoin_address,
+        evidence_adapter_filecoin_address,
         str(allocation_id),
     ]
 
@@ -107,12 +107,18 @@ def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = N
     DEAL_ID - The ID of the deal to claim allocations for.
     """
 
+    click.echo("Fetching deal details...")
+    deal = PoRepMarket().get_deal(deal_id)
+
+    if deal.state not in (PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE):
+        raise click.ClickException(f"Deal ID {deal_id} is in state {deal.state}, expected ACCEPTED or ACTIVE")
+
     if software.lower() == "curio":
         curio_path = _get_curio_path()
-        client_contract_filecoin_address = ClientContract().address().to_filecoin_address()
+        evidence_adapter_filecoin_address = deal.evidence_adapter_address.to_filecoin_address()
 
-        def build_allocation_command(allocation_id: int, deal: PoRepMarketDealProposal, **_) -> list[str]:
-            return _build_allocation_command_curio(curio_path, client_contract_filecoin_address, allocation_id, deal)
+        def build_allocation_command(allocation_id: int, deal: PoRepMarketDeal, **_) -> list[str]:
+            return _build_allocation_command_curio(curio_path, evidence_adapter_filecoin_address, allocation_id, deal)
 
     elif software.lower() == "boost":
         if not cars_dir:
@@ -125,12 +131,6 @@ def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = N
             return _build_allocation_command_boost(boostd_path, allocation_id, cid, _cars_dir)
     else:
         raise click.ClickException(f"Unsupported software: {software}")
-
-    click.echo("Fetching deal details...")
-    deal = PoRepMarket().get_deal_proposal(deal_id)
-
-    if deal.state != PoRepMarketDealState.COMPLETED:
-        raise click.ClickException(f"Deal ID {deal_id} is in state {deal.state} != COMPLETED")
 
     deal_allocations = commands_utils.get_deal_allocations(deal)
     deal_claims = commands_utils.get_deal_claims(deal)

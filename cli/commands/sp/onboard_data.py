@@ -10,7 +10,8 @@ import humanfriendly
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
+from cli.services.contracts.porep_market import PoRepMarket
+from cli.services.contracts.types.deal import PoRepMarketDealState
 
 
 def _get_aria2c_path() -> str:
@@ -132,10 +133,11 @@ def onboard_data(ctx,
     aria2c_path = _get_aria2c_path()
 
     click.echo("Fetching deal details...")
-    deal = PoRepMarket().get_deal_proposal(deal_id)
+    deal_view = PoRepMarket().get_deal_view(deal_id)
+    deal = deal_view.deal
 
-    if deal.state != PoRepMarketDealState.COMPLETED:
-        raise click.ClickException(f"Deal ID {deal_id} is in state {deal.state} != COMPLETED")
+    if deal.state not in (PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE):
+        raise click.ClickException(f"Deal ID {deal_id} is in state {deal.state}, expected ACCEPTED or ACTIVE")
 
     deal_allocations = commands_utils.get_deal_allocations(deal)
     deal_claims = commands_utils.get_deal_claims(deal)
@@ -147,12 +149,12 @@ def onboard_data(ctx,
         return
 
     if not deal_claims and not allocations_not_claimed:
-        raise click.ClickException(f"No allocations found for deal ID {deal_id} but deal in COMPLETED state.")
+        raise click.ClickException(f"No allocations found for deal ID {deal_id} but deal in {deal.state} state.")
 
     click.echo(f"Found {len(allocations_not_claimed)} allocations not claimed and {len(deal_claims)} claims for deal ID {deal_id}, "
                f"{len(deal_allocations) + len(deal_claims)} total")
 
-    manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False, retries=10)
+    manifest = commands_utils.fetch_manifest(deal_view.data.manifest_location, show_manifest=False, retries=10)
     pieces = manifest[0]["pieces"]
     pieces_claimed = [piece for piece in pieces if piece["pieceCid"] in cids_claimed]
     pieces_to_download = [piece for piece in pieces if piece not in pieces_claimed]
@@ -167,7 +169,7 @@ def onboard_data(ctx,
     if host and not host.startswith(("http://", "https://")):
         host = f"http://{host}"
 
-    parsed_url = commands_utils.validate_and_parse_url(host or deal.manifest_location)
+    parsed_url = commands_utils.validate_and_parse_url(host or deal_view.data.manifest_location)
     download_host = f"{parsed_url.scheme or 'http'}://{parsed_url.hostname}:{port}"
     aria2_file = _write_aria2c_input_file(pieces_to_download if not force else pieces, download_host, _output_dir, no_summary)
 
