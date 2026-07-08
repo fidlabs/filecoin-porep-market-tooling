@@ -8,8 +8,7 @@ class AccessControlUpgradeable(ContractService):
         super().__init__(contract_address, self.abi_dir() / "AccessControlUpgradeable.json")
 
     # @dev Grants `role` to `account`.
-    # If `account` had not been already granted `role`, emits a {RoleGranted}
-    # event.
+    # If `account` had not been already granted `role`, emits a {RoleGranted} event.
     # Requirements:
     # - the caller must have ``role``'s admin role.
     # May emit a {RoleGranted} event.

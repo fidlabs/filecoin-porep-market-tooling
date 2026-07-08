@@ -1,10 +1,11 @@
 from cli import utils
 from cli.services.contracts.contract_service import ContractService
-from cli.services.contracts.types.deal import PoRepMarketDealRequest, PoRepMarketDeal, PoRepMarketDealCapacity, PoRepMarketDealData, PoRepMarketDealPayment, PoRepMarketDealService, PoRepMarketDealState, PoRepMarketDealTermsView, PoRepMarketDealTiming, PoRepMarketDealView
+from cli.services.contracts.types.deal import PoRepMarketDealRequest, PoRepMarketDeal, PoRepMarketDealCapacity, PoRepMarketDealData, PoRepMarketDealPayment, \
+    PoRepMarketDealService, PoRepMarketDealState, PoRepMarketDealTermsView, PoRepMarketDealTiming, PoRepMarketDealView
 from cli.services.contracts.types.evidence import EvidenceStatus
 from cli.services.contracts.types.sli import SLIThresholds
 from cli.services.txsigner import TxSigner
-from cli.services.web3_service import EthAddress, ActorId
+from cli.services.web3_service import EthAddress
 
 
 class PoRepMarket(ContractService):
@@ -212,14 +213,12 @@ class PoRepMarket(ContractService):
     def submit_evidence_batch(self, deal_id: int, evidence_data: bytes, signer: TxSigner) -> str:
         return self.sign_and_send_tx(self.contract.functions.submitEvidenceBatch(deal_id, evidence_data), signer)
 
-
     # @notice Activate evidence for a deal through its assigned adapter
     # @param dealId The id of the deal
     # @param evidenceData Adapter-specific evidence payload
     # @return decision Adapter activation decision
     def activate_evidence(self, deal_id: int, evidence_data: bytes, signer: TxSigner) -> str:
         return self.sign_and_send_tx(self.contract.functions.activateEvidence(deal_id, evidence_data), signer)
-
 
     def refresh_evidence_status(self, deal_id: int, evidence_data: bytes, signer: TxSigner) -> str:
         return self.sign_and_send_tx(self.contract.functions.refreshEvidenceStatus(deal_id, evidence_data), signer)
@@ -281,4 +280,3 @@ class PoRepMarket(ContractService):
     # @notice Minimum deal duration in days. See PoRepTypes.MIN_DEAL_DURATION_DAYS.
     def get_min_deal_duration_days(self) -> int:
         return self.contract.functions.MIN_DEAL_DURATION_DAYS().call()
-

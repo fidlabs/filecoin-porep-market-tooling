@@ -3,9 +3,9 @@ import click
 from cli import utils
 from cli.commands import utils as commands_utils
 from cli.services.contracts.filecoin_pay import FileCoinPay
-
-from cli.services.contracts.types.deal import PoRepMarketDealState
 from cli.services.contracts.porep_market import PoRepMarket
+from cli.services.contracts.types.deal import PoRepMarketDealState
+
 
 @click.command()
 @click.argument("deal_id", type=click.IntRange(min=0))
