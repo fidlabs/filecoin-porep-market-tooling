@@ -1,3 +1,5 @@
+import enum
+
 from cli import utils
 from cli.services.contracts.contract_service import ContractService
 from cli.services.txsigner import TxSigner
@@ -13,6 +15,75 @@ class TransferParams:
     to: FilAddress
     amount: BigInt
     operator_data: bytes
+
+
+# @title EvidenceTypes
+# @notice Shared evidence type constants for PoRepMarket
+class EvidenceType(enum.Enum):
+    NONE = 0
+    VERIF_REG_CLAIMS = 10
+
+    @staticmethod
+    def from_web3(s: str | int | None) -> "EvidenceType":
+        if not s:
+            raise ValueError("Evidence type string cannot be None")
+
+        s = str(s).strip().lower()
+
+        if s in ("0", "none"):
+            return EvidenceType.NONE
+        elif s in ("10", "verif_reg_claims"):
+            return EvidenceType.VERIF_REG_CLAIMS
+        else:
+            raise ValueError(f"Invalid evidence type: {s}")
+
+    @staticmethod
+    def to_string_list():
+        return [_type.name for _type in EvidenceType]
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
+
+
+# @title DataCapAllocationStatus
+# @notice Lifecycle status of a DataCap allocation per deal tracked by the adapter
+class DataCapAllocationStatus(enum.Enum):
+    NONE = 0
+    ALLOCATED = 10
+    CLAIMED = 20
+    INACTIVE = 30
+
+    @staticmethod
+    def from_web3(s: str | int | None) -> "DataCapAllocationStatus":
+        if not s:
+            raise ValueError("DataCap allocation status string cannot be None")
+
+        s = str(s).strip().lower()
+
+        if s in ("0", "none"):
+            return DataCapAllocationStatus.NONE
+        elif s in ("10", "allocated"):
+            return DataCapAllocationStatus.ALLOCATED
+        elif s in ("20", "claimed"):
+            return DataCapAllocationStatus.CLAIMED
+        elif s in ("30", "inactive"):
+            return DataCapAllocationStatus.INACTIVE
+        else:
+            raise ValueError(f"Invalid DataCap allocation status: {s}")
+
+    @staticmethod
+    def to_string_list():
+        return [_status.name for _status in DataCapAllocationStatus]
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
+
 
 class DataCapEvidenceAdapter(ContractService):
     _DATA_CAP_EVIDENCE_ADAPTER_ADDRESS: EthAddress | None = None
@@ -33,8 +104,10 @@ class DataCapEvidenceAdapter(ContractService):
     def submit_data_cap_batch(self, transfer_params: TransferParams, deal_id: int, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.submitDataCapBatch(
-                (transfer_params.to, transfer_params.amount, transfer_params.operator_data), deal_id
-            ), signer)
+                (transfer_params.to, transfer_params.amount, transfer_params.operator_data),
+                deal_id
+            ),
+            signer)
 
     # @notice Replaces all broken tracked allocations for a completed existing deal.
     # @dev Only callable by RESCUE_ROLE.
@@ -43,8 +116,10 @@ class DataCapEvidenceAdapter(ContractService):
     def rescue_deal_allocations(self, deal_id: int, transfer_params: TransferParams, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.rescueDealAllocations(
-                deal_id, (transfer_params.to, transfer_params.amount, transfer_params.operator_data)
-            ), signer)
+                deal_id,
+                (transfer_params.to, transfer_params.amount, transfer_params.operator_data)
+            ),
+            signer)
 
     # @notice getter to retrieve allocation ids for a deal with pagination
     # @param dealId the id of the deal
@@ -53,46 +128,42 @@ class DataCapEvidenceAdapter(ContractService):
     # @return ids allocation ids for the deal
     # @return sumOfAllocations total number of allocation ids for the deal
     def get_allocation_ids_per_deal(self, deal_id: int, offset: int, limit: int) -> tuple[list[ActorId], int]:
-        return self.contract.functions.getAllocationIdsPerDeal(deal_id, offset, limit).call()
+        ids, sum_of_allocations = self.contract.functions.getAllocationIdsPerDeal(deal_id, offset, limit).call()
+        return [ActorId(_id) for _id in ids], sum_of_allocations
 
-    # @notice custom getter to retrieve allocated size in deal
+    # @notice custom getter to retrieve allocated bytes in deal
     # @param dealId The id of the deal
-    # @return allocatedBytes size of allocations for the selected deal
+    # @return allocatedBytes allocated bytes for the selected deal
     def get_allocated_bytes(self, deal_id: int) -> int:
         return self.contract.functions.getAllocatedBytes(deal_id).call()
 
-    # @notice Marks DataCap posting for a deal as finished, blocking further submitDataCapBatch calls
-    # @dev Only callable by the client; requires the deal in ACCEPTED state and an operational adapter
+    # @notice Closes DataCap posting for a deal in a separate transaction
+    # @dev Only callable by the deal client while the deal is Accepted and posting is open
     # @param dealId The id of the deal
     def finish_data_cap_posting(self, deal_id: int, signer: TxSigner) -> str:
         return self.sign_and_send_tx(self.contract.functions.finishDataCapPosting(deal_id), signer)
 
-    # @notice Checks whether DataCap posting for a deal has been finished
+    # @notice Returns whether DataCap posting has been finished for a deal
     # @param dealId The id of the deal
+    # @return True if posting is finished, false otherwise
     def is_data_cap_posting_finished(self, deal_id: int) -> bool:
         return self.contract.functions.isDataCapPostingFinished(deal_id).call()
 
     # @notice Getter for the DataCap allocation status of a deal
     # @param dealId The id of the deal
     # @return status The allocation status as uint8
-    def get_deal_allocation_status(self, deal_id: int) -> int:
-        return self.contract.functions.getDealAllocationStatus(deal_id).call()
+    def get_deal_allocation_status(self, deal_id: int) -> DataCapAllocationStatus:
+        return DataCapAllocationStatus.from_web3(self.contract.functions.getDealAllocationStatus(deal_id).call())
 
     # @notice getter to retrieve claim ids for a deal with pagination
     # @param dealId the id of the deal
     # @param offset pagination offset for the claim ids
     # @param limit pagination limit for the claim ids
     # @return ids list of claim ids for the given deal
-    # @return total total number of claims for the given deal
+    # @return sumOfClaims total number of claims for the given deal
     def get_claim_ids(self, deal_id: int, offset: int, limit: int) -> tuple[list[ActorId], int]:
-        return self.contract.functions.getClaimIds(deal_id, offset, limit).call()
-
-    # @notice Checks if the total active data size for the client with the specified provider matches the expected size
-    # @dev This function can only be called by the validator of the deal
-    # @param dealId The id of the deal
-    # @return totalSizePerSp The total active data size for the client with the specified provider
-    def is_data_size_matching(self, deal_id: int) -> bool:
-        return self.contract.functions.isDataSizeMatching(deal_id).call()
+        ids, sum_of_claims = self.contract.functions.getClaimIds(deal_id, offset, limit).call()
+        return [ActorId(_id) for _id in ids], sum_of_claims
 
     # @notice Returns whether the adapter can still process new evidence
     # @dev Returns false when the adapter is no longer operational, for example
@@ -103,12 +174,11 @@ class DataCapEvidenceAdapter(ContractService):
 
     # @notice Getter for the evidence type
     # @return The evidence type as uint8
-    def evidence_type(self) -> int:
-        return self.contract.functions.evidenceType().call()
+    def evidence_type(self) -> EvidenceType:
+        return EvidenceType.from_web3(self.contract.functions.evidenceType().call())
 
     # @notice custom getter to check if claim is terminated
     # @param claimId the id of the claim
-    # @return isTerminated whether the claim is terminated
     # @return isTerminated whether the claim is terminated
     def terminated_claims(self, claim_id: int) -> bool:
         return self.contract.functions.terminatedClaims(claim_id).call()
