@@ -10,4 +10,4 @@ def get_registered_sps():
     Get registered SPs from the SPRegistry Smart Contract.
     """
 
-    click.echo(utils.json_pretty(SPRegistry().get_providers_info()))
+    click.echo(utils.json_pretty(SPRegistry().get_providers_views()))

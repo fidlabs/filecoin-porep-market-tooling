@@ -61,7 +61,7 @@ def get_sp_deals(state: PoRepMarketDealState | None = None,
         assert not organization_address
 
         try:
-            provider_info = SPRegistry().get_provider_info(provider_id)
+            provider_info = SPRegistry().get_provider_view(provider_id)
         except RuntimeError:
             return []
 

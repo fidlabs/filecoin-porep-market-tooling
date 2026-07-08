@@ -16,7 +16,7 @@ def pause_sp(provider_id: str):
     """
 
     Web3Service().wait_for_pending_transactions(admin_address())
-    provider = SPRegistry().get_provider_info(ActorId(provider_id))
+    provider = SPRegistry().get_provider_view(ActorId(provider_id))
 
     if provider.paused:
         raise click.ClickException(f"Storage Provider {provider.provider_id} is already paused")
