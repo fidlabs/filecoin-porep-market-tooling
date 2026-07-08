@@ -290,6 +290,7 @@ class SPRegistry(ContractService):
                               available_bytes: int,
                               payee_address: EthAddress,
                               signer: TxSigner) -> str:
+        #
         return self.sign_and_send_tx(
             self.contract.functions.registerProviderFor(
                 provider_id,
@@ -409,6 +410,7 @@ class SPRegistry(ContractService):
                      slis: SPRegistrySLIThresholds,
                      payments: list[SPRegistryOfferPaymentInput],
                      signer: TxSigner) -> str:
+        #
         return self.sign_and_send_tx(
             self.contract.functions.createOffer(
                 provider_id,
