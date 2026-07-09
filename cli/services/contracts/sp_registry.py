@@ -1,5 +1,6 @@
 from cli import utils
 from cli.services.contracts.contract_service import ContractService
+from cli.services.contracts.porep_market import PoRepMarketSLIThresholds, PoRepMarketDealRequest
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress, ActorId
 
@@ -21,28 +22,6 @@ class SPRegistryTokenConfig:
         return SPRegistryTokenConfig(
             allowed=bool(data[0]),
             min_price_per_32_gib_per_month=int(data[1])
-        )
-
-
-# @notice Unified SLI thresholds for requirements, capabilities, and attestations
-@utils.json_dataclass()
-class SPRegistrySLIThresholds:
-    retrievability_bps: int  # Valid range: 0-10000 (basis points, e.g. 7550 = 75.50%). 0 means "don't care"
-    bandwidth_bytes_per_second: int  # Capped at ~64 Gbps
-    latency_ms: int
-    indexing_pct: int  # Valid range: 0-100. 0 means "don't care"
-
-    @staticmethod
-    def from_web3(data) -> "SPRegistrySLIThresholds":
-        if data[0] is None:
-            raise RuntimeError("SLI thresholds not found")
-
-        # noinspection PyArgumentList
-        return SPRegistrySLIThresholds(
-            retrievability_bps=int(data[0]),
-            bandwidth_bytes_per_second=int(data[1]),
-            latency_ms=int(data[2]),
-            indexing_pct=int(data[3])
         )
 
 
@@ -87,7 +66,7 @@ class SPRegistryOfferView:
     provider_id: ActorId
     active: bool
     terms: SPRegistryOfferTerms
-    slis: SPRegistrySLIThresholds
+    slis: PoRepMarketSLIThresholds
     payment_token: EthAddress
     payment_active: bool
     price_per_32_gib_per_month: int
@@ -110,48 +89,10 @@ class SPRegistryOfferView:
             provider_id=ActorId(data[1]),
             active=bool(data[2]),
             terms=SPRegistryOfferTerms.from_web3(data[3]),
-            slis=SPRegistrySLIThresholds.from_web3(data[4]),
+            slis=PoRepMarketSLIThresholds.from_web3(data[4]),
             payment_token=EthAddress(data[5]),
             payment_active=bool(data[6]),
             price_per_32_gib_per_month=int(data[7])
-        )
-
-
-# @notice DealRequest struct represents the client's request for a storage deal
-# @param manifestHash commitment for piece set
-# @param requestedSizeBytes requested data size in bytes
-# @param maxPricePer32GiBPerMonth maximum price per 32GiB per month
-# @param manifestLocation location of the deal manifest
-# @param paymentToken token used for payments
-# @param durationDays requested deal duration in days
-# @param requiredSLIs required service-level indicators
-@utils.json_dataclass()
-class SPRegistryDealRequest:
-    manifest_hash: bytes
-    requested_size_bytes: int
-    max_price_per_32_gib_per_month: int
-    manifest_location: str
-    payment_token_address: EthAddress
-    duration_days: int  # Client-facing input; converted once before storage
-    required_slis: SPRegistrySLIThresholds
-
-    def __post_init__(self):
-        self.payment_token_address = EthAddress(self.payment_token_address)
-
-    @staticmethod
-    def from_web3(data) -> "SPRegistryDealRequest":
-        if data[0] is None:
-            raise RuntimeError("Deal request not found")
-
-        # noinspection PyArgumentList
-        return SPRegistryDealRequest(
-            manifest_hash=data[0],
-            requested_size_bytes=int(data[1]),
-            max_price_per_32_gib_per_month=int(data[2]),
-            manifest_location=data[3],
-            payment_token_address=EthAddress(data[4]),
-            duration_days=int(data[5]),
-            required_slis=SPRegistrySLIThresholds.from_web3(data[6])
         )
 
 
@@ -181,11 +122,11 @@ class SPRegistryProviderView:
         self.payee_address = EthAddress(self.payee_address)
 
     @staticmethod
-    def from_web3(data, expected_provider_id: int | None = None) -> "SPRegistryProviderView":
+    def from_web3(data, expected_provider_id: ActorId | None = None) -> "SPRegistryProviderView":
         if data[0] is None:
             raise RuntimeError("Provider not found")
 
-        if expected_provider_id is not None and expected_provider_id != data[0]:
+        if expected_provider_id is not None and expected_provider_id != ActorId(data[0]):
             raise RuntimeError(f"Invalid provider returned from contract; expected provider_id {expected_provider_id}, got {data[0]}")
 
         # noinspection PyArgumentList
@@ -242,7 +183,7 @@ class SPRegistryProviderDealSelection:
     payment_token_address: EthAddress
     payee_address: EthAddress
     price_per_32_gib_per_month: int
-    promised_slis: SPRegistrySLIThresholds
+    promised_slis: PoRepMarketSLIThresholds
     reserved_bytes: int
 
     def __post_init__(self):
@@ -262,7 +203,7 @@ class SPRegistryProviderDealSelection:
             payment_token_address=EthAddress(data[2]),
             payee_address=EthAddress(data[3]),
             price_per_32_gib_per_month=int(data[4]),
-            promised_slis=SPRegistrySLIThresholds.from_web3(data[5]),
+            promised_slis=PoRepMarketSLIThresholds.from_web3(data[5]),
             reserved_bytes=int(data[6])
         )
 
@@ -297,7 +238,8 @@ class SPRegistry(ContractService):
                 organization_address,
                 available_bytes,
                 payee_address
-            ), signer)
+            ),
+            signer)
 
     # @notice Check if a provider is registered
     # @param provider_id The provider actor ID
@@ -407,7 +349,7 @@ class SPRegistry(ContractService):
     def create_offer(self,
                      provider_id: ActorId,
                      terms: SPRegistryOfferTerms,
-                     slis: SPRegistrySLIThresholds,
+                     slis: PoRepMarketSLIThresholds,
                      payments: list[SPRegistryOfferPaymentInput],
                      signer: TxSigner) -> str:
         #
@@ -457,7 +399,7 @@ class SPRegistry(ContractService):
     # @notice Previews automatic offer matching without reserving capacity.
     # @param request Client deal request.
     # @return selection Selected offer snapshot, or zero provider when no offer matches.
-    def preview_provider_for_deal(self, request: SPRegistryDealRequest) -> SPRegistryProviderDealSelection:
+    def preview_provider_for_deal(self, request: PoRepMarketDealRequest) -> SPRegistryProviderDealSelection:
         return SPRegistryProviderDealSelection.from_web3(
             self.contract.functions.previewProviderForDeal(
                 (
@@ -479,7 +421,7 @@ class SPRegistry(ContractService):
     # @notice Selects an offer automatically and reserves pending provider capacity.
     # @param request Client deal request.
     # @return selection Selected offer snapshot.
-    def reserve_provider_for_deal(self, request: SPRegistryDealRequest, signer: TxSigner) -> str:
+    def reserve_provider_for_deal(self, request: PoRepMarketDealRequest, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.reserveProviderForDeal(
                 (
@@ -505,7 +447,7 @@ class SPRegistry(ContractService):
     # @param request Client deal request.
     # @return selection Selected offer snapshot, or zero provider when the offer does not match.
     # @return reason OfferMatch reason code; OfferMatch.OK when the offer is eligible.
-    def preview_offer_for_deal(self, offer_id: int, request: SPRegistryDealRequest) -> tuple[SPRegistryProviderDealSelection, int]:
+    def preview_offer_for_deal(self, offer_id: int, request: PoRepMarketDealRequest) -> tuple[SPRegistryProviderDealSelection, int]:
         selection, reason = self.contract.functions.previewOfferForDeal(
             offer_id,
             (
@@ -530,7 +472,7 @@ class SPRegistry(ContractService):
     # @param offerId Offer ID to validate.
     # @param request Client deal request.
     # @return selection Selected offer snapshot.
-    def reserve_offer_for_deal(self, offer_id: int, request: SPRegistryDealRequest, signer: TxSigner) -> str:
+    def reserve_offer_for_deal(self, offer_id: int, request: PoRepMarketDealRequest, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.reserveOfferForDeal(
                 offer_id,

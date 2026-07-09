@@ -31,6 +31,10 @@ class FileCoinPayRailStatus(enum.Enum):
         else:
             raise ValueError(f"Invalid rail status: {s}")
 
+    @staticmethod
+    def to_string_list():
+        return [status.name for status in FileCoinPayRailStatus]
+
     def __str__(self):
         return self.name
 

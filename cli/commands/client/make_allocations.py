@@ -3,14 +3,14 @@ from pathlib import Path
 import cbor2
 import click
 import multibase
+from cli.services.contracts.types.deal import PoRepMarketDealState
 
 from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address, client_signer
-from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceAdapter, TransferParams
+from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceAdapter, DataCapTransferParams
 from cli.services.contracts.porep_market import PoRepMarket
-from cli.services.contracts.types.deal import PoRepMarketDealState
 from cli.services.web3_service import Web3Service, ActorId
 
 
@@ -112,7 +112,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
         total_size = sum(size for _, size in batch)
 
         # noinspection PyArgumentList
-        params = TransferParams(
+        params = DataCapTransferParams(
             to=(b"\x00\x06",),
             amount=(utils.uint_to_bytes(utils.to_wei(total_size, utils.DATACAP_DECIMALS), size=None), False),
             operator_data=operator_data

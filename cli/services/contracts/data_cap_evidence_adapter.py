@@ -7,7 +7,7 @@ from cli.services.web3_service import ActorId, EthAddress
 
 
 @utils.json_dataclass()
-class TransferParams:
+class DataCapTransferParams:
     # pylint: disable=invalid-name
     FilAddress = tuple[bytes]
     BigInt = tuple[bytes, bool]
@@ -19,27 +19,27 @@ class TransferParams:
 
 # @title EvidenceTypes
 # @notice Shared evidence type constants for PoRepMarket
-class EvidenceType(enum.Enum):
+class DataCapEvidenceType(enum.Enum):
     NONE = 0
     VERIF_REG_CLAIMS = 10
 
     @staticmethod
-    def from_web3(s: str | int | None) -> "EvidenceType":
+    def from_web3(s: str | int | None) -> "DataCapEvidenceType":
         if not s:
-            raise ValueError("Evidence type string cannot be None")
+            raise ValueError("Evidence type not found")
 
         s = str(s).strip().lower()
 
         if s in ("0", "none"):
-            return EvidenceType.NONE
+            return DataCapEvidenceType.NONE
         elif s in ("10", "verif_reg_claims"):
-            return EvidenceType.VERIF_REG_CLAIMS
+            return DataCapEvidenceType.VERIF_REG_CLAIMS
         else:
             raise ValueError(f"Invalid evidence type: {s}")
 
     @staticmethod
     def to_string_list():
-        return [_type.name for _type in EvidenceType]
+        return [_type.name for _type in DataCapEvidenceType]
 
     def __str__(self):
         return self.name
@@ -59,7 +59,7 @@ class DataCapAllocationStatus(enum.Enum):
     @staticmethod
     def from_web3(s: str | int | None) -> "DataCapAllocationStatus":
         if not s:
-            raise ValueError("DataCap allocation status string cannot be None")
+            raise ValueError("DataCap allocation status not found")
 
         s = str(s).strip().lower()
 
@@ -85,6 +85,38 @@ class DataCapAllocationStatus(enum.Enum):
         return self.name
 
 
+# @notice EvidenceStatus struct represents the status of evidence for a deal
+# @param activeCoveredBytes currently active bytes from adapter-checked evidence
+# @param lastEvidenceRefreshEpoch epoch of the last evidence refresh
+# @param reasonCode code representing the reason for the current status
+# @param result current result code based on submitted evidence
+# @param checkedClaims number of claims already checked in the current refresh sweep
+# @param totalClaims total number of claims that must be checked for the deal
+@utils.json_dataclass()
+class DataCapEvidenceStatus:
+    active_covered_bytes: int
+    last_evidence_refresh_epoch: int
+    reason_code: int
+    result: int
+    checked_claims: int
+    total_claims: int
+
+    @staticmethod
+    def from_web3(data) -> "DataCapEvidenceStatus":
+        if data[0] is None:
+            raise ValueError("DataCap evidence status not found")
+
+        # noinspection PyArgumentList
+        return DataCapEvidenceStatus(
+            active_covered_bytes=data[0],
+            last_evidence_refresh_epoch=data[1],
+            reason_code=data[2],
+            result=data[3],
+            checked_claims=data[4],
+            total_claims=data[5]
+        )
+
+
 class DataCapEvidenceAdapter(ContractService):
     _DATA_CAP_EVIDENCE_ADAPTER_ADDRESS: EthAddress | None = None
 
@@ -101,7 +133,7 @@ class DataCapEvidenceAdapter(ContractService):
     # @dev This function can only be called by the client
     # @param params The parameters for the transfer
     # @param dealId The id of the deal
-    def submit_data_cap_batch(self, transfer_params: TransferParams, deal_id: int, signer: TxSigner) -> str:
+    def submit_data_cap_batch(self, transfer_params: DataCapTransferParams, deal_id: int, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.submitDataCapBatch(
                 (transfer_params.to, transfer_params.amount, transfer_params.operator_data),
@@ -113,7 +145,7 @@ class DataCapEvidenceAdapter(ContractService):
     # @dev Only callable by RESCUE_ROLE.
     # @param dealId The id of the deal to rescue.
     # @param params The DataCap transfer parameters that create replacement allocations.
-    def rescue_deal_allocations(self, deal_id: int, transfer_params: TransferParams, signer: TxSigner) -> str:
+    def rescue_deal_allocations(self, deal_id: int, transfer_params: DataCapTransferParams, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.rescueDealAllocations(
                 deal_id,
@@ -174,8 +206,8 @@ class DataCapEvidenceAdapter(ContractService):
 
     # @notice Getter for the evidence type
     # @return The evidence type as uint8
-    def evidence_type(self) -> EvidenceType:
-        return EvidenceType.from_web3(self.contract.functions.evidenceType().call())
+    def evidence_type(self) -> DataCapEvidenceType:
+        return DataCapEvidenceType.from_web3(self.contract.functions.evidenceType().call())
 
     # @notice custom getter to check if claim is terminated
     # @param claimId the id of the claim
