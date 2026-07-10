@@ -96,6 +96,19 @@ class SPRegistryOfferView:
         )
 
 
+@utils.json_dataclass()
+class SPRegistryProviderInput:
+    provider_id: ActorId  # f0-id of the SP in Filecoin network
+    organization_address: EthAddress
+    available_bytes: int
+    payee_address: EthAddress
+
+    def __post_init__(self):
+        self.provider_id = ActorId(self.provider_id)
+        self.organization_address = EthAddress(self.organization_address)
+        self.payee_address = EthAddress(self.payee_address)
+
+
 # @notice Current provider registration and capacity data.
 # @param provider Provider actor ID.
 # @param organization Address that owns the provider registration.
@@ -106,20 +119,11 @@ class SPRegistryOfferView:
 # @param committedBytes Capacity already committed to activated deals.
 # @param pendingBytes Capacity reserved by proposed deals.
 @utils.json_dataclass()
-class SPRegistryProviderView:
-    provider_id: ActorId  # f0-id of the SP in Filecoin network
-    organization_address: EthAddress
-    payee_address: EthAddress
+class SPRegistryProviderView(SPRegistryProviderInput):
     paused: bool
     blocked: bool
-    available_bytes: int
     committed_bytes: int
     pending_bytes: int
-
-    def __post_init__(self):
-        self.provider_id = ActorId(self.provider_id)
-        self.organization_address = EthAddress(self.organization_address)
-        self.payee_address = EthAddress(self.payee_address)
 
     @staticmethod
     def from_web3(data, expected_provider_id: ActorId | None = None) -> "SPRegistryProviderView":
@@ -166,6 +170,17 @@ class SPRegistryOfferPaymentInput:
             active=bool(data[1]),
             price_per_32_gib_per_month=int(data[2])
         )
+
+
+@utils.json_dataclass()
+class SPRegistryOfferInput:
+    provider_id: ActorId
+    terms: SPRegistryOfferTerms
+    slis: PoRepMarketSLIThresholds
+    payments: list[SPRegistryOfferPaymentInput]
+
+    def __post_init__(self):
+        self.provider_id = ActorId(self.provider_id)
 
 
 # @notice Selected offer snapshot returned by SPRegistry
@@ -226,20 +241,18 @@ class SPRegistry(ContractService):
     # @param availableBytes Initial available capacity in bytes.
     # @param payee Payout recipient; defaults to organization when zero.
     def register_provider_for(self,
-                              provider_id: ActorId,
-                              organization_address: EthAddress,
-                              available_bytes: int,
-                              payee_address: EthAddress,
+                              provider: SPRegistryProviderInput,
                               signer: TxSigner) -> str:
         #
         return self.sign_and_send_tx(
             self.contract.functions.registerProviderFor(
-                provider_id,
-                organization_address,
-                available_bytes,
-                payee_address
+                provider.provider_id,
+                provider.organization_address,
+                provider.available_bytes,
+                provider.payee_address
             ),
-            signer)
+            signer
+        )
 
     # @notice Check if a provider is registered
     # @param provider_id The provider actor ID
@@ -347,18 +360,15 @@ class SPRegistry(ContractService):
     # @param payments Initial payment rows.
     # @return offerId Created offer ID.
     def create_offer(self,
-                     provider_id: ActorId,
-                     terms: SPRegistryOfferTerms,
-                     slis: PoRepMarketSLIThresholds,
-                     payments: list[SPRegistryOfferPaymentInput],
+                     offer: SPRegistryOfferInput,
                      signer: TxSigner) -> str:
         #
         return self.sign_and_send_tx(
             self.contract.functions.createOffer(
-                provider_id,
-                (terms.min_size_bytes, terms.max_size_bytes, terms.min_duration_epochs, terms.max_duration_epochs),
-                (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct),
-                [(payment.token, payment.active, payment.price_per_32_gib_per_month) for payment in payments]
+                offer.provider_id,
+                (offer.terms.min_size_bytes, offer.terms.max_size_bytes, offer.terms.min_duration_epochs, offer.terms.max_duration_epochs),
+                (offer.slis.retrievability_bps, offer.slis.bandwidth_bytes_per_second, offer.slis.latency_ms, offer.slis.indexing_pct),
+                [(payment.token, payment.active, payment.price_per_32_gib_per_month) for payment in offer.payments]
             ),
             signer
         )

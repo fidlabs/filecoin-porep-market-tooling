@@ -7,6 +7,32 @@ from cli.services.web3_service import EthAddress, ActorId
 
 
 @utils.json_dataclass()
+class SPRegistryDBSLAClass:
+    id: int
+    provider_id: int
+    sla_class: str
+    price_per_tib_usd: float
+    specific_miner_id: ActorId | None
+    regional_pricing: list[dict]
+    created_at: datetime
+    updated_at: datetime
+
+    @staticmethod
+    def from_db(data) -> "SPRegistryDBSLAClass":
+        # noinspection PyArgumentList
+        return SPRegistryDBSLAClass(
+            id=int(data[0]),
+            provider_id=int(data[1]),
+            sla_class=data[2],
+            price_per_tib_usd=float(data[3]),
+            specific_miner_id=ActorId(data[4]) if data[4] is not None else None,
+            regional_pricing=data[5],
+            created_at=data[6],
+            updated_at=data[7]
+        )
+
+
+@utils.json_dataclass()
 class SPRegistryDBOrganization:
     id: int
     name: str
@@ -36,6 +62,9 @@ class SPRegistryDBOrganization:
     min_price_per_tib_usd: float
     sp_software: list[str]
     capacity_commitment: str
+    controller_address: str | None = None
+    manage_token: str | None = None
+    manage_token_expires_at: datetime | None = None
 
     @staticmethod
     def from_db(data) -> "SPRegistryDBOrganization":
@@ -75,12 +104,39 @@ class SPRegistryDBOrganization:
             min_price_per_tib_usd=float(data[25]),
             sp_software=data[26],
             capacity_commitment=data[27],
+            controller_address=data[28],
+            manage_token=data[29],
+            manage_token_expires_at=data[30]
         )
 
 
 class SPRegistryDB:
     def __init__(self, db_url: str):
         self.db_url = db_url
+
+    def get_sla_classes(self,
+                        provider_id: int | None = None,
+                        specific_miner_id: ActorId | None = None) -> list[SPRegistryDBSLAClass]:
+        #
+        query = "SELECT * FROM provider_sla_classes WHERE true"
+        params = []
+
+        if provider_id is not None:
+            query += " AND provider_id = %s"
+            params.append(provider_id)
+
+        if specific_miner_id is not None:
+            query += " AND specific_miner_id = %s"
+            params.append(specific_miner_id)
+
+        with psycopg.connect(self.db_url) as conn:
+            # noinspection PyTypeChecker
+            sla_classes = [
+                SPRegistryDBSLAClass.from_db(sla_class)
+                for sla_class in conn.execute(query, params).fetchall()
+            ]
+
+        return sla_classes
 
     def get_organizations(self,
                           kyc_status: str | None = None,
@@ -113,8 +169,8 @@ class SPRegistryDB:
         with psycopg.connect(self.db_url) as conn:
             # noinspection PyTypeChecker
             providers = [
-                SPRegistryDBOrganization.from_db(p)
-                for p in conn.execute(query, params).fetchall()
+                SPRegistryDBOrganization.from_db(provider)
+                for provider in conn.execute(query, params).fetchall()
             ]
 
         return providers
