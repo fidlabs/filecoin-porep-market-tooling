@@ -1,4 +1,4 @@
-from cli.services.contracts.contract_service import ContractService
+from cli.services.contract_service import ContractService
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress
 
