@@ -1,7 +1,7 @@
 import enum
 
 from cli import utils
-from cli.services.contracts.contract_service import ContractService
+from cli.services.contract_service import ContractService
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import ActorId, EthAddress
 
@@ -85,6 +85,52 @@ class DataCapAllocationStatus(enum.Enum):
         return self.name
 
 
+#  * @title EvidenceResult
+#  * @notice Shared evidence result type constants for PoRepMarket
+class DataCapEvidenceResult(enum.Enum):
+    NONE = 0
+    PARTIAL = 10
+    ACCEPTED = 20
+    REJECTED = 30
+    ACTIVE = 40
+    INACTIVE = 50
+    COVERED_BYTES_MISMATCH = 60
+
+    @staticmethod
+    def from_web3(s: str | int | None) -> "DataCapEvidenceResult":
+        if not s:
+            raise ValueError("DataCap evidence result not found")
+
+        s = str(s).strip().lower()
+
+        if s in ("0", "none"):
+            return DataCapEvidenceResult.NONE
+        elif s in ("10", "partial"):
+            return DataCapEvidenceResult.PARTIAL
+        elif s in ("20", "accepted"):
+            return DataCapEvidenceResult.ACCEPTED
+        elif s in ("30", "rejected"):
+            return DataCapEvidenceResult.REJECTED
+        elif s in ("40", "active"):
+            return DataCapEvidenceResult.ACTIVE
+        elif s in ("50", "inactive"):
+            return DataCapEvidenceResult.INACTIVE
+        elif s in ("60", "covered_bytes_mismatch"):
+            return DataCapEvidenceResult.COVERED_BYTES_MISMATCH
+        else:
+            raise ValueError(f"Invalid DataCap evidence result: {s}")
+
+    @staticmethod
+    def to_string_list():
+        return [_result.name for _result in DataCapEvidenceResult]
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
+
+
 # @notice EvidenceStatus struct represents the status of evidence for a deal
 # @param activeCoveredBytes currently active bytes from adapter-checked evidence
 # @param lastEvidenceRefreshEpoch epoch of the last evidence refresh
@@ -97,7 +143,7 @@ class DataCapEvidenceStatus:
     active_covered_bytes: int
     last_evidence_refresh_epoch: int
     reason_code: int
-    result: int
+    result: DataCapEvidenceResult
     checked_claims: int
     total_claims: int
 
@@ -111,7 +157,7 @@ class DataCapEvidenceStatus:
             active_covered_bytes=data[0],
             last_evidence_refresh_epoch=data[1],
             reason_code=data[2],
-            result=data[3],
+            result=DataCapEvidenceResult.from_web3(data[3]),
             checked_claims=data[4],
             total_claims=data[5]
         )
