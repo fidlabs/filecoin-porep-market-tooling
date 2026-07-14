@@ -3,45 +3,13 @@ import humanfriendly
 
 from cli import utils
 from cli.services.contracts.porep_market import PoRepMarket
+from cli.services.contracts.sp_registry import SPRegistryProviderInput
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.sp_registry_db import SPRegistryDB
 from cli.services.web3_service import EthAddress, ActorId, FilAddress
 
 
-# TODO migrate admin commands to the offer-based SPRegistry API; these legacy
-#  shapes were removed from cli.services.contracts.sp_registry and live here
-#  until the admin group is reworked
-@utils.json_dataclass()
-class SPRegistrySLIThresholds:
-    retrievability_bps: int  # Valid range: 0-10000 (basis points, e.g. 7550 = 75.50%). 0 means "don't care"
-    bandwidth_mbps: int  # Capped at ~64 Gbps
-    latency_ms: int
-    indexing_pct: int  # Valid range: 0-100. 0 means "don't care"
-
-
-@utils.json_dataclass()
-class SPRegistryProvider:
-    provider_id: ActorId  # f0-id of the SP in Filecoin network
-    organization_address: EthAddress
-    capabilities: SPRegistrySLIThresholds
-    available_bytes: int
-    price_per_sector_per_month: int
-    payee_address: EthAddress
-    min_deal_duration_days: int
-    max_deal_duration_days: int
-
-    def __post_init__(self):
-        self.organization_address = EthAddress(self.organization_address)
-        self.payee_address = EthAddress(self.payee_address)
-        self.provider_id = ActorId(self.provider_id)
-
-
-@utils.json_dataclass()
-class SPRegistryProviderInfo(SPRegistryProvider):
-    committed_bytes: int
-    pending_bytes: int
-    paused: bool
-    blocked: bool
+def get_db_offers(): pass
 
 
 def get_db_sps(db_url: str,
@@ -49,7 +17,7 @@ def get_db_sps(db_url: str,
                organization_id: int | None = None,
                indexing_pct: int = 0,
                miner_id: ActorId | None = None,
-               organization_address: str | None = None) -> list[SPRegistryProvider]:
+               organization_address: str | None = None) -> list[SPRegistryProviderInput]:
     #
     sector_size_bytes = PoRepMarket().get_sector_size_bytes()
     sectors_per_tib = 1024 ** 4 // sector_size_bytes
@@ -115,7 +83,7 @@ def get_db_sps(db_url: str,
     #
 
     max_deal_duration_days_limit = PoRepMarket().get_max_deal_duration_days()
-    result: list[SPRegistryProvider] = []
+    result: list[SPRegistryProviderInput] = []
     organizations = SPRegistryDB(db_url).get_organizations(kyc_status=kyc_status,
                                                            organization_id=organization_id,
                                                            miner_id=miner_id,
@@ -185,19 +153,10 @@ def get_db_sps(db_url: str,
 
         for org_miner_id in org.miner_ids:
             # noinspection PyArgumentList
-            result.append(SPRegistryProvider(
+            result.append(SPRegistryProviderInput(
                 provider_id=org_miner_id,
                 organization_address=organization_address,
-                capabilities=SPRegistrySLIThresholds(
-                    retrievability_bps=retrievability_guarantees_to_bps(org.retrievability_guarantees),
-                    bandwidth_mbps=bandwidth_tiers_to_mbps(org.bandwidth_tier),
-                    latency_ms=retrievability_guarantees_to_latency_ms(org.retrievability_guarantees),
-                    indexing_pct=indexing_pct,
-                ),
                 available_bytes=humanfriendly.parse_size(org.capacity_commitment),
-                price_per_sector_per_month=price_per_tib_tokens_to_per_sector(org.min_price_per_tib_usd, org.payment_types),
-                min_deal_duration_days=min_deal_duration_days,
-                max_deal_duration_days=max_deal_duration_days,
                 payee_address=org.payment_address_evm
             ))
 
@@ -212,44 +171,19 @@ def get_db_sps(db_url: str,
     return result
 
 
-def get_devnet_sps() -> list[SPRegistryProvider]:
+def get_devnet_sps() -> list[SPRegistryProviderInput]:
     # noinspection PyArgumentList
     return [
-        SPRegistryProvider(provider_id=1000,
-                           organization_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7",
-                           capabilities=SPRegistrySLIThresholds(
-                               retrievability_bps=10000,
-                               bandwidth_mbps=1000,
-                               latency_ms=100,
-                               indexing_pct=100),
-                           available_bytes=94359739998368,
-                           price_per_sector_per_month=0,
-                           min_deal_duration_days=1,
-                           max_deal_duration_days=1278,
-                           payee_address="0x99f063C701a97545B760aD6C2F7F5401850C9F11"),
-        SPRegistryProvider(provider_id=1001,
-                           organization_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7",
-                           capabilities=SPRegistrySLIThresholds(
-                               retrievability_bps=8000,
-                               bandwidth_mbps=500,
-                               latency_ms=200,
-                               indexing_pct=80
-                           ),
-                           available_bytes=94359739998368,
-                           price_per_sector_per_month=0,
-                           min_deal_duration_days=1,
-                           max_deal_duration_days=1278,
-                           payee_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7"),
-        SPRegistryProvider(provider_id=1002,
-                           organization_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7",
-                           capabilities=SPRegistrySLIThresholds(
-                               retrievability_bps=5000,
-                               bandwidth_mbps=100,
-                               latency_ms=500,
-                               indexing_pct=50),
-                           available_bytes=10 * 1024 * 1024 * 1024,
-                           price_per_sector_per_month=0,
-                           min_deal_duration_days=1,
-                           max_deal_duration_days=1278,
-                           payee_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7"),
+        SPRegistryProviderInput(provider_id=1000,
+                                organization_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7",
+                                available_bytes=94359739998368,
+                                payee_address="0x99f063C701a97545B760aD6C2F7F5401850C9F11"),
+        SPRegistryProviderInput(provider_id=1001,
+                                organization_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7",
+                                available_bytes=94359739998368,
+                                payee_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7"),
+        SPRegistryProviderInput(provider_id=1002,
+                                organization_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7",
+                                available_bytes=10 * 1024 * 1024 * 1024,
+                                payee_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7"),
     ]
