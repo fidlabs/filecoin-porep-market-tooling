@@ -16,8 +16,8 @@ def get_deal_manifest(deal_id: int):
     DEAL_ID - Deal ID to fetch manifest for.
     """
 
-    deal_data = PoRepMarket().get_deal_view(deal_id).data
-    manifest = commands_utils.fetch_manifest(deal_data.manifest_location, show_manifest=False, quiet=True, retries=10)
+    deal = PoRepMarket().get_deal_view(deal_id)
+    manifest = commands_utils.fetch_manifest(deal.data.manifest_location, show_manifest=False, quiet=True, retries=10)
     click.echo(utils.json_pretty(manifest))
 
 
@@ -54,4 +54,4 @@ def get_deals(state: str | None = None):
     STATE - Optional deal state to filter by.
     """
 
-    click.echo(utils.json_pretty(commands_utils.get_client_deals(client_address(), PoRepMarketDealState.from_string(state))))
+    click.echo(utils.json_pretty(commands_utils.get_client_deals(client_address(), PoRepMarketDealState.from_web3(state))))

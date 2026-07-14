@@ -412,6 +412,11 @@ class PoRepMarket(ContractService):
         return [PoRepMarketDeal.from_web3(deal) for deal in
                 self.contract.functions.getDealsForOrganizationByState(organization_address, state.value).call()]
 
+    # @notice Gets all deals
+    # @return deals Array of all deals
+    def get_deals(self) -> list[PoRepMarketDeal]:
+        return [PoRepMarketDeal.from_web3(deal) for deal in self.contract.functions.getDeals().call()]
+
     # @notice Accepts a deal
     # @param dealId The id of the deal proposal
     def accept_deal(self, deal_id: int, signer: TxSigner) -> str:

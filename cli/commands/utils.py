@@ -14,9 +14,8 @@ from cli._cli import is_dry_run
 from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceAdapter
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.filecoin_pay import FileCoinPay
-from cli.services.contracts.porep_market import PoRepMarket
+from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarket, PoRepMarketDeal
 from cli.services.contracts.sp_registry import SPRegistry
-from cli.services.contracts.types.deal import PoRepMarketDeal, PoRepMarketDealState
 from cli.services.contracts.validator_factory import ValidatorFactory
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress, ActorId, FilAddress
@@ -28,7 +27,7 @@ _EVIDENCE_IDS_PAGE_SIZE = 500
 def get_all_deals(state: PoRepMarketDealState | str | None = None,
                   organization: EthAddress | None = None) -> list[PoRepMarketDeal]:
     #
-    _state = PoRepMarketDealState.from_string(str(state)) if state else None
+    _state = PoRepMarketDealState.from_web3(str(state)) if state else None
 
     if organization:
         # prefer get_deals_for_organization_by_state function when asking for organization...
@@ -38,7 +37,7 @@ def get_all_deals(state: PoRepMarketDealState | str | None = None,
         for selected_state in selected_states:
             result.extend(PoRepMarket().get_deals_for_organization_by_state(organization, selected_state))
     else:
-        # ... otherwise prefer get_all_deals function
+        # ... otherwise prefer get_deals function
         result = PoRepMarket().get_deals()
 
         if _state:
@@ -49,6 +48,7 @@ def get_all_deals(state: PoRepMarketDealState | str | None = None,
 
 def get_client_deals(_client_address: EthAddress,
                      state: PoRepMarketDealState | None = None) -> list[PoRepMarketDeal]:
+    #
     all_deals = get_all_deals(state)
     return [deal for deal in all_deals if deal.client_address == _client_address]
 
