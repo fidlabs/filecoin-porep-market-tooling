@@ -3,7 +3,7 @@ from pathlib import Path
 import cbor2
 import click
 import multibase
-from cli.services.contracts.types.deal import PoRepMarketDealState
+from cli.services.contracts.porep_market import PoRepMarketDealState
 
 from cli import utils
 from cli.commands import utils as commands_utils

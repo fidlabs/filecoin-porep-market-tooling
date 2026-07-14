@@ -9,8 +9,7 @@ from cli.commands import utils as commands_utils
 from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_signer, client_address
 from cli.services.contracts.porep_market import PoRepMarket
-from cli.services.contracts.types.deal import PoRepMarketDealRequest, PoRepMarketDealState
-from cli.services.contracts.types.sli import SLIThresholds
+from cli.services.contracts.porep_market import PoRepMarketDealRequest, PoRepMarketDealState, PoRepMarketSLIThresholds
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.web3_service import Web3Service, EthAddress
 
@@ -55,9 +54,9 @@ def _propose_deal_from_manifest(manifest_url: str,
         requested_size_bytes=pieces_size_bytes,
         max_price_per_32_gib_per_month=price_per_sector_per_month,
         manifest_location=manifest_url,
-        payment_token=token.address(),
+        payment_token_address=token.address(),
         duration_days=duration_months * 30,  # PoRep Market smart contracts assumes month == 30 days
-        required_slis=SLIThresholds(
+        required_slis=PoRepMarketSLIThresholds(
             retrievability_bps=retrievability_bps,
             bandwidth_bytes_per_second=bandwidth_mbps * MBPS_TO_BYTES_PER_SECOND,
             latency_ms=latency_ms,

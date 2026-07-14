@@ -9,7 +9,7 @@ from cli.commands.client._client import client_address, client_signer
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.filecoinpay_validator import FileCoinPayValidator
 from cli.services.contracts.porep_market import PoRepMarket
-from cli.services.contracts.types.deal import PoRepMarketDeal, PoRepMarketDealState
+from cli.services.contracts.porep_market import PoRepMarketDeal, PoRepMarketDealState
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.contracts.validator_factory import ValidatorFactory
 from cli.services.web3_service import Web3Service
@@ -32,7 +32,7 @@ def init_accepted_deals(deal_id: int | None = None):
     Web3Service().wait_for_pending_transactions(client_address())
 
     if deal_id is not None:
-        deal = PoRepMarket().get_deal(deal_id)
+        deal = PoRepMarket().get_deal_view(deal_id).deal
 
         if deal.client_address != client_address():
             raise click.ClickException(f"Deal ID {deal_id} client address {deal.client_address} "
@@ -71,7 +71,7 @@ def init_accepted_deals(deal_id: int | None = None):
 
 
 def _deploy_and_set_validator(deal_id: int):
-    deal = PoRepMarket().get_deal(deal_id)
+    deal = PoRepMarket().get_deal_view(deal_id).deal
 
     if deal.client_address != client_address():
         raise click.ClickException(f"Deal ID {deal_id} client address {deal.client_address} does not match from address {client_address()}")

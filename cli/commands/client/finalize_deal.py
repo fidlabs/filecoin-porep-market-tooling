@@ -17,4 +17,4 @@ def finalize_deal(deal_id: int):
 
     Web3Service().wait_for_pending_transactions(client_address())
 
-    client_utils.finalize_deal(PoRepMarket().get_deal(deal_id))
+    client_utils.finalize_deal(PoRepMarket().get_deal_view(deal_id).deal)

@@ -3,10 +3,45 @@ import humanfriendly
 
 from cli import utils
 from cli.services.contracts.porep_market import PoRepMarket
-from cli.services.contracts.sp_registry import SPRegistryProvider, SPRegistrySLIThresholds
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.sp_registry_db import SPRegistryDB
 from cli.services.web3_service import EthAddress, ActorId, FilAddress
+
+
+# TODO migrate admin commands to the offer-based SPRegistry API; these legacy
+#  shapes were removed from cli.services.contracts.sp_registry and live here
+#  until the admin group is reworked
+@utils.json_dataclass()
+class SPRegistrySLIThresholds:
+    retrievability_bps: int  # Valid range: 0-10000 (basis points, e.g. 7550 = 75.50%). 0 means "don't care"
+    bandwidth_mbps: int  # Capped at ~64 Gbps
+    latency_ms: int
+    indexing_pct: int  # Valid range: 0-100. 0 means "don't care"
+
+
+@utils.json_dataclass()
+class SPRegistryProvider:
+    provider_id: ActorId  # f0-id of the SP in Filecoin network
+    organization_address: EthAddress
+    capabilities: SPRegistrySLIThresholds
+    available_bytes: int
+    price_per_sector_per_month: int
+    payee_address: EthAddress
+    min_deal_duration_days: int
+    max_deal_duration_days: int
+
+    def __post_init__(self):
+        self.organization_address = EthAddress(self.organization_address)
+        self.payee_address = EthAddress(self.payee_address)
+        self.provider_id = ActorId(self.provider_id)
+
+
+@utils.json_dataclass()
+class SPRegistryProviderInfo(SPRegistryProvider):
+    committed_bytes: int
+    pending_bytes: int
+    paused: bool
+    blocked: bool
 
 
 def get_db_sps(db_url: str,
