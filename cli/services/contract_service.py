@@ -55,7 +55,7 @@ class ContractService:
 
     @staticmethod
     def abi_dir() -> Path:
-        return Path(__file__).parent / "abi"
+        return Path(__file__).parent / "contracts" / "abi"
 
     def address(self) -> EthAddress:
         return EthAddress(self.contract.address)
