@@ -9,7 +9,7 @@ from cli.commands.client._client import client_address, client_signer
 from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceAdapter
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import PoRepMarket
-from cli.services.contracts.types.deal import PoRepMarketDeal, PoRepMarketDealState
+from cli.services.contracts.porep_market import PoRepMarketDeal, PoRepMarketDealState
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.web3_service import Web3Service
 
@@ -127,10 +127,10 @@ def deposit_to_filecoinpay(deposit_amount: int, token: USDCToken):
 
 
 def check_allocations_size(deal_id: int):
-    adapter_address = PoRepMarket().get_deal_evidence_adapter_address(deal_id)
-    final_allocation_size = DataCapEvidenceAdapter(adapter_address).get_allocated_bytes(deal_id)
+    deal_view = PoRepMarket().get_deal_view(deal_id)
+    final_allocation_size = DataCapEvidenceAdapter(deal_view.deal.evidence_adapter_address).get_allocated_bytes(deal_id)
     padding = PoRepMarket().get_deal_activation_padding()
-    proposed_size = PoRepMarket().get_deal_terms(deal_id).requested_size_bytes
+    proposed_size = deal_view.terms.requested_size_bytes
     delta = abs(final_allocation_size - proposed_size)
 
     if delta * 100 > proposed_size * padding:

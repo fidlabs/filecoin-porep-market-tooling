@@ -9,7 +9,7 @@ from cli.commands.client._client import client_address
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import PoRepMarket
-from cli.services.contracts.types.deal import PoRepMarketDealState, PoRepMarketDealView
+from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarketDealView
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.web3_service import Web3Service, EthAddress
 
