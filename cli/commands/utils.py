@@ -14,7 +14,7 @@ from cli._cli import is_dry_run
 from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceAdapter
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.filecoin_pay import FileCoinPay
-from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarket, PoRepMarketDeal
+from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarket, PoRepMarketDeal, PoRepMarketDealView
 from cli.services.contracts.sp_registry import SPRegistry
 from cli.services.contracts.validator_factory import ValidatorFactory
 from cli.services.txsigner import TxSigner
@@ -343,13 +343,13 @@ def get_filecoinpay_account(token_address: str, owner_address: EthAddress):
     }
 
 
-def reject_deal(deal: PoRepMarketDeal, signer: TxSigner, confirm_session_id: str | None = None) -> str:
-    if deal.state != PoRepMarketDealState.PROPOSED:
-        raise click.ClickException(f"Deal ID {deal.deal_id} is in state {deal.state} != PROPOSED")
+def reject_deal(deal: PoRepMarketDealView, signer: TxSigner, confirm_session_id: str | None = None) -> str:
+    if deal.deal.state != PoRepMarketDealState.PROPOSED:
+        raise click.ClickException(f"Deal ID {deal.deal.deal_id} is in state {deal.deal.state} != PROPOSED")
 
-    utils.confirm(f"Rejecting deal ID {deal.deal_id}: {deal}", default=True, abort=True, session_id=confirm_session_id)
+    utils.confirm(f"Rejecting deal ID {deal.deal.deal_id}: {deal}", default=True, abort=True, session_id=confirm_session_id)
 
-    tx_hash = PoRepMarket().reject_deal(deal.deal_id, signer)
-    click.echo(f"Deal ID {deal.deal_id} rejected: {tx_hash}")
+    tx_hash = PoRepMarket().reject_deal(deal.deal.deal_id, signer)
+    click.echo(f"Deal ID {deal.deal.deal_id} rejected: {tx_hash}")
 
     return tx_hash
