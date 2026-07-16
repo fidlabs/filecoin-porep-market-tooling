@@ -173,7 +173,7 @@ def json_pretty(json_data, sort_keys: bool = False):
 
         return data
 
-    return json.dumps(_json_pretty(json_data), indent=4, sort_keys=sort_keys)
+    return json.dumps(_json_pretty(json_data), indent=4, sort_keys=sort_keys, default=str)
 
 
 # converts 1100000000000000000 wei -> 1.1 ETH

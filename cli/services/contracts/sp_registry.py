@@ -96,6 +96,43 @@ class SPRegistryOfferView:
         )
 
 
+#  @notice Payment row for an offer and ERC20 token
+#  @param token ERC20 token address
+#  @param active True when this token row can be selected
+#  @param pricePer32GiBPerMonth Monthly price per 32 GiB in token smallest units
+@utils.json_dataclass()
+class SPRegistryOfferPaymentInput:
+    token: EthAddress
+    active: bool
+    price_per_32_gib_per_month: int
+
+    def __post_init__(self):
+        self.token = EthAddress(self.token)
+
+    @staticmethod
+    def from_web3(data) -> "SPRegistryOfferPaymentInput":
+        if data[0] is None:
+            raise RuntimeError("Offer payment input not found")
+
+        # noinspection PyArgumentList
+        return SPRegistryOfferPaymentInput(
+            token=EthAddress(data[0]),
+            active=bool(data[1]),
+            price_per_32_gib_per_month=int(data[2])
+        )
+
+
+@utils.json_dataclass()
+class SPRegistryOfferInput:
+    provider_id: ActorId
+    terms: SPRegistryOfferTerms
+    slis: PoRepMarketSLIThresholds
+    payments: list[SPRegistryOfferPaymentInput]
+
+    def __post_init__(self):
+        self.provider_id = ActorId(self.provider_id)
+
+
 @utils.json_dataclass()
 class SPRegistryProviderInput:
     provider_id: ActorId  # f0-id of the SP in Filecoin network
@@ -144,43 +181,6 @@ class SPRegistryProviderView(SPRegistryProviderInput):
             committed_bytes=int(data[6]),
             pending_bytes=int(data[7]),
         )
-
-
-#  @notice Payment row for an offer and ERC20 token
-#  @param token ERC20 token address
-#  @param active True when this token row can be selected
-#  @param pricePer32GiBPerMonth Monthly price per 32 GiB in token smallest units
-@utils.json_dataclass()
-class SPRegistryOfferPaymentInput:
-    token: EthAddress
-    active: bool
-    price_per_32_gib_per_month: int
-
-    def __post_init__(self):
-        self.token = EthAddress(self.token)
-
-    @staticmethod
-    def from_web3(data) -> "SPRegistryOfferPaymentInput":
-        if data[0] is None:
-            raise RuntimeError("Offer payment input not found")
-
-        # noinspection PyArgumentList
-        return SPRegistryOfferPaymentInput(
-            token=EthAddress(data[0]),
-            active=bool(data[1]),
-            price_per_32_gib_per_month=int(data[2])
-        )
-
-
-@utils.json_dataclass()
-class SPRegistryOfferInput:
-    provider_id: ActorId
-    terms: SPRegistryOfferTerms
-    slis: PoRepMarketSLIThresholds
-    payments: list[SPRegistryOfferPaymentInput]
-
-    def __post_init__(self):
-        self.provider_id = ActorId(self.provider_id)
 
 
 # @notice Selected offer snapshot returned by SPRegistry
@@ -359,10 +359,7 @@ class SPRegistry(ContractService):
     # @param slis Immutable promised SLIs.
     # @param payments Initial payment rows.
     # @return offerId Created offer ID.
-    def create_offer(self,
-                     offer: SPRegistryOfferInput,
-                     signer: TxSigner) -> str:
-        #
+    def create_offer(self, offer: SPRegistryOfferInput, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.createOffer(
                 offer.provider_id,
