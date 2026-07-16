@@ -11,7 +11,7 @@ from cli.services.web3_service import EthAddress, ActorId
 @utils.json_dataclass()
 class PoRepMarketSLIThresholds:
     retrievability_bps: int  # Valid range: 0-10000 (basis points, e.g. 7550 = 75.50%). 0 means "don't care"
-    bandwidth_bytes_per_second: int  # Capped at ~64 Gbps
+    bandwidth_bytes_per_second: int
     latency_ms: int
     indexing_pct: int  # Valid range: 0-100. 0 means "don't care"
 

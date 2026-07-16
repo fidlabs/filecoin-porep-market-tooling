@@ -11,8 +11,6 @@ from cli.services.web3_service import ActorId
               help="SPRegistry database connection string.")
 @click.option("--show-all", is_flag=True, default=False,
               help="Whether to return SPs from all organizations or only from those eligible for registration.  [default: false]")
-@click.option("--indexing-pct", type=click.IntRange(0, 100), default=0, show_default=True,
-              help="IPNI indexing guarantee in percentage to return; 0 means \"don't support\".")
 @click.option("--miner-id", required=False,
               help="SPRegistry database miner_id (PoRep Market SP ID) to return.")
 @click.option("--organization-address", required=False,
@@ -20,7 +18,6 @@ from cli.services.web3_service import ActorId
 def get_db_sps(db_url: str,
                show_all: bool = False,
                db_id: int | None = None,
-               indexing_pct: int = 0,
                miner_id: str | None = None,
                organization_address: str | None = None):
     """
@@ -33,9 +30,47 @@ def get_db_sps(db_url: str,
         admin_utils.get_db_sps(
             db_url,
             kyc_status="approved" if (not show_all and not db_id) else None,
-            organization_id=db_id,
-            indexing_pct=indexing_pct,
+            organization_db_id=db_id,
             miner_id=ActorId(miner_id) if miner_id else None,
             organization_address=organization_address,
         )
     ))
+
+
+@click.command()
+@click.argument("db_id", type=click.IntRange(min=0), required=False)
+@click.option("--db-url", envvar="SP_REGISTRY_DATABASE_URL", show_envvar=True, required=True,
+              help="SPRegistry database connection string.")
+@click.option("--show-all", is_flag=True, default=False,
+              help="Whether to return SPs from all organizations or only from those eligible for registration.  [default: false]")
+@click.option("--miner-id", required=False,
+              help="SPRegistry database miner_id (PoRep Market SP ID) to return.")
+@click.option("--organization-address", required=False,
+              help="SPRegistry database organization_address to return.")
+def get_db_offers(db_url: str,
+                  show_all: bool = False,
+                  db_id: int | None = None,
+                  miner_id: str | None = None,
+                  organization_address: str | None = None):
+    """
+    Get SP offers from SPRegistry database.
+    """
+
+    click.echo(utils.json_pretty(
+        admin_utils.get_db_offers(
+            db_url,
+            kyc_status="approved" if (not show_all and not db_id) else None,
+            organization_db_id=db_id,
+            miner_id=ActorId(miner_id) if miner_id else None,
+            organization_address=organization_address, )
+    ))
+
+
+@click.command(hidden=True)
+def get_devnet_sps():
+    click.echo(utils.json_pretty(admin_utils.get_devnet_sps()))
+
+
+@click.command(hidden=True)
+def get_devnet_offers():
+    click.echo(utils.json_pretty(admin_utils.get_devnet_offers()))
