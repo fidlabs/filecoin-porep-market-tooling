@@ -17,5 +17,5 @@ def get_registered_info(provider_id: str | None = None):
 
     click.echo(utils.json_pretty(
         [SPRegistry().get_provider_view(ActorId(provider_id))] if provider_id else
-        SPRegistry().get_providers_info_by_organization(sp_organization_address())
+        SPRegistry().get_providers_views_by_organization(sp_organization_address())
     ))
