@@ -206,6 +206,15 @@ def get_db_offers(db_url: str,
                 f"Cannot return SPs from this organization")
             continue
 
+        try:
+            payments = [payment_type_to_payment_input(payment_type, offer.price_per_tib_usd) for payment_type in offer.payment_types]
+        except ValueError as e:
+            # e.g. a payment type whose token is not deployed on the connected network (devnet)
+            utils.confirm_ok(f"Organization {offer.organization_address} [db_id {offer.org_id}] "
+                             f"has an unsupported payment configuration: {e}\n"
+                             f"Cannot return offers from this SLA Class")
+            continue
+
         for offer_miner_id in offer.miner_ids:
             # noinspection PyArgumentList
             result.append(SPRegistryOfferInput(
@@ -217,7 +226,7 @@ def get_db_offers(db_url: str,
                     max_duration_epochs=max_deal_duration_epochs
                 ),
                 slis=sla_class_to_sli_thresholds(offer.sla_class),
-                payments=[payment_type_to_payment_input(payment_type, offer.price_per_tib_usd) for payment_type in offer.payment_types]
+                payments=payments
             ))
 
     return result
@@ -245,7 +254,14 @@ def get_db_sps(db_url: str,
                 continue
 
         if FilAddress.is_filecoin_address(org.organization_address):
-            organization_address = EthAddress.from_filecoin_address(org.organization_address)
+            try:
+                organization_address = EthAddress.from_filecoin_address(org.organization_address)
+            except RuntimeError as e:
+                # e.g. a mainnet f-address that is not instantiated on the connected network (devnet)
+                utils.confirm_ok(f"Cannot convert organization {org.organization_address} [db_id {org.org_id}] Filecoin f-address "
+                                 f"to EVM 0x-address on this network: {e}\n"
+                                 f"Cannot return SPs from this organization")
+                continue
 
             if not utils.confirm(f"Converted organization {org.organization_address} [db_id {org.org_id}] Filecoin f-address "
                                  f"to EVM 0x-address {organization_address}. "

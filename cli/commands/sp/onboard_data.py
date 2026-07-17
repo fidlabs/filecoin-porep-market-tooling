@@ -10,8 +10,7 @@ import humanfriendly
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.services.contracts.porep_market import PoRepMarket
-from cli.services.contracts.types.deal import PoRepMarketDealState
+from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
 
 
 def _get_aria2c_path() -> str:

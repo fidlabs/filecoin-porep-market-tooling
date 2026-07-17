@@ -182,7 +182,7 @@ def _initialize_rail(deal_id: int):
 
     utils.confirm(f"\nInitialize FileCoinPay rail for deal ID {deal.deal_id}?", default=True, abort=True)
 
-    tx_hash = FileCoinPayValidator(deal.validator_address).create_rail(payment_token, client_signer())
+    tx_hash = FileCoinPayValidator(deal.validator_address).create_rail(client_signer())
 
     click.echo(f"FileCoinPay rail initialized for deal ID {deal.deal_id}: {tx_hash}")
 

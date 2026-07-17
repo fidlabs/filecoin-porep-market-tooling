@@ -217,6 +217,11 @@ def fetch_local_manifest(manifest_path: Path, quiet=False) -> list[dict]:
     return _validate_manifest(manifest, quiet)
 
 
+def _private_manifest_urls_allowed() -> bool:
+    value = utils.get_env("ALLOW_PRIVATE_MANIFEST_URLS", default="false")
+    return str(value).strip().lower() in ("true", "1", "yes")
+
+
 def validate_and_parse_url(manifest_url: str) -> ParseResult:
     parsed = urlparse(manifest_url)
 
@@ -226,12 +231,14 @@ def validate_and_parse_url(manifest_url: str) -> ParseResult:
     if parsed.scheme not in ("http", "https"):
         raise click.ClickException("Manifest URL must use http/https")
 
-    # noinspection PyTypeChecker
-    ip = socket.gethostbyname(parsed.hostname)
-    addr = ipaddress.ip_address(ip)
+    # SSRF guard; ALLOW_PRIVATE_MANIFEST_URLS=true disables it for local devnets
+    if not _private_manifest_urls_allowed():
+        # noinspection PyTypeChecker
+        ip = socket.gethostbyname(parsed.hostname)
+        addr = ipaddress.ip_address(ip)
 
-    if addr.is_private or addr.is_loopback or addr.is_reserved or addr.is_link_local or addr.is_multicast:
-        raise click.ClickException(f"Manifest URL resolves to a disallowed IP address: {ip}")
+        if addr.is_private or addr.is_loopback or addr.is_reserved or addr.is_link_local or addr.is_multicast:
+            raise click.ClickException(f"Manifest URL resolves to a disallowed IP address: {ip}")
 
     return parsed
 
@@ -344,12 +351,21 @@ def get_filecoinpay_account(token_address: str, owner_address: EthAddress):
 
 
 def reject_deal(deal: PoRepMarketDealView, signer: TxSigner, confirm_session_id: str | None = None) -> str:
-    if deal.deal.state != PoRepMarketDealState.PROPOSED:
-        raise click.ClickException(f"Deal ID {deal.deal.deal_id} is in state {deal.deal.state} != PROPOSED")
+    # deals are created directly in ACCEPTED state (offer match == acceptance);
+    # they can be rejected while no FileCoinPay rail is set yet. PROPOSED is kept
+    # for deals predating the auto-accept contract.
+    if deal.deal.state not in (PoRepMarketDealState.PROPOSED, PoRepMarketDealState.ACCEPTED):
+        raise click.ClickException(f"Deal ID {deal.deal.deal_id} is in state {deal.deal.state} != PROPOSED/ACCEPTED")
+
+    if deal.deal.state == PoRepMarketDealState.ACCEPTED and deal.deal.rail_id:
+        raise click.ClickException(f"Deal ID {deal.deal.deal_id} already has FileCoinPay rail {deal.deal.rail_id} set and cannot be rejected")
 
     utils.confirm(f"Rejecting deal ID {deal.deal.deal_id}: {deal}", default=True, abort=True, session_id=confirm_session_id)
 
-    tx_hash = PoRepMarket().reject_deal(deal.deal.deal_id, signer)
+    if deal.deal.state == PoRepMarketDealState.ACCEPTED:
+        tx_hash = PoRepMarket().reject_accepted_deal(deal.deal.deal_id, signer)
+    else:
+        tx_hash = PoRepMarket().reject_deal(deal.deal.deal_id, signer)
     click.echo(f"Deal ID {deal.deal.deal_id} rejected: {tx_hash}")
 
     return tx_hash
