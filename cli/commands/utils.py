@@ -218,8 +218,7 @@ def fetch_local_manifest(manifest_path: Path, quiet=False) -> list[dict]:
 
 
 def _private_manifest_urls_allowed() -> bool:
-    value = utils.get_env("ALLOW_PRIVATE_MANIFEST_URLS", default="false")
-    return str(value).strip().lower() in ("true", "1", "yes")
+    return utils.string_to_bool(utils.get_env("ALLOW_PRIVATE_MANIFEST_URLS", default="false")) or False
 
 
 def validate_and_parse_url(manifest_url: str) -> ParseResult:

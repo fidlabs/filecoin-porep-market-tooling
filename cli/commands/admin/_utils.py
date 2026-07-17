@@ -167,7 +167,7 @@ def get_db_offers(db_url: str,
         if offer.kyc_status.strip().lower() != "approved":
             if not utils.confirm(
                     f"Organization {offer.organization_address} [db_id {offer.org_id}] has kyc_status {offer.kyc_status}, which is != approved. "
-                    f"Return SPs from this organization?",
+                    f"Return offers from this organization?",
                     default=bool(organization_db_id)):
                 continue
 
@@ -178,7 +178,7 @@ def get_db_offers(db_url: str,
                     f"Organization {offer.organization_address} [db_id {offer.org_id}] has min deal duration "
                     f"of {months_to_days(offer.deal_duration_min_months)} days which is below the SPRegistry contract minimum "
                     f"of {MIN_DEAL_DURATION_DAYS_LIMIT} days. It will be increased to this value. "
-                    f"Return SPs from this organization?",
+                    f"Return offers from this organization?",
                     default=True,
                     session_id="get-db-offers"):
                 continue
@@ -192,7 +192,7 @@ def get_db_offers(db_url: str,
                     f"Organization {offer.organization_address} [db_id {offer.org_id}] has max deal duration "
                     f"of {months_to_days(offer.deal_duration_max_months)} days which exceeds the SPRegistry contract limit "
                     f"of {MAX_DEAL_DURATION_DAYS_LIMIT} days. It will be truncated to this value. "
-                    f"Return SPs from this organization?",
+                    f"Return offers from this organization?",
                     default=True,
                     session_id="get-db-offers"):
                 continue
@@ -203,16 +203,16 @@ def get_db_offers(db_url: str,
             utils.confirm_ok(
                 f"Organization {offer.organization_address} [db_id {offer.org_id}] has min deal duration of {min_deal_duration_epochs} epochs, "
                 f"which exceeds the max deal duration of {max_deal_duration_epochs} epochs. "
-                f"Cannot return SPs from this organization")
+                f"Cannot return offers from this organization")
             continue
 
         try:
             payments = [payment_type_to_payment_input(payment_type, offer.price_per_tib_usd) for payment_type in offer.payment_types]
         except ValueError as e:
-            # e.g. a payment type whose token is not deployed on the connected network (devnet)
-            utils.confirm_ok(f"Organization {offer.organization_address} [db_id {offer.org_id}] "
-                             f"has an unsupported payment configuration: {e}\n"
-                             f"Cannot return offers from this SLA Class")
+            utils.confirm_ok(
+                f"Organization {offer.organization_address} [db_id {offer.org_id}] "
+                f"has an unsupported payment configuration: {e}\n"
+                f"Cannot return offers from this organization")
             continue
 
         for offer_miner_id in offer.miner_ids:
@@ -258,16 +258,18 @@ def get_db_sps(db_url: str,
                 organization_address = EthAddress.from_filecoin_address(org.organization_address)
             except RuntimeError as e:
                 # e.g. a mainnet f-address that is not instantiated on the connected network (devnet)
-                utils.confirm_ok(f"Cannot convert organization {org.organization_address} [db_id {org.org_id}] Filecoin f-address "
-                                 f"to EVM 0x-address on this network: {e}\n"
-                                 f"Cannot return SPs from this organization")
+                utils.confirm_ok(
+                    f"Cannot convert organization {org.organization_address} [db_id {org.org_id}] Filecoin f-address "
+                    f"to EVM 0x-address on this network: {e}\n"
+                    f"Cannot return SPs from this organization")
                 continue
 
-            if not utils.confirm(f"Converted organization {org.organization_address} [db_id {org.org_id}] Filecoin f-address "
-                                 f"to EVM 0x-address {organization_address}. "
-                                 f"Return SPs from this organization?",
-                                 default=True,
-                                 session_id="get-db-sps"):
+            if not utils.confirm(
+                    f"Converted organization {org.organization_address} [db_id {org.org_id}] Filecoin f-address "
+                    f"to EVM 0x-address {organization_address}. "
+                    f"Return SPs from this organization?",
+                    default=True,
+                    session_id="get-db-sps"):
                 continue
         else:
             organization_address = org.organization_address

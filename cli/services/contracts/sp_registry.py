@@ -263,10 +263,15 @@ class SPRegistry(ContractService):
     # @notice Returns all registered provider actor IDs.
     # @return Array of provider actor IDs.
     def get_providers(self) -> list[ActorId]:
-        return [ActorId(pid) for pid in self.contract.functions.getProviders().call()]
+        return [ActorId(provider_id) for provider_id in self.contract.functions.getProviders().call()]
 
     def get_providers_views(self) -> list[SPRegistryProviderView]:
         return [self.get_provider_view(provider_id) for provider_id in self.get_providers()]
+
+    # @notice Returns provider views owned by the given organization
+    # @dev The contract has no by-organization getter; filters all providers client-side
+    def get_providers_views_by_organization(self, organization_address: EthAddress) -> list[SPRegistryProviderView]:
+        return [provider for provider in self.get_providers_views() if provider.organization_address == organization_address]
 
     # @notice Returns current provider registration and capacity data.
     # @param provider Provider actor ID.

@@ -92,7 +92,7 @@ class PoRepMarketDealState(enum.Enum):
 
     @staticmethod
     def from_web3(s: str | int | None) -> "PoRepMarketDealState":
-        if not s:
+        if s is None or s == "":
             raise ValueError("Deal state string cannot be None")
 
         s = str(s).strip().lower()
@@ -370,8 +370,9 @@ class PoRepMarket(ContractService):
     # @param limit Maximum number of deal views to return.
     # @return dealViews Page of complete generic deal snapshots.
     # @return total Total number of created deal IDs at call time.
-    def get_deal_views(self, offset: int, limit: int) -> list[PoRepMarketDealView]:
-        return [PoRepMarketDealView.from_web3(view) for view in self.contract.functions.getDealViews(offset, limit).call()]
+    def get_deal_views(self, offset: int, limit: int) -> tuple[list[PoRepMarketDealView], int]:
+        views, total = self.contract.functions.getDealViews(offset, limit).call()
+        return [PoRepMarketDealView.from_web3(view) for view in views], total
 
     # @notice Gets the number of deals created by PoRepMarket.
     # @dev Offchain tools and oracle jobs use this to size full scans and detect
@@ -471,6 +472,15 @@ class PoRepMarket(ContractService):
     # @notice Size of a single Filecoin sector in bytes (32 GiB)
     def get_sector_size_bytes(self) -> int:
         return self.contract.functions.SECTOR_SIZE().call()
+
+    # @notice Gets the deal activation padding (in percent)
+    def get_deal_activation_padding(self) -> int:
+        return self.contract.functions.getDealActivationPadding().call()
+
+    # @notice Sets the deal activation padding (in percent)
+    # @dev Only callable by the admin
+    def set_deal_activation_padding(self, padding: int, signer: TxSigner) -> str:
+        return self.sign_and_send_tx(self.contract.functions.setDealActivationPadding(padding), signer)
 
     # @notice Gets the SPRegistry contract address from storage
     # @return ISPRegistry The SPRegistry contract address
