@@ -16,7 +16,7 @@ from cli.services.web3_service import Web3Service, EthAddress
 MBPS_TO_BYTES_PER_SECOND = 125_000  # 1 Mbps = 10^6 bits/s / 8 = 125 000 bytes/s
 
 
-# TODO confirm manifest hash algorithm with the porep-market team (contract stores it as an opaque commitment for the piece set)
+# TODO ASAP confirm manifest hash algorithm with the porep-market team (contract stores it as an opaque commitment for the piece set)
 def _compute_manifest_hash(manifest: list[dict]) -> bytes:
     canonical_manifest = json.dumps(manifest, sort_keys=True, separators=(",", ":"))
     return bytes(Web3.keccak(text=canonical_manifest))

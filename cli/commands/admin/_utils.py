@@ -82,7 +82,7 @@ def get_db_offers(db_url: str,
             return PoRepMarketSLIThresholds(
                 retrievability_bps=8000,  # 80 %
                 bandwidth_bytes_per_second=322122547,  # 300 MiB per second
-                latency_ms=0,  # TODO
+                latency_ms=0,  # TODO ASAP
                 indexing_pct=100
             )
 
@@ -91,12 +91,12 @@ def get_db_offers(db_url: str,
             return PoRepMarketSLIThresholds(
                 retrievability_bps=10000,  # 100 %
                 bandwidth_bytes_per_second=1073741824,  # 1 GiB per second
-                latency_ms=0,  # TODO
+                latency_ms=0,  # TODO ASAP
                 indexing_pct=100
             )
 
         elif sla_class == "archival":
-            # TODO
+            # TODO ASAP
             # noinspection PyArgumentList
             return PoRepMarketSLIThresholds(
                 retrievability_bps=0,  # 0 %
@@ -106,7 +106,7 @@ def get_db_offers(db_url: str,
             )
 
         if sla_class == "accessible_backup":
-            # TODO
+            # TODO ASAP
             # noinspection PyArgumentList
             return PoRepMarketSLIThresholds(
                 retrievability_bps=0,  # 0 %
@@ -160,7 +160,7 @@ def get_db_offers(db_url: str,
 
     for offer in offers:
         if offer.specific_miner_id:
-            # TODO support SLA Class with specific miner_id
+            # TODO ASAP support SLA Class with specific miner_id
             utils.confirm_ok("SLA Class with non-null specific_miner_id is not supported yet. Cannot return offers from this SLA Class.")
             continue
 
