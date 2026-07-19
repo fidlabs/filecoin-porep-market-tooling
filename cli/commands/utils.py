@@ -14,7 +14,7 @@ from cli._cli import is_dry_run
 from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceAdapter
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.filecoin_pay import FileCoinPay
-from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarket, PoRepMarketDeal, PoRepMarketDealView
+from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarket, PoRepMarketDeal
 from cli.services.contracts.sp_registry import SPRegistry
 from cli.services.contracts.validator_factory import ValidatorFactory
 from cli.services.txsigner import TxSigner
@@ -76,12 +76,8 @@ def get_sp_deals(state: PoRepMarketDealState | None = None,
     return result
 
 
-def get_deal_evidence_adapter(deal: PoRepMarketDeal) -> DataCapEvidenceAdapter:
-    return DataCapEvidenceAdapter(deal.evidence_adapter_address)
-
-
 def get_deal_allocation_ids(deal: PoRepMarketDeal) -> list[int]:
-    adapter = get_deal_evidence_adapter(deal)
+    adapter = DataCapEvidenceAdapter(deal.evidence_adapter_address)
 
     ids: list[int] = []
     offset = 0
@@ -95,7 +91,7 @@ def get_deal_allocation_ids(deal: PoRepMarketDeal) -> list[int]:
 
 
 def get_deal_claim_ids(deal: PoRepMarketDeal) -> list[int]:
-    adapter = get_deal_evidence_adapter(deal)
+    adapter = DataCapEvidenceAdapter(deal.evidence_adapter_address)
 
     ids: list[int] = []
     offset = 0
@@ -111,14 +107,14 @@ def get_deal_claim_ids(deal: PoRepMarketDeal) -> list[int]:
 def get_deal_allocations(deal: PoRepMarketDeal) -> dict[str, dict]:
     deal_allocations = get_deal_allocation_ids(deal)
 
-    allocations = Web3Service().state_get_allocations(get_deal_evidence_adapter(deal).address().to_actor_id())
+    allocations = Web3Service().state_get_allocations(deal.evidence_adapter_address.to_actor_id())
     return {allocation_id: allocation for allocation_id, allocation in allocations.items() if int(allocation_id) in deal_allocations}
 
 
 def get_deal_claims(deal: PoRepMarketDeal) -> dict[str, dict]:
     deal_allocations = get_deal_allocation_ids(deal)
 
-    claims = Web3Service().state_get_claims(deal.provider_id, get_deal_evidence_adapter(deal).address().to_actor_id())
+    claims = Web3Service().state_get_claims(deal.provider_id, deal.evidence_adapter_address.to_actor_id())
     return {claim_id: claim for claim_id, claim in claims.items() if int(claim_id) in deal_allocations}
 
 
@@ -349,22 +345,22 @@ def get_filecoinpay_account(token_address: str, owner_address: EthAddress):
     }
 
 
-def reject_deal(deal: PoRepMarketDealView, signer: TxSigner, confirm_session_id: str | None = None) -> str:
+def reject_deal(deal: PoRepMarketDeal, signer: TxSigner, confirm_session_id: str | None = None) -> str:
     # deals are created directly in ACCEPTED state (offer match == acceptance);
     # they can be rejected while no FileCoinPay rail is set yet. PROPOSED is kept
     # for deals predating the auto-accept contract.
-    if deal.deal.state not in (PoRepMarketDealState.PROPOSED, PoRepMarketDealState.ACCEPTED):
-        raise click.ClickException(f"Deal ID {deal.deal.deal_id} is in state {deal.deal.state} != PROPOSED/ACCEPTED")
+    if deal.state not in (PoRepMarketDealState.PROPOSED, PoRepMarketDealState.ACCEPTED):
+        raise click.ClickException(f"Deal ID {deal.deal_id} is in state {deal.state} != PROPOSED/ACCEPTED")
 
-    if deal.deal.state == PoRepMarketDealState.ACCEPTED and deal.deal.rail_id:
-        raise click.ClickException(f"Deal ID {deal.deal.deal_id} already has FileCoinPay rail {deal.deal.rail_id} set and cannot be rejected")
+    if deal.state == PoRepMarketDealState.ACCEPTED and deal.rail_id:
+        raise click.ClickException(f"Deal ID {deal.deal_id} already has FileCoinPay rail {deal.rail_id} set and cannot be rejected")
 
-    utils.confirm(f"Rejecting deal ID {deal.deal.deal_id}: {deal}", default=True, abort=True, session_id=confirm_session_id)
+    utils.confirm(f"Rejecting deal ID {deal.deal_id}: {deal}", default=True, abort=True, session_id=confirm_session_id)
 
-    if deal.deal.state == PoRepMarketDealState.ACCEPTED:
-        tx_hash = PoRepMarket().reject_accepted_deal(deal.deal.deal_id, signer)
+    if deal.state == PoRepMarketDealState.ACCEPTED:
+        tx_hash = PoRepMarket().reject_accepted_deal(deal.deal_id, signer)
     else:
-        tx_hash = PoRepMarket().reject_deal(deal.deal.deal_id, signer)
-    click.echo(f"Deal ID {deal.deal.deal_id} rejected: {tx_hash}")
+        tx_hash = PoRepMarket().reject_deal(deal.deal_id, signer)
+    click.echo(f"Deal ID {deal.deal_id} rejected: {tx_hash}")
 
     return tx_hash

@@ -139,7 +139,7 @@ def confirm_str(text: str,
 
 # equivalent to "press enter to continue"
 def confirm_ok(prompt: str):
-    _ = confirm_str(f"{prompt} [OK]", default="OK", prompt_suffix=" ")
+    _ = confirm_str(f"{prompt} [Press enter to continue]", default="OK", prompt_suffix=" ")
 
 
 def json_dataclass(eq=True, init=True, **d_kwargs):
