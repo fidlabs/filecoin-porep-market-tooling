@@ -106,7 +106,7 @@ def _write_manifest_file(manifest: list[dict], output_dir: Path, deal_id: int) -
 @click.option("--claim-allocations", type=click.Choice(["curio", "boost"], case_sensitive=False),
               help="Claim allocation(s) for each piece right after download using specified software.  [default: none]")
 @click.pass_context
-# TODO add commP files verification after download
+# TODO LATER add commP files verification after download
 def onboard_data(ctx,
                  deal_id: int,
                  output_dir: str,

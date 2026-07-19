@@ -35,7 +35,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
     4. IMPORTANT: finish DataCap posting to allow SP to submit the proof and receive payment.
     """
 
-    # TODO improve click.echo here
+    # TODO LATER improve click.echo here
     Web3Service().wait_for_pending_transactions(client_address())
     deal = PoRepMarket().get_deal_view(deal_id)
 

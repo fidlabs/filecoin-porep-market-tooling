@@ -151,7 +151,7 @@ def __update_offer_params(offer: SPRegistryOfferInput,
 def _register_offers(offers: list[SPRegistryOfferInput]):
     Web3Service().wait_for_pending_transactions(admin_address())
 
-    # TODO support offer update
+    # TODO ASAP support offer update
     utils.confirm_ok("Current version of CLI / Smart Contracts does not support updating existing offers. "
                      "Each offer in the SP Registry DB will be considered new. "
                      "Please double-check each offer before sumitting it on-chain.")
