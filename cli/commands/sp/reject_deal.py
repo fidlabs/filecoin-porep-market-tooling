@@ -18,4 +18,4 @@ def reject_deal(deal_id: int):
 
     Web3Service().wait_for_pending_transactions(sp_address())
 
-    commands_utils.reject_deal(PoRepMarket().get_deal_view(deal_id), sp_signer())
+    commands_utils.reject_deal(PoRepMarket().get_deal_view(deal_id).deal, sp_signer())

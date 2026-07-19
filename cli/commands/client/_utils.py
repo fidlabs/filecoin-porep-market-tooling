@@ -127,10 +127,10 @@ def deposit_to_filecoinpay(deposit_amount: int, token: USDCToken):
 
 
 def check_allocations_size(deal_id: int):
-    deal_view = PoRepMarket().get_deal_view(deal_id)
-    final_allocation_size = DataCapEvidenceAdapter(deal_view.deal.evidence_adapter_address).get_allocated_bytes(deal_id)
+    deal = PoRepMarket().get_deal_view(deal_id)
+    final_allocation_size = DataCapEvidenceAdapter(deal.deal.evidence_adapter_address).get_allocated_bytes(deal_id)
     padding = PoRepMarket().get_deal_activation_padding()
-    proposed_size = deal_view.terms.requested_size_bytes
+    proposed_size = deal.terms.requested_size_bytes
     delta = abs(final_allocation_size - proposed_size)
 
     if delta * 100 > proposed_size * padding:

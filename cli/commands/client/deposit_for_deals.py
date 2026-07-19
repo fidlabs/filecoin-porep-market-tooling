@@ -28,29 +28,29 @@ def deposit_for_deals(deal_id: int | None = None, months: int = 1):
     Web3Service().wait_for_pending_transactions(client_address())
 
     if deal_id is not None:
-        deal_view = PoRepMarket().get_deal_view(deal_id)
+        deal = PoRepMarket().get_deal_view(deal_id)
 
-        if deal_view.deal.client_address != client_address():
-            raise click.ClickException(f"Deal ID {deal_id} client address {deal_view.deal.client_address} "
+        if deal.deal.client_address != client_address():
+            raise click.ClickException(f"Deal ID {deal_id} client address {deal.deal.client_address} "
                                        f"does not match with connected client address {client_address()}")
 
-        click.echo(f"Depositing for deal {deal_view}\n")
+        click.echo(f"Depositing for deal {deal}\n")
 
-        if deal_view.deal.state == PoRepMarketDealState.ACCEPTED:
-            if deal_view.deal.rail_id == 0 or not deal_view.deal.validator_address:
+        if deal.deal.state == PoRepMarketDealState.ACCEPTED:
+            if deal.deal.rail_id == 0 or not deal.deal.validator_address:
                 raise click.ClickException(f"Deal not initialized; run {sys.argv[0]} client init-accepted-deals {deal_id} first")
 
             else:
                 utils.confirm(f"Deal ID {deal_id} is in ACCEPTED state; "
                               f"you might want to run {sys.argv[0]} client make-allocations {deal_id} first. Continue anyway?", abort=True)
 
-        elif deal_view.deal.state in [PoRepMarketDealState.REJECTED, PoRepMarketDealState.TERMINATED, PoRepMarketDealState.EXPIRED]:
+        elif deal.deal.state in [PoRepMarketDealState.REJECTED, PoRepMarketDealState.TERMINATED, PoRepMarketDealState.EXPIRED]:
             raise click.ClickException("Cannot deposit for REJECTED, TERMINATED or EXPIRED deals")
 
-        elif deal_view.deal.state != PoRepMarketDealState.ACTIVE:
-            utils.confirm(f"Deal ID {deal_id} is in state {deal_view.deal.state} != ACTIVE. Continue anyway?", abort=True)
+        elif deal.deal.state != PoRepMarketDealState.ACTIVE:
+            utils.confirm(f"Deal ID {deal_id} is in state {deal.deal.state} != ACTIVE. Continue anyway?", abort=True)
 
-        deal_views = [deal_view]
+        deal_views = [deal]
     else:
         deals = [deal for deal in commands_utils.get_client_deals(client_address())
                  if deal.state in (PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE)]

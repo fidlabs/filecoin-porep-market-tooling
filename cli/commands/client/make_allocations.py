@@ -3,7 +3,6 @@ from pathlib import Path
 import cbor2
 import click
 import multibase
-from cli.services.contracts.porep_market import PoRepMarketDealState
 
 from cli import utils
 from cli.commands import utils as commands_utils
@@ -11,6 +10,7 @@ from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address, client_signer
 from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceAdapter, DataCapTransferParams
 from cli.services.contracts.porep_market import PoRepMarket
+from cli.services.contracts.porep_market import PoRepMarketDealState
 from cli.services.web3_service import Web3Service, ActorId
 
 
@@ -37,26 +37,24 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
 
     # TODO improve click.echo here
     Web3Service().wait_for_pending_transactions(client_address())
+    deal = PoRepMarket().get_deal_view(deal_id)
 
-    deal_view = PoRepMarket().get_deal_view(deal_id)
-    deal = deal_view.deal
+    if deal.deal.state != PoRepMarketDealState.ACCEPTED:
+        raise click.ClickException(f"Deal ID {deal_id} is in state {deal.deal.state} != ACCEPTED")
 
-    if deal.state != PoRepMarketDealState.ACCEPTED:
-        raise click.ClickException(f"Deal ID {deal_id} is in state {deal.state} != ACCEPTED")
-
-    if deal.rail_id == 0:
+    if deal.deal.rail_id == 0:
         raise click.ClickException(f"Deal ID {deal_id} does not have a FileCoinPay rail set")
 
-    if not deal.validator_address:
+    if not deal.deal.validator_address:
         raise click.ClickException(f"Deal ID {deal_id} does not have a validator set")
 
-    evidence_adapter = DataCapEvidenceAdapter(deal.evidence_adapter_address)
+    evidence_adapter = DataCapEvidenceAdapter(deal.deal.evidence_adapter_address)
 
     if evidence_adapter.is_data_cap_posting_finished(deal_id):
         raise click.ClickException(f"DataCap posting for deal ID {deal_id} is already finished; no more allocations can be made")
 
-    deal_allocations = commands_utils.get_deal_allocations(deal)
-    deal_claims = commands_utils.get_deal_claims(deal)
+    deal_allocations = commands_utils.get_deal_allocations(deal.deal)
+    deal_claims = commands_utils.get_deal_claims(deal.deal)
 
     click.echo(f"Found {len(deal_allocations)} allocations already made and {len(deal_claims)} claims for deal ID {deal_id}")
 
@@ -66,7 +64,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
     if local_manifest:
         manifest = commands_utils.fetch_local_manifest(Path(local_manifest).resolve())
     else:
-        manifest = commands_utils.fetch_manifest(deal_view.data.manifest_location, show_manifest=False)
+        manifest = commands_utils.fetch_manifest(deal.data.manifest_location, show_manifest=False)
 
     pieces = manifest[0]["pieces"]
 
@@ -86,7 +84,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
     EPOCHS_IN_DAY = EPOCHS_IN_MONTH // 30  # PoRep Market smart contracts assumes month == 30 days
     assert EPOCHS_IN_DAY * 30 == EPOCHS_IN_MONTH
 
-    term_min = deal_view.terms.duration_epochs
+    term_min = deal.terms.duration_epochs
     term_max = term_min + 40 * EPOCHS_IN_DAY  # + 40 days
 
     for batch_idx, batch in enumerate(batches):
@@ -102,7 +100,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
             click.echo(f"  {utils.json_pretty(data)}")
 
         operator_data = _build_operator_data_batch(
-            provider_id=deal.provider_id,
+            provider_id=deal.deal.provider_id,
             batch=batch,
             term_min=term_min,
             term_max=term_max,
@@ -130,10 +128,10 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
 
             allocation_size = evidence_adapter.get_allocated_bytes(deal_id)
             click.echo(f"Batch {current_batch_number} done.")
-            click.echo(f"Allocated size ({allocation_size}/{deal_view.terms.requested_size_bytes})")
+            click.echo(f"Allocated size ({allocation_size}/{deal.terms.requested_size_bytes})")
 
     if not print_only:
-        client_utils.finish_data_cap_posting(deal)
+        client_utils.finish_data_cap_posting(deal.deal)
 
     click.echo("\nAll done!")
 
