@@ -114,10 +114,10 @@ def get_deal_allocations(deal: PoRepMarketDeal) -> dict[str, dict]:
 
 
 def get_deal_claims(deal: PoRepMarketDeal) -> dict[str, dict]:
-    deal_allocations = get_deal_allocation_ids(deal)
+    deal_claims = get_deal_claim_ids(deal)
 
     claims = Web3Service().state_get_claims(deal.provider_id, deal.evidence_adapter_address.to_actor_id())
-    return {claim_id: claim for claim_id, claim in claims.items() if int(claim_id) in deal_allocations}
+    return {claim_id: claim for claim_id, claim in claims.items() if int(claim_id) in deal_claims}
 
 
 # pylint: disable=broad-exception-caught
