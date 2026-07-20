@@ -25,8 +25,8 @@ class DataCapEvidenceType(enum.Enum):
 
     @staticmethod
     def from_web3(s: str | int | None) -> "DataCapEvidenceType":
-        if not s:
-            raise ValueError("Evidence type not found")
+        if s is None or s == "":
+            raise ValueError(f"Invalid evidence type: {s}")
 
         s = str(s).strip().lower()
 
@@ -58,8 +58,8 @@ class DataCapAllocationStatus(enum.Enum):
 
     @staticmethod
     def from_web3(s: str | int | None) -> "DataCapAllocationStatus":
-        if not s:
-            raise ValueError("DataCap allocation status not found")
+        if s is None or s == "":
+            raise ValueError(f"Invalid DataCap allocation status: {s}")
 
         s = str(s).strip().lower()
 
@@ -85,8 +85,8 @@ class DataCapAllocationStatus(enum.Enum):
         return self.name
 
 
-#  * @title EvidenceResult
-#  * @notice Shared evidence result type constants for PoRepMarket
+# @title EvidenceResult
+# @notice Shared evidence result type constants for PoRepMarket
 class DataCapEvidenceResult(enum.Enum):
     NONE = 0
     PARTIAL = 10
@@ -98,8 +98,8 @@ class DataCapEvidenceResult(enum.Enum):
 
     @staticmethod
     def from_web3(s: str | int | None) -> "DataCapEvidenceResult":
-        if not s:
-            raise ValueError("DataCap evidence result not found")
+        if s is None or s == "":
+            raise ValueError(f"Invalid DataCap evidence result: {s}")
 
         s = str(s).strip().lower()
 
@@ -185,7 +185,8 @@ class DataCapEvidenceAdapter(ContractService):
                 (transfer_params.to, transfer_params.amount, transfer_params.operator_data),
                 deal_id
             ),
-            signer)
+            signer
+        )
 
     # @notice Replaces all broken tracked allocations for a completed existing deal.
     # @dev Only callable by RESCUE_ROLE.
@@ -197,7 +198,8 @@ class DataCapEvidenceAdapter(ContractService):
                 deal_id,
                 (transfer_params.to, transfer_params.amount, transfer_params.operator_data)
             ),
-            signer)
+            signer
+        )
 
     # @notice getter to retrieve allocation ids for a deal with pagination
     # @param dealId the id of the deal
