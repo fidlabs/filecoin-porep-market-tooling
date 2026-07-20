@@ -158,76 +158,87 @@ def get_db_offers(db_url: str,
                                                   miner_id=miner_id,
                                                   organization_address=organization_address)
 
+    offers_by_org_id = {}
     for offer in offers:
-        if offer.specific_miner_id:
-            # TODO ASAP support SLA Class with specific miner_id
-            utils.confirm_ok("SLA Class with non-null specific_miner_id is not supported yet. Cannot return offers from this SLA Class.")
-            continue
+        if offer.org_id not in offers_by_org_id:
+            offers_by_org_id[offer.org_id] = []
 
-        if offer.kyc_status.strip().lower() != "approved":
-            if not utils.confirm(
-                    f"Organization {offer.organization_address} [db_id {offer.org_id}] has kyc_status {offer.kyc_status}, which is != approved. "
-                    f"Return offers from this organization?",
-                    default=bool(organization_db_id)):
-                continue
+        offers_by_org_id[offer.org_id].append(offer)
 
-        if months_to_days(offer.deal_duration_min_months) < MIN_DEAL_DURATION_DAYS_LIMIT:
-            min_deal_duration_epochs = days_to_epochs(MIN_DEAL_DURATION_DAYS_LIMIT)
+    for org_offers in offers_by_org_id.values():
+        for offer in org_offers:
+            if offer.specific_miner_id:
+                # TODO ASAP?? support SLA Class with specific miner_id
+                utils.confirm_ok("SLA Class with non-null specific_miner_id is not supported yet. Cannot return offers from this SLA Class.")
+                break
 
-            if not utils.confirm(
-                    f"Organization {offer.organization_address} [db_id {offer.org_id}] has min deal duration "
-                    f"of {months_to_days(offer.deal_duration_min_months)} days which is below the SPRegistry contract minimum "
-                    f"of {MIN_DEAL_DURATION_DAYS_LIMIT} days. It will be increased to this value. "
-                    f"Return offers from this organization?",
-                    default=True,
-                    session_id="get-db-offers"):
-                continue
-        else:
-            min_deal_duration_epochs = months_to_epochs(offer.deal_duration_min_months)
+            try:
+                payments = [payment_type_to_payment_input(payment_type, offer.price_per_tib_usd) for payment_type in offer.payment_types]
+            except ValueError as e:
+                utils.confirm_ok(
+                    f"Organization {offer.organization_address} [db_id {offer.org_id}] "
+                    f"has an unsupported payment configuration: {e}. "
+                    f"Cannot return offers from this organization")
+                break
 
-        if months_to_days(offer.deal_duration_max_months) > MAX_DEAL_DURATION_DAYS_LIMIT:
-            max_deal_duration_epochs = days_to_epochs(MAX_DEAL_DURATION_DAYS_LIMIT)
+            if offer.kyc_status.strip().lower() != "approved":
+                if not utils.confirm(
+                        f"Organization {offer.organization_address} [db_id {offer.org_id}] has kyc_status {offer.kyc_status}, which is != approved. "
+                        f"Return offers from this organization?",
+                        default=bool(organization_db_id)):
+                    break
 
-            if not utils.confirm(
-                    f"Organization {offer.organization_address} [db_id {offer.org_id}] has max deal duration "
-                    f"of {months_to_days(offer.deal_duration_max_months)} days which exceeds the SPRegistry contract limit "
-                    f"of {MAX_DEAL_DURATION_DAYS_LIMIT} days. It will be truncated to this value. "
-                    f"Return offers from this organization?",
-                    default=True,
-                    session_id="get-db-offers"):
-                continue
-        else:
-            max_deal_duration_epochs = months_to_epochs(offer.deal_duration_max_months)
+            if months_to_days(offer.deal_duration_min_months) < MIN_DEAL_DURATION_DAYS_LIMIT:
+                min_deal_duration_epochs = days_to_epochs(MIN_DEAL_DURATION_DAYS_LIMIT)
 
-        if min_deal_duration_epochs > max_deal_duration_epochs:
-            utils.confirm_ok(
-                f"Organization {offer.organization_address} [db_id {offer.org_id}] has min deal duration of {min_deal_duration_epochs} epochs, "
-                f"which exceeds the max deal duration of {max_deal_duration_epochs} epochs. "
-                f"Cannot return offers from this organization")
-            continue
+                if not utils.confirm(
+                        f"Organization {offer.organization_address} [db_id {offer.org_id}] has min deal duration "
+                        f"of {months_to_days(offer.deal_duration_min_months)} days which is below the SPRegistry contract minimum "
+                        f"of {MIN_DEAL_DURATION_DAYS_LIMIT} days. It will be increased to this value. "
+                        f"Return offers from this organization?",
+                        default=True,
+                        session_id="get-db-offers"):
+                    break
+            else:
+                min_deal_duration_epochs = months_to_epochs(offer.deal_duration_min_months)
 
-        try:
-            payments = [payment_type_to_payment_input(payment_type, offer.price_per_tib_usd) for payment_type in offer.payment_types]
-        except ValueError as e:
-            utils.confirm_ok(
-                f"Organization {offer.organization_address} [db_id {offer.org_id}] "
-                f"has an unsupported payment configuration: {e}\n"
-                f"Cannot return offers from this organization")
-            continue
+            if months_to_days(offer.deal_duration_max_months) > MAX_DEAL_DURATION_DAYS_LIMIT:
+                max_deal_duration_epochs = days_to_epochs(MAX_DEAL_DURATION_DAYS_LIMIT)
 
-        for offer_miner_id in offer.miner_ids:
-            # noinspection PyArgumentList
-            result.append(SPRegistryOfferInput(
-                provider_id=offer_miner_id,
-                terms=SPRegistryOfferTerms(
-                    min_size_bytes=0,  # TODO
-                    max_size_bytes=0,  # TODO
-                    min_duration_epochs=min_deal_duration_epochs,
-                    max_duration_epochs=max_deal_duration_epochs
-                ),
-                slis=sla_class_to_sli_thresholds(offer.sla_class),
-                payments=payments
-            ))
+                if not utils.confirm(
+                        f"Organization {offer.organization_address} [db_id {offer.org_id}] has max deal duration "
+                        f"of {months_to_days(offer.deal_duration_max_months)} days which exceeds the SPRegistry contract limit "
+                        f"of {MAX_DEAL_DURATION_DAYS_LIMIT} days. It will be truncated to this value. "
+                        f"Return offers from this organization?",
+                        default=True,
+                        session_id="get-db-offers"):
+                    break
+            else:
+                max_deal_duration_epochs = months_to_epochs(offer.deal_duration_max_months)
+
+            if min_deal_duration_epochs > max_deal_duration_epochs:
+                utils.confirm_ok(
+                    f"Organization {offer.organization_address} [db_id {offer.org_id}] has min deal duration of {min_deal_duration_epochs} epochs, "
+                    f"which exceeds the max deal duration of {max_deal_duration_epochs} epochs. "
+                    f"Cannot return offers from this organization")
+                break
+
+            for offer_miner_id in offer.miner_ids:
+                # noinspection PyArgumentList
+                result.append(SPRegistryOfferInput(
+                    provider_id=offer_miner_id,
+                    terms=SPRegistryOfferTerms(
+                        min_size_bytes=0,  # TODO
+                        max_size_bytes=0,  # TODO
+                        min_duration_epochs=min_deal_duration_epochs,
+                        max_duration_epochs=max_deal_duration_epochs
+                    ),
+                    slis=sla_class_to_sli_thresholds(offer.sla_class),
+                    payments=payments
+                ))
+
+    if miner_id is not None and result:
+        result = [offer for offer in result if offer.provider_id == miner_id]
 
     return result
 
@@ -253,26 +264,25 @@ def get_db_sps(db_url: str,
                     default=bool(organization_db_id)):
                 continue
 
-        if FilAddress.is_filecoin_address(org.organization_address):
-            try:
+        try:
+            if FilAddress.is_filecoin_address(org.organization_address):
                 organization_address = EthAddress.from_filecoin_address(org.organization_address)
-            except RuntimeError as e:
-                # e.g. a mainnet f-address that is not instantiated on the connected network (devnet)
-                utils.confirm_ok(
-                    f"Cannot convert organization {org.organization_address} [db_id {org.org_id}] Filecoin f-address "
-                    f"to EVM 0x-address on this network: {e}\n"
-                    f"Cannot return SPs from this organization")
-                continue
 
-            if not utils.confirm(
-                    f"Converted organization {org.organization_address} [db_id {org.org_id}] Filecoin f-address "
-                    f"to EVM 0x-address {organization_address}. "
-                    f"Return SPs from this organization?",
-                    default=True,
-                    session_id="get-db-sps"):
-                continue
-        else:
-            organization_address = org.organization_address
+                if not utils.confirm(
+                        f"Converted organization {org.organization_address} [db_id {org.org_id}] Filecoin f-address "
+                        f"to EVM 0x-address {organization_address}. "
+                        f"Return SPs from this organization?",
+                        default=True,
+                        session_id="get-db-sps"):
+                    continue
+            else:
+                organization_address = EthAddress(org.organization_address)
+
+        except ValueError as e:
+            utils.confirm_ok(
+                f"Invalid organization address {org.organization_address} [db_id {org.org_id}]: {e}. "
+                f"Cannot return SPs from this organization")
+            continue
 
         #
 
@@ -286,7 +296,7 @@ def get_db_sps(db_url: str,
             ))
 
     if miner_id is not None and result:
-        result = [sp for sp in result if sp.provider_id == miner_id]
+        result = [provider for provider in result if provider.provider_id == miner_id]
 
     provider_ids = [sp.provider_id for sp in result]
     if len(provider_ids) != len(set(provider_ids)):
@@ -315,5 +325,5 @@ def get_devnet_sps() -> list[SPRegistryProviderInput]:
 
 
 def get_devnet_offers() -> list[SPRegistryOfferInput]:
-    # TODO
+    # TODO ASAP
     return []

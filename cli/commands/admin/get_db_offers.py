@@ -15,28 +15,27 @@ from cli.services.web3_service import ActorId
               help="SPRegistry database miner_id (PoRep Market SP ID) to return.")
 @click.option("--organization-address", required=False,
               help="SPRegistry database organization_address to return.")
-def get_db_sps(db_url: str,
-               show_all: bool = False,
-               db_id: int | None = None,
-               miner_id: str | None = None,
-               organization_address: str | None = None):
+def get_db_offers(db_url: str,
+                  show_all: bool = False,
+                  db_id: int | None = None,
+                  miner_id: str | None = None,
+                  organization_address: str | None = None):
     """
-    Get SPs from SPRegistry database.
+    Get SP offers from SPRegistry database.
 
     DB_ID - SPRegistry database organization ID to fetch SPs from. [default: SPs from all organizations eligible for registration]
     """
 
     click.echo(utils.json_pretty(
-        admin_utils.get_db_sps(
+        admin_utils.get_db_offers(
             db_url,
             kyc_status="approved" if (not show_all and not db_id) else None,
             organization_db_id=db_id,
             miner_id=ActorId(miner_id) if miner_id else None,
-            organization_address=organization_address,
-        )
+            organization_address=organization_address, )
     ))
 
 
 @click.command(hidden=True)
-def get_devnet_sps():
-    click.echo(utils.json_pretty(admin_utils.get_devnet_sps()))
+def get_devnet_offers():
+    click.echo(utils.json_pretty(admin_utils.get_devnet_offers()))
