@@ -207,9 +207,8 @@ class DataCapEvidenceAdapter(ContractService):
     # @param limit max number of ids to return
     # @return ids allocation ids for the deal
     # @return sumOfAllocations total number of allocation ids for the deal
-    def get_allocation_ids_per_deal(self, deal_id: int, offset: int, limit: int) -> tuple[list[ActorId], int]:
-        ids, sum_of_allocations = self.contract.functions.getAllocationIdsPerDeal(deal_id, offset, limit).call()
-        return [ActorId(_id) for _id in ids], sum_of_allocations
+    def get_allocation_ids_per_deal(self, deal_id: int, offset: int, limit: int) -> tuple[list[int], int]:
+        return self.contract.functions.getAllocationIdsPerDeal(deal_id, offset, limit).call()
 
     # @notice custom getter to retrieve allocated bytes in deal
     # @param dealId The id of the deal
@@ -241,9 +240,8 @@ class DataCapEvidenceAdapter(ContractService):
     # @param limit pagination limit for the claim ids
     # @return ids list of claim ids for the given deal
     # @return sumOfClaims total number of claims for the given deal
-    def get_claim_ids(self, deal_id: int, offset: int, limit: int) -> tuple[list[ActorId], int]:
-        ids, sum_of_claims = self.contract.functions.getClaimIds(deal_id, offset, limit).call()
-        return [ActorId(_id) for _id in ids], sum_of_claims
+    def get_claim_ids(self, deal_id: int, offset: int, limit: int) -> tuple[list[int], int]:
+        return self.contract.functions.getClaimIds(deal_id, offset, limit).call()
 
     # @notice Returns whether the adapter can still process new evidence
     # @dev Returns false when the adapter is no longer operational, for example

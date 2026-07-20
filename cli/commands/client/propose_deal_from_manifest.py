@@ -1,8 +1,5 @@
-import json
-
 import click
 import humanfriendly
-from web3 import Web3
 
 from cli import utils
 from cli.commands import utils as commands_utils
@@ -13,12 +10,6 @@ from cli.services.contracts.porep_market import PoRepMarket
 from cli.services.contracts.porep_market import PoRepMarketDealRequest, PoRepMarketDealState, PoRepMarketSLIThresholds
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.web3_service import Web3Service, EthAddress
-
-
-# TODO ASAP confirm manifest hash algorithm with the porep-market team (contract stores it as an opaque commitment for the piece set)
-def _compute_manifest_hash(manifest: list[dict]) -> bytes:
-    canonical_manifest = json.dumps(manifest, sort_keys=True, separators=(",", ":"))
-    return bytes(Web3.keccak(text=canonical_manifest))
 
 
 # TODO LATER propose for multiple manifests + state, retry ??
@@ -34,8 +25,8 @@ def _propose_deal_from_manifest(manifest_url: str,
     #
     MBPS_TO_BYTES_PER_SECOND = 125_000  # 1 Mbps = 10^6 bits/s / 8 = 125 000 bytes/s
 
-    manifest = commands_utils.fetch_manifest(manifest_url)
-    pieces = manifest[0]["pieces"]
+    manifest_document = commands_utils.fetch_manifest_document(manifest_url)
+    pieces = manifest_document.json[0]["pieces"]
     pieces_size_bytes = sum(piece.get("pieceSize", 0) for piece in pieces)
 
     if pieces_size_bytes <= 0:
@@ -48,7 +39,7 @@ def _propose_deal_from_manifest(manifest_url: str,
 
     # noinspection PyArgumentList
     deal_request = PoRepMarketDealRequest(
-        manifest_hash=_compute_manifest_hash(manifest),
+        manifest_hash=manifest_document.manifest_hash,
         requested_size_bytes=pieces_size_bytes,
         max_price_per_32_gib_per_month=price_per_sector_per_month,
         manifest_location=manifest_url,

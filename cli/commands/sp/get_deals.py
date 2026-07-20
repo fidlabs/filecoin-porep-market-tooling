@@ -56,7 +56,9 @@ def get_deals(state: str | None = None, provider_id: str | None = None):
     STATE - Optional deal state to filter by.
     """
 
-    result = commands_utils.get_sp_deals(PoRepMarketDealState.from_web3(state),
+    _state = PoRepMarketDealState.from_web3(str(state)) if state else None
+
+    result = commands_utils.get_sp_deals(_state,
                                          sp_organization_address() if not provider_id else None,
                                          ActorId(provider_id) if provider_id else None)
 
