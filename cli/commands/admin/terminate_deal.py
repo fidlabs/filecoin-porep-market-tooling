@@ -3,51 +3,51 @@ import click
 from cli import utils
 from cli.commands.admin._admin import admin_signer, admin_address
 from cli.services.contracts.filecoinpay_validator import FileCoinPayValidator
-from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState, PoRepMarketDealView
+from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState, PoRepMarketDeal
 from cli.services.contracts.validator_factory import ValidatorFactory
 from cli.services.web3_service import Web3Service
 
 
-def _terminate_proposed_deal(deal: PoRepMarketDealView) -> str:
-    assert deal.deal.state == PoRepMarketDealState.PROPOSED
+def _terminate_proposed_deal(deal: PoRepMarketDeal) -> str:
+    assert deal.state == PoRepMarketDealState.PROPOSED
 
-    return PoRepMarket().reject_deal(deal.deal.deal_id, admin_signer())
+    return PoRepMarket().reject_deal(deal.deal_id, admin_signer())
 
 
-def _terminate_finalized_deal(deal: PoRepMarketDealView) -> str:
-    assert deal.deal.state == PoRepMarketDealState.FINALIZED
+def _terminate_finalized_deal(deal: PoRepMarketDeal) -> str:
+    assert deal.state == PoRepMarketDealState.FINALIZED
 
-    validator_address = ValidatorFactory().get_instance(deal.deal.deal_id)
-    if validator_address != deal.deal.validator_address:
+    validator_address = ValidatorFactory().get_instance(deal.deal_id)
+    if validator_address != deal.validator_address:
         raise click.ClickException(
-            f"Validator address {validator_address} does not match expected {deal.deal.validator_address} for deal ID {deal.deal.deal_id}")
+            f"Validator address {validator_address} does not match expected {deal.validator_address} for deal ID {deal.deal_id}")
 
-    return FileCoinPayValidator(deal.deal.validator_address).finalize_deal(admin_signer())
-
-
-def _terminate_active_deal(deal: PoRepMarketDealView) -> str:
-    assert deal.deal.state == PoRepMarketDealState.ACTIVE
-    assert deal.deal.rail_id
-
-    return FileCoinPayValidator(deal.deal.validator_address).early_rail_termination(admin_signer())
+    return FileCoinPayValidator(deal.validator_address).finalize_deal(admin_signer())
 
 
-def _terminate_accepted_deal(deal: PoRepMarketDealView) -> str:
+def _terminate_active_deal(deal: PoRepMarketDeal) -> str:
+    assert deal.state == PoRepMarketDealState.ACTIVE
+    assert deal.rail_id
+
+    return FileCoinPayValidator(deal.validator_address).early_rail_termination(admin_signer())
+
+
+def _terminate_accepted_deal(deal: PoRepMarketDeal) -> str:
     def terminate_accepted_initialized_deal() -> str:
-        assert deal.deal.state == PoRepMarketDealState.ACCEPTED
-        assert deal.deal.rail_id
+        assert deal.state == PoRepMarketDealState.ACCEPTED
+        assert deal.rail_id
 
-        return FileCoinPayValidator(deal.deal.validator_address).early_rail_termination(admin_signer())
+        return FileCoinPayValidator(deal.validator_address).early_rail_termination(admin_signer())
 
     def terminate_accepted_not_initialized_deal() -> str:
-        assert deal.deal.state == PoRepMarketDealState.ACCEPTED
-        assert not deal.deal.rail_id
+        assert deal.state == PoRepMarketDealState.ACCEPTED
+        assert not deal.rail_id
 
-        return PoRepMarket().reject_accepted_deal(deal.deal.deal_id, admin_signer())
+        return PoRepMarket().reject_accepted_deal(deal.deal_id, admin_signer())
 
-    assert deal.deal.state == PoRepMarketDealState.ACCEPTED
+    assert deal.state == PoRepMarketDealState.ACCEPTED
 
-    if deal.deal.rail_id == 0:
+    if deal.rail_id == 0:
         return terminate_accepted_not_initialized_deal()
     else:
         return terminate_accepted_initialized_deal()
@@ -70,18 +70,18 @@ def terminate_deal(deal_id: int):
     """
 
     Web3Service().wait_for_pending_transactions(admin_address())
-    deal = PoRepMarket().get_deal_view(deal_id)
-    utils.confirm(f"Terminating deal ID {deal.deal.deal_id}: {deal}", abort=True)
+    deal = PoRepMarket().get_deal_view(deal_id).deal
+    utils.confirm(f"Terminating deal ID {deal.deal_id}: {deal}", abort=True)
 
-    if deal.deal.state == PoRepMarketDealState.FINALIZED:
+    if deal.state == PoRepMarketDealState.FINALIZED:
         tx_hash = _terminate_finalized_deal(deal)
-    elif deal.deal.state == PoRepMarketDealState.ACTIVE:
+    elif deal.state == PoRepMarketDealState.ACTIVE:
         tx_hash = _terminate_active_deal(deal)
-    elif deal.deal.state == PoRepMarketDealState.ACCEPTED:
+    elif deal.state == PoRepMarketDealState.ACCEPTED:
         tx_hash = _terminate_accepted_deal(deal)
-    elif deal.deal.state == PoRepMarketDealState.PROPOSED:
+    elif deal.state == PoRepMarketDealState.PROPOSED:
         tx_hash = _terminate_proposed_deal(deal)
     else:
         raise click.ClickException(f"Deal ID {deal_id} is not in a state that can be terminated")
 
-    click.echo(f"Deal ID {deal.deal.deal_id} terminated: {tx_hash}")
+    click.echo(f"Deal ID {deal.deal_id} terminated: {tx_hash}")

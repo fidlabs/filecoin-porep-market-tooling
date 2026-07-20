@@ -8,13 +8,14 @@ from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address, client_signer
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.filecoinpay_validator import FileCoinPayValidator
-from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealView
+from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDeal
 from cli.services.contracts.porep_market import PoRepMarketDealState
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.contracts.validator_factory import ValidatorFactory
 from cli.services.web3_service import Web3Service
 
 
+# TODO ASAP test this
 @click.command()
 @click.argument("deal_id", type=click.IntRange(min=0), required=False)
 def init_accepted_deals(deal_id: int | None = None):
@@ -79,7 +80,7 @@ def _deploy_and_set_validator(deal_id: int):
     if deal.deal.state != PoRepMarketDealState.ACCEPTED:
         raise click.ClickException(f"Deal ID {deal.deal.deal_id} is in state {deal.deal.state} != ACCEPTED")
 
-    if __get_validator_address_for_deal(deal):
+    if __get_validator_address_for_deal(deal.deal):
         click.echo(f"\nValidator already set for deal ID {deal.deal.deal_id}: {deal.deal.validator_address}")
         return
 
@@ -93,7 +94,7 @@ def _deposit_and_approve_operator(deal_id: int):
     deal = PoRepMarket().get_deal_view(deal_id)
     payment_token = USDCToken(deal.payment.payment_token)
 
-    if not __get_validator_address_for_deal(deal):
+    if not __get_validator_address_for_deal(deal.deal):
         raise click.ClickException(f"Validator not found for deal ID {deal.deal.deal_id}, cannot deposit and approve operator")
 
     operator_approval = FileCoinPay().get_operator_approval(payment_token.address(),
@@ -163,7 +164,7 @@ def _deposit_and_approve_operator(deal_id: int):
 def _initialize_rail(deal_id: int):
     deal = PoRepMarket().get_deal_view(deal_id)
 
-    if not __get_validator_address_for_deal(deal):
+    if not __get_validator_address_for_deal(deal.deal):
         raise click.ClickException(f"Validator not found for deal ID {deal.deal.deal_id}, cannot initialize rail")
 
     operator_approval = FileCoinPay().get_operator_approval(deal.payment.payment_token,
@@ -184,10 +185,10 @@ def _initialize_rail(deal_id: int):
     click.echo(f"FileCoinPay rail initialized for deal ID {deal.deal.deal_id}: {tx_hash}")
 
 
-def __get_validator_address_for_deal(deal: PoRepMarketDealView) -> str:
-    result = ValidatorFactory().get_instance(deal.deal.deal_id)
+def __get_validator_address_for_deal(deal: PoRepMarketDeal) -> str:
+    result = ValidatorFactory().get_instance(deal.deal_id)
 
-    if result != deal.deal.validator_address:
-        raise click.ClickException(f"Validator address {result} does not match expected {deal.deal.validator_address} for deal ID {deal.deal.deal_id}")
+    if result != deal.validator_address:
+        raise click.ClickException(f"Validator address {result} does not match expected {deal.validator_address} for deal ID {deal.deal_id}")
 
     return result

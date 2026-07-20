@@ -21,7 +21,7 @@ def get_db_offers(db_url: str,
                   miner_id: str | None = None,
                   organization_address: str | None = None):
     """
-    Get SP offers from SPRegistry database.
+    Get PoRep Market offers from SPRegistry database.
 
     DB_ID - SPRegistry database organization ID to fetch SPs from. [default: SPs from all organizations eligible for registration]
     """
