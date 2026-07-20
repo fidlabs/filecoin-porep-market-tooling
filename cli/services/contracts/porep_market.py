@@ -93,7 +93,7 @@ class PoRepMarketDealState(enum.Enum):
     @staticmethod
     def from_web3(s: str | int | None) -> "PoRepMarketDealState":
         if s is None or s == "":
-            raise ValueError("Deal state string cannot be None")
+            raise ValueError(f"Invalid deal state: {s}")
 
         s = str(s).strip().lower()
 
@@ -307,7 +307,7 @@ class PoRepMarketDealView:
     provider_organization_address: EthAddress
     evidence_status: DataCapEvidenceStatus
 
-    def _post_init__(self):
+    def __post_init__(self):
         self.provider_organization_address = EthAddress(self.provider_organization_address)
 
     @staticmethod
@@ -350,7 +350,8 @@ class PoRepMarket(ContractService):
                 request.duration_days,
                 (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
             )),
-            signer)
+            signer
+        )
 
     # @notice Gets the complete generic read model for one deal.
     # @dev External tools, oracles, CLIs, and RPC consumers use this bounded

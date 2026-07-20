@@ -15,5 +15,5 @@ class AccessControlUpgradeable(ContractService):
     def grant_role(self, role: bytes, account: EthAddress, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.grantRole(role, account),
-            signer,
+            signer
         )

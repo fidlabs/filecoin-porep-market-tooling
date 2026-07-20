@@ -15,8 +15,8 @@ class FileCoinPayRailStatus(enum.Enum):
 
     @staticmethod
     def from_web3(s: str | int | None) -> "FileCoinPayRailStatus":
-        if not s:
-            raise ValueError("Rail status string cannot be None")
+        if s is None or s == "":
+            raise ValueError(f"Invalid rail status: {s}")
 
         s = str(s).strip().lower()
 

@@ -126,7 +126,9 @@ class FileCoinPay(ContractService):
         return self.sign_and_send_tx(
             self.contract.functions.depositWithPermitAndApproveOperator(
                 token, to, amount, deadline, v, r, s, operator, rate_allowance, lockup_allowance, max_lockup_period
-            ), signer)
+            ),
+            signer
+        )
 
     # @notice Deposits tokens using permit (EIP-2612) approval in a single transaction, while also increasing operator approval allowances.
     # @param token The ERC20 token address to deposit and for which the operator approval is being increased.
@@ -153,7 +155,9 @@ class FileCoinPay(ContractService):
         return self.sign_and_send_tx(
             self.contract.functions.depositWithPermitAndIncreaseOperatorApproval(
                 token, to, amount, deadline, v, r, s, operator, rate_allowance_increase, lockup_allowance_increase
-            ), signer)
+            ),
+            signer
+        )
 
     # @notice Deposits tokens using permit (EIP-2612) approval in a single transaction.
     # @param token The ERC20 token address to deposit.
@@ -170,9 +174,9 @@ class FileCoinPay(ContractService):
                             signer: TxSigner) -> str:
         #
         return self.sign_and_send_tx(
-            self.contract.functions.depositWithPermit(
-                token, to, amount, deadline, v, r, s
-            ), signer)
+            self.contract.functions.depositWithPermit(token, to, amount, deadline, v, r, s),
+            signer
+        )
 
     # token => client => operator => Approval
     def get_operator_approval(self, token: EthAddress, client: EthAddress, operator: EthAddress) -> FileCoinPayOperatorApproval:
