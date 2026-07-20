@@ -81,6 +81,7 @@ def get_deal_allocation_ids(deal: PoRepMarketDeal) -> list[int]:
 
     ids: list[int] = []
     offset = 0
+
     while True:
         page, total = adapter.get_allocation_ids_per_deal(deal.deal_id, offset, _EVIDENCE_IDS_PAGE_SIZE)
         ids.extend(int(allocation_id) for allocation_id in page)
@@ -95,6 +96,7 @@ def get_deal_claim_ids(deal: PoRepMarketDeal) -> list[int]:
 
     ids: list[int] = []
     offset = 0
+
     while True:
         page, total = adapter.get_claim_ids(deal.deal_id, offset, _EVIDENCE_IDS_PAGE_SIZE)
         ids.extend(int(claim_id) for claim_id in page)

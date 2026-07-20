@@ -22,6 +22,7 @@ from cli.services.web3_service import Web3Service, ActorId
               help="Exclude manifest DAG piece. Default is to include it.  [default: false]")
 @click.option("--local-manifest", type=click.Path(exists=True, dir_okay=False),
               help="Local manifest file to use instead of fetching from the deal proposal.")
+# TODO ASAP test this
 def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool = False, local_manifest: str | None = None):
     """
     Interactively make DDO allocations for an accepted deal in batches (groups).

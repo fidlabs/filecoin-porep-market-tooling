@@ -7,7 +7,6 @@ from cli.commands.sp._sp import sp_signer, sp_organization_address, sp_address
 from cli.services.web3_service import Web3Service, ActorId
 
 
-# TODO LATER print deals states at the end?
 @click.command()
 @click.argument("action", required=False, type=click.Choice(["accept", "reject"], case_sensitive=False))
 @click.option("--provider-id", required=False, help="Provider ID to filter deals by.")

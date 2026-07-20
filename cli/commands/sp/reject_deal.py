@@ -8,7 +8,6 @@ from cli.services.web3_service import Web3Service
 
 @click.command()
 @click.argument("deal_id", type=click.IntRange(min=0))
-# TODO LATER print deal state at the end?
 def reject_deal(deal_id: int):
     """
     Reject a deal proposal.

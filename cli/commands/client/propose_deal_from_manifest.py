@@ -8,12 +8,11 @@ from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_signer, client_address
+from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.porep_market import PoRepMarket
 from cli.services.contracts.porep_market import PoRepMarketDealRequest, PoRepMarketDealState, PoRepMarketSLIThresholds
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.web3_service import Web3Service, EthAddress
-
-MBPS_TO_BYTES_PER_SECOND = 125_000  # 1 Mbps = 10^6 bits/s / 8 = 125 000 bytes/s
 
 
 # TODO ASAP confirm manifest hash algorithm with the porep-market team (contract stores it as an opaque commitment for the piece set)
@@ -22,9 +21,8 @@ def _compute_manifest_hash(manifest: list[dict]) -> bytes:
     return bytes(Web3.keccak(text=canonical_manifest))
 
 
-# TODO LATER propose for multiple manifests + state, retry
+# TODO LATER propose for multiple manifests + state, retry ??
 # TODO LATER validate params here?
-# TODO LATER print proposed deal at the end? where do we get deal ID from? events only?
 def _propose_deal_from_manifest(manifest_url: str,
                                 retrievability_bps: int,
                                 bandwidth_mbps: int,
@@ -32,8 +30,10 @@ def _propose_deal_from_manifest(manifest_url: str,
                                 duration_months: int,
                                 latency_ms: int,
                                 indexing_pct: int,
-                                payment_token: str | None = None):
+                                payment_token_address: EthAddress):
     #
+    MBPS_TO_BYTES_PER_SECOND = 125_000  # 1 Mbps = 10^6 bits/s / 8 = 125 000 bytes/s
+
     manifest = commands_utils.fetch_manifest(manifest_url)
     pieces = manifest[0]["pieces"]
     pieces_size_bytes = sum(piece.get("pieceSize", 0) for piece in pieces)
@@ -46,15 +46,13 @@ def _propose_deal_from_manifest(manifest_url: str,
                f"{utils.bytes_to_sectors(pieces_size_bytes, PoRepMarket().get_sector_size_bytes())} sectors "
                f"(including dag piece)")
 
-    token = USDCToken(EthAddress(payment_token)) if payment_token else USDCToken()
-
     # noinspection PyArgumentList
     deal_request = PoRepMarketDealRequest(
         manifest_hash=_compute_manifest_hash(manifest),
         requested_size_bytes=pieces_size_bytes,
         max_price_per_32_gib_per_month=price_per_sector_per_month,
         manifest_location=manifest_url,
-        payment_token_address=token.address(),
+        payment_token_address=payment_token_address,
         duration_days=duration_months * 30,  # PoRep Market smart contracts assumes month == 30 days
         required_slis=PoRepMarketSLIThresholds(
             retrievability_bps=retrievability_bps,
@@ -83,16 +81,17 @@ def _propose_deal_from_manifest(manifest_url: str,
                 f"already exists in PoRep Market: {utils.json_pretty(existing_deal)} "
                 "Continue?", default=not is_active, abort=True)
 
-    token_symbol = token.symbol()
+    payment_token = ERC20Contract(payment_token_address)
+    token_symbol = payment_token.symbol()
     deal_duration_months = deal_request.duration_days // 30  # PoRep Market smart contracts assumes month == 30 days
 
     max_cost_per_month = client_utils.calculate_deposit_amount(deal_request.requested_size_bytes,
                                                                deal_request.max_price_per_32_gib_per_month,
                                                                deposit_for_months=1)
-    max_cost_per_month_str = utils.str_from_wei(max_cost_per_month, token.decimals())
+    max_cost_per_month_str = utils.str_from_wei(max_cost_per_month, payment_token.decimals())
 
     total_max_cost = max_cost_per_month * deal_duration_months
-    total_max_cost_str = utils.str_from_wei(total_max_cost, token.decimals())
+    total_max_cost_str = utils.str_from_wei(total_max_cost, payment_token.decimals())
 
     # TODO LATER print account info (you now have ... at address ...)
     utils.confirm(f"\nProposing deal: {utils.json_pretty(deal_request)}\n\n"
@@ -119,7 +118,7 @@ def _propose_deal_from_manifest(manifest_url: str,
               help="Latency guarantee in milliseconds.")
 @click.option("--indexing-pct", type=click.IntRange(0, 100), default=0, show_default=True,
               help="IPNI indexing guarantee in percentage; 0 means \"don't care\".")
-@click.option("--payment-token", envvar="USDC_TOKEN", required=False,
+@click.option("--payment-token", envvar="USDC_TOKEN", required=True,
               help="Address of the ERC20 token to pay with.  [default: USDC_TOKEN env var]")
 def propose_deal_from_manifest(manifest_url: str,
                                retrievability_bps: int,
@@ -128,7 +127,7 @@ def propose_deal_from_manifest(manifest_url: str,
                                duration_months: int,
                                latency_ms: int,
                                indexing_pct: int,
-                               payment_token: str | None = None):
+                               payment_token: str):
     """
     Interactively propose a deal from MANIFEST_URL with the specified parameters.
 
@@ -147,7 +146,7 @@ def propose_deal_from_manifest(manifest_url: str,
                                 duration_months,
                                 latency_ms,
                                 indexing_pct,
-                                payment_token)
+                                EthAddress(payment_token))
 
 
 # TODO LATER remove me
@@ -168,4 +167,5 @@ def propose_deal_from_manifest_mocked(manifest_url: str):
                                 price_per_sector_per_month,
                                 duration_months,
                                 latency_ms,
-                                indexing_pct)
+                                indexing_pct,
+                                USDCToken().address())
