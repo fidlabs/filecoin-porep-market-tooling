@@ -58,4 +58,6 @@ def get_deals(state: str | None = None):
     STATE - Optional deal state to filter by.
     """
 
-    click.echo(utils.json_pretty(commands_utils.get_all_deals(PoRepMarketDealState.from_web3(state))))
+    _state = PoRepMarketDealState.from_web3(str(state)) if state else None
+
+    click.echo(utils.json_pretty(commands_utils.get_all_deals(_state)))
