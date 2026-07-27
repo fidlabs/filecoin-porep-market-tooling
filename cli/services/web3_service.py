@@ -168,6 +168,15 @@ class EthAddress(str):
     ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
     def __new__(cls, addr: str) -> "EthAddress":
+        if isinstance(addr, cls):
+            return addr
+        # Zero address is falsy via __bool__, which breaks eth_utils.is_hexstr and
+        # Web3.to_checksum_address when an EthAddress is wrapped again in __post_init__.
+        if addr is None:
+            return super().__new__(cls, cls.ZERO_ADDRESS)
+        text = str(addr).strip()
+        if text.lower() == cls.ZERO_ADDRESS or text in ("0x0", "0"):
+            return super().__new__(cls, cls.ZERO_ADDRESS)
         # noinspection PyTypeChecker
         return super().__new__(cls, str(Web3.to_checksum_address(addr)))
 
