@@ -9,6 +9,7 @@ from .pause_sp import pause_sp
 from .register_sps import register_db_sps, register_devnet_sps
 from .set_completion_padding import set_completion_padding
 from .set_role import set_role
+from .submit_evidence import submit_evidence
 from .terminate_deal import terminate_deal
 from .unblock_sp import unblock_sp
 from .unpause_sp import unpause_sp
@@ -35,3 +36,4 @@ admin.add_command(register_devnet_sps)
 admin.add_command(set_completion_padding)
 admin.add_command(set_offer_active)
 admin.add_command(get_offers)
+admin.add_command(submit_evidence)
