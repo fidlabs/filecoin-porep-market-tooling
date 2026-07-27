@@ -128,6 +128,7 @@ class PoRepMarketDeal:
     evidence_adapter_address: EthAddress
     validator_address: EthAddress
     rail_id: int
+    proposed_at_epoch: int = 0
 
     def __post_init__(self):
         self.provider_id = ActorId(self.provider_id)
@@ -152,7 +153,8 @@ class PoRepMarketDeal:
             state=PoRepMarketDealState.from_web3(data[4]),
             evidence_adapter_address=EthAddress(data[5]),
             validator_address=EthAddress(data[6]),
-            rail_id=int(data[7])
+            rail_id=int(data[7]),
+            proposed_at_epoch=int(data[8]) if len(data) > 8 else 0,
         )
 
 
@@ -191,24 +193,6 @@ class PoRepMarketDealTermsView:
         return PoRepMarketDealTermsView(
             requested_size_bytes=int(data[0]),
             duration_epochs=int(data[1])
-        )
-
-
-# @notice Proposal timing for expiry-related checks.
-@utils.json_dataclass()
-class PoRepMarketDealTiming:
-    proposed_at_epoch: int
-    expires_at_epoch: int
-
-    @staticmethod
-    def from_web3(data) -> "PoRepMarketDealTiming":
-        if data[0] is None:
-            raise RuntimeError("Deal timing not found")
-
-        # noinspection PyArgumentList
-        return PoRepMarketDealTiming(
-            proposed_at_epoch=int(data[0]),
-            expires_at_epoch=int(data[1])
         )
 
 
@@ -258,12 +242,14 @@ class PoRepMarketDealCapacity:
 @utils.json_dataclass()
 class PoRepMarketDealPayment:
     payment_token: EthAddress
+    payee: EthAddress
     price_per_32_gib_per_month: int
     billed_32_gib_units: int
     rail_max_rate_per_epoch: int
 
     def __post_init__(self):
         self.payment_token = EthAddress(self.payment_token)
+        self.payee = EthAddress(self.payee)
 
     @staticmethod
     def from_web3(data) -> "PoRepMarketDealPayment":
@@ -273,34 +259,22 @@ class PoRepMarketDealPayment:
         # noinspection PyArgumentList
         return PoRepMarketDealPayment(
             payment_token=EthAddress(data[0]),
-            price_per_32_gib_per_month=int(data[1]),
-            billed_32_gib_units=int(data[2]),
-            rail_max_rate_per_epoch=int(data[3])
+            payee=EthAddress(data[1]),
+            price_per_32_gib_per_month=int(data[2]),
+            billed_32_gib_units=int(data[3]),
+            rail_max_rate_per_epoch=int(data[4])
         )
 
 
 # @notice Complete generic read model for one PoRepMarket deal.
-# @dev This is for offchain tools, oracles, CLIs, and RPC consumers that need
-# PoRepMarket-owned or PoRepMarket-frozen deal facts in one bounded response.
-# It is not an adapter inventory API: allocation IDs, claim IDs, raw evidence
-# rows, and adapter-specific progress stay on the selected evidence adapter.
-# @param deal Core deal identity, actors, state, adapter, validator, and rail ID.
-# @param data Manifest hash and location stored for the deal.
-# @param requiredSLIs SLI thresholds required by the client.
-# @param terms Frozen size and duration terms.
-# @param timing Proposal and expiry epochs.
-# @param service Service start and end epochs.
-# @param capacity Reserved and committed bytes.
-# @param payment Frozen payment token, price, billing units, and rail ceiling.
-# @param providerOrganization Organization selected for the provider at proposal time.
-# @param evidenceStatus Adapter-local stored evidence status; this view does not refresh Filecoin actor state.
+# @dev Composed from PoRepMarket getters (getDealView lives on PoRepMarketViewHelper,
+# which is not part of the market proxy ABI). Field order matches PoRepTypes.DealView.
 @utils.json_dataclass()
 class PoRepMarketDealView:
     deal: PoRepMarketDeal
     data: PoRepMarketDealData
     required_slis: PoRepMarketSLIThresholds
     terms: PoRepMarketDealTermsView
-    timing: PoRepMarketDealTiming
     service: PoRepMarketDealService
     capacity: PoRepMarketDealCapacity
     payment: PoRepMarketDealPayment
@@ -321,12 +295,11 @@ class PoRepMarketDealView:
             data=PoRepMarketDealData.from_web3(data[1]),
             required_slis=PoRepMarketSLIThresholds.from_web3(data[2]),
             terms=PoRepMarketDealTermsView.from_web3(data[3]),
-            timing=PoRepMarketDealTiming.from_web3(data[4]),
-            service=PoRepMarketDealService.from_web3(data[5]),
-            capacity=PoRepMarketDealCapacity.from_web3(data[6]),
-            payment=PoRepMarketDealPayment.from_web3(data[7]),
-            provider_organization_address=EthAddress(data[8]),
-            evidence_status=DataCapEvidenceStatus.from_web3(data[9])
+            service=PoRepMarketDealService.from_web3(data[4]),
+            capacity=PoRepMarketDealCapacity.from_web3(data[5]),
+            payment=PoRepMarketDealPayment.from_web3(data[6]),
+            provider_organization_address=EthAddress(data[7]),
+            evidence_status=DataCapEvidenceStatus.from_web3(data[8])
         )
 
 
@@ -354,26 +327,32 @@ class PoRepMarket(ContractService):
         )
 
     # @notice Gets the complete generic read model for one deal.
-    # @dev External tools, oracles, CLIs, and RPC consumers use this bounded
-    # snapshot when they need all PoRepMarket-owned or PoRepMarket-frozen facts for
-    # one deal in a single eth_call. The evidence status is adapter-local stored
-    # status and does not refresh Filecoin actor state.
-    # @param dealId The id of the deal.
-    # @return dealView Complete generic deal snapshot.
+    # @dev Composes PoRepMarket view getters. On-chain getDealView lives on
+    # PoRepMarketViewHelper (not deployed with the market proxy in this stack).
     def get_deal_view(self, deal_id: int) -> PoRepMarketDealView:
-        return PoRepMarketDealView.from_web3(self.contract.functions.getDealView(deal_id).call(), deal_id)
+        deal = PoRepMarketDeal.from_web3(self.contract.functions.getDeal(deal_id).call(), deal_id)
+        evidence_status = DataCapEvidenceStatus.from_web3(
+            self.contract.functions.currentEvidenceStatus(deal_id).call()
+        ) if deal.evidence_adapter_address else DataCapEvidenceStatus.from_web3((0, 0, 0, 0, 0, 0))
+
+        # noinspection PyArgumentList
+        return PoRepMarketDealView(
+            deal=deal,
+            data=PoRepMarketDealData.from_web3(self.contract.functions.getDealData(deal_id).call()),
+            required_slis=PoRepMarketSLIThresholds.from_web3(self.contract.functions.getDealSLIs(deal_id).call()),
+            terms=PoRepMarketDealTermsView.from_web3(self.contract.functions.getDealTerms(deal_id).call()),
+            service=PoRepMarketDealService.from_web3(self.contract.functions.getDealService(deal_id).call()),
+            capacity=PoRepMarketDealCapacity.from_web3(self.contract.functions.getDealCapacity(deal_id).call()),
+            payment=PoRepMarketDealPayment.from_web3(self.contract.functions.getDealPayment(deal_id).call()),
+            provider_organization_address=EthAddress(self.contract.functions.getDealOrganization(deal_id).call()),
+            evidence_status=evidence_status,
+        )
 
     # @notice Gets a caller-sized page of complete generic deal views.
-    # @dev Oracle jobs and CLI tools use this for normal batch scans. The caller
-    # chooses `limit` because RPC providers and JSON-RPC clients have gas, timeout,
-    # and response-size limits for eth_call.
-    # @param offset Zero-based index in the creation-order deal ID list.
-    # @param limit Maximum number of deal views to return.
-    # @return dealViews Page of complete generic deal snapshots.
-    # @return total Total number of created deal IDs at call time.
+    # @dev Pages deal IDs then composes each view (see get_deal_view).
     def get_deal_views(self, offset: int, limit: int) -> tuple[list[PoRepMarketDealView], int]:
-        views, total = self.contract.functions.getDealViews(offset, limit).call()
-        return [PoRepMarketDealView.from_web3(view) for view in views], total
+        deal_ids, total = self.get_deal_ids(offset, limit)
+        return [self.get_deal_view(int(deal_id)) for deal_id in deal_ids], total
 
     # @notice Gets the number of deals created by PoRepMarket.
     # @dev Offchain tools and oracle jobs use this to size full scans and detect
