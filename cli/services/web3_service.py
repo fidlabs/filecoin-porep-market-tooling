@@ -168,6 +168,11 @@ class EthAddress(str):
     ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
     def __new__(cls, addr: str) -> "EthAddress":
+        addr = str(addr).strip()
+
+        if addr in ["0", "0x", "0x0"]:
+            addr = cls.ZERO_ADDRESS
+
         # noinspection PyTypeChecker
         return super().__new__(cls, str(Web3.to_checksum_address(addr)))
 
