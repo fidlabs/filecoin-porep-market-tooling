@@ -29,7 +29,7 @@ def _terminate_accepted_deal(deal: PoRepMarketDealProposal) -> str:
         assert deal.state == PoRepMarketDealState.ACCEPTED
         assert deal.rail_id
 
-        raise RuntimeError("Not implemented")  # TODO
+        raise click.ClickException("Terminating an ACCEPTED and initialized deal is not (and won't be) supported in v1 Smart Contracts.")
 
     def terminate_accepted_not_initialized_deal() -> str:
         assert deal.state == PoRepMarketDealState.ACCEPTED
