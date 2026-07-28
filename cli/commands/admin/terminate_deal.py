@@ -19,8 +19,7 @@ def _terminate_finalized_deal(deal: PoRepMarketDeal) -> str:
 
     validator_address = ValidatorFactory().get_instance(deal.deal_id)
     if validator_address != deal.validator_address:
-        raise click.ClickException(
-            f"Validator address {validator_address} does not match expected {deal.validator_address} for deal ID {deal.deal_id}")
+        raise click.ClickException(f"Validator address {validator_address} does not match expected {deal.validator_address} for deal ID {deal.deal_id}")
 
     return FileCoinPayValidator(deal.validator_address).finalize_deal(admin_signer())
 
