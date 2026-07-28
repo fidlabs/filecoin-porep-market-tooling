@@ -84,7 +84,7 @@ def _build_allocation_command_boost(boostd_path: str,
 @click.command(context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
 @click.argument("software", type=click.Choice(["curio", "boost"], case_sensitive=False))
 @click.argument("deal_id", type=click.IntRange(min=0))
-@click.option("--cars-dir", type=click.Path(exists=True, file_okay=False), help="Directory containing .cid files, used for boost software.")
+@click.option("--cars-dir", type=click.Path(exists=True, file_okay=False), help="Directory containing .car files, used for boost software.")
 @click.option("--cid", help="CID of the data piece to claim allocation for.  [default: all deal's allocations]")
 @click.pass_context
 def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = None, cid: str | None = None):

@@ -9,6 +9,7 @@ from .get_registered_info import get_registered_info
 from .is_authorized import is_authorized
 from .manage_proposed_deals import manage_proposed_deals
 from .onboard_data import onboard_data
+from .verify_commp import verify_commp, verify_commp_manifest, verify_commp_deal
 from .reject_deal import reject_deal
 from .withdraw_from_filecoinpay import withdraw_from_filecoinpay
 
@@ -29,3 +30,6 @@ sp.add_command(get_registered_info)
 sp.add_command(get_allocations)
 sp.add_command(withdraw_from_filecoinpay)
 sp.add_command(get_filecoinpay_account)
+sp.add_command(verify_commp)
+sp.add_command(verify_commp_manifest)
+sp.add_command(verify_commp_deal)
