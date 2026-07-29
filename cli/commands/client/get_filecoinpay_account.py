@@ -3,6 +3,7 @@ import click
 from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.client._client import client_address
+from cli.services.web3_service import EthAddress
 
 
 @click.command()
@@ -14,4 +15,4 @@ def get_filecoinpay_account(token_address: str):
     TOKEN_ADDRESS - ERC20 token address to ask for.  [default: USDC_TOKEN env var]
     """
 
-    click.echo(utils.json_pretty(commands_utils.get_filecoinpay_account(token_address, client_address())))
+    click.echo(utils.json_pretty(commands_utils.get_filecoinpay_account(EthAddress(token_address), client_address())))

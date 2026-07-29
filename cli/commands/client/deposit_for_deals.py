@@ -29,28 +29,8 @@ def deposit_for_deals(deal_id: int | None = None, months: int = 1):
 
     if deal_id is not None:
         deal = PoRepMarket().get_deal_view(deal_id)
-
-        if deal.deal.client_address != client_address():
-            raise click.ClickException(f"Deal ID {deal_id} client address {deal.deal.client_address} "
-                                       f"does not match with connected client address {client_address()}")
-
         click.echo(f"Depositing for deal {deal}\n")
-
-        if deal.deal.state == PoRepMarketDealState.ACCEPTED:
-            if deal.deal.rail_id == 0 or not deal.deal.validator_address:
-                raise click.ClickException(f"Deal not initialized; run {sys.argv[0]} client init-accepted-deals {deal_id} first")
-
-            else:
-                utils.confirm(f"Deal ID {deal_id} is in ACCEPTED state; "
-                              f"you might want to run {sys.argv[0]} client make-allocations {deal_id} first. Continue anyway?", abort=True)
-
-        elif deal.deal.state in [PoRepMarketDealState.REJECTED, PoRepMarketDealState.TERMINATED, PoRepMarketDealState.EXPIRED]:
-            raise click.ClickException("Cannot deposit for REJECTED, TERMINATED or EXPIRED deals")
-
-        elif deal.deal.state != PoRepMarketDealState.ACTIVE:
-            utils.confirm(f"Deal ID {deal_id} is in state {deal.deal.state} != ACTIVE. Continue anyway?", abort=True)
-
-        deal_views = [deal]
+        deals = [deal]
     else:
         deals = [deal for deal in commands_utils.get_client_deals(client_address())
                  if deal.state in (PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE)]
@@ -64,9 +44,9 @@ def deposit_for_deals(deal_id: int | None = None, months: int = 1):
             click.echo(utils.json_pretty(deals))
             click.echo()
 
-        deal_views = [PoRepMarket().get_deal_view(deal.deal_id) for deal in deals]
+        deals = [PoRepMarket().get_deal_view(deal.deal_id) for deal in deals]
 
-    _deposit_for_deals(deal_views, months)
+    _deposit_for_deals(deals, months)
 
 
 @click.command()
@@ -77,43 +57,42 @@ def deposit_for_whole_deal(deal_id: int):
 
     DEAL_ID - Deal ID to deposit funds for.
     """
+
     Web3Service().wait_for_pending_transactions(client_address())
-    deal_view = PoRepMarket().get_deal_view(deal_id)
 
-    if deal_view.deal.client_address != client_address():
-        raise click.ClickException(f"Deal ID {deal_id} client address {deal_view.deal.client_address} "
-                                   f"does not match with connected client address {client_address()}")
-
+    deal = PoRepMarket().get_deal_view(deal_id)
     click.echo(f"Depositing for deal {deal_id}\n")
 
-    if deal_view.deal.state == PoRepMarketDealState.ACCEPTED:
-        if deal_view.deal.rail_id == 0 or not deal_view.deal.validator_address:
-            raise click.ClickException(f"Deal not initialized; run {sys.argv[0]} client init-accepted-deals {deal_id} first")
-
-        else:
-            utils.confirm(f"Deal ID {deal_id} is in ACCEPTED state; "
-                            f"you might want to run {sys.argv[0]} client make-allocations {deal_id} first. Continue anyway?", abort=True)
-
-    elif deal_view.deal.state in [PoRepMarketDealState.REJECTED, PoRepMarketDealState.TERMINATED, PoRepMarketDealState.EXPIRED]:
-        raise click.ClickException("Cannot deposit for REJECTED, TERMINATED or EXPIRED deals")
-
-    elif deal_view.deal.state != PoRepMarketDealState.ACTIVE:
-        utils.confirm(f"Deal ID {deal_id} is in state {deal_view.deal.state} != ACTIVE. Continue anyway?", abort=True)
-
-    epochs_in_month = PoRepMarket().get_epochs_in_month()
-    duration_in_months = deal_view.terms.duration_epochs // epochs_in_month
-
-    _deposit_for_deals([deal_view], duration_in_months)
+    duration_in_months = deal.terms.duration_epochs // PoRepMarket().get_epochs_in_month()
+    _deposit_for_deals([deal], duration_in_months)
 
 
 # deposits funds to FileCoinPay account for X month of storing deals
-def _deposit_for_deals(deal_views: list[PoRepMarketDealView], months: int):
+def _deposit_for_deals(deals: list[PoRepMarketDealView], months: int):
     deals_per_token = {}
 
-    for deal_view in deal_views:
-        deals_per_token.setdefault(deal_view.payment.payment_token, []).append(deal_view)
+    for deal in deals:
+        if deal.deal.client_address != client_address():
+            raise click.ClickException(f"Deal ID {deal.deal.deal_id} client address {deal.deal.client_address} "
+                                       f"does not match with connected client address {client_address()}")
 
-    click.echo(f"Found {len(deals_per_token)} unique token(s) across {len(deal_views)} deal(s)")
+        if deal.deal.state == PoRepMarketDealState.ACCEPTED:
+            if deal.deal.rail_id == 0 or not deal.deal.validator_address:
+                raise click.ClickException(f"Deal not initialized; run {sys.argv[0]} client init-accepted-deals {deal.deal.deal_id} first")
+
+            else:
+                utils.confirm(f"Deal ID {deal.deal.deal_id} is in ACCEPTED state; "
+                              f"you might want to run {sys.argv[0]} client make-allocations {deal.deal.deal_id} first. Continue anyway?", abort=True)
+
+        elif deal.deal.state in [PoRepMarketDealState.REJECTED, PoRepMarketDealState.TERMINATED, PoRepMarketDealState.EXPIRED]:
+            raise click.ClickException("Cannot deposit for REJECTED, TERMINATED or EXPIRED deals")
+
+        elif deal.deal.state != PoRepMarketDealState.ACTIVE:
+            utils.confirm(f"Deal ID {deal.deal.deal_id} is in state {deal.deal.state} != ACTIVE. Continue anyway?", abort=True)
+
+        deals_per_token.setdefault(deal.payment.payment_token, []).append(deal)
+
+    click.echo(f"Found {len(deals_per_token)} unique token(s) across {len(deals)} deal(s)")
 
     for deal_token, deals_for_token in deals_per_token.items():
         deal_token_symbol = ERC20Contract(deal_token).symbol()
@@ -124,7 +103,7 @@ def _deposit_for_deals(deal_views: list[PoRepMarketDealView], months: int):
             click.echo("Skipped this token")
 
 
-def __deposit_for_deals(deal_views: list[PoRepMarketDealView], months: int, token_address: EthAddress, token_symbol: str):
+def __deposit_for_deals(deals: list[PoRepMarketDealView], months: int, token_address: EthAddress, token_symbol: str):
     filecoinpay_account = FileCoinPay().get_account(token_address, client_address())
     token_decimals = ERC20Contract(token_address).decimals()
 
@@ -132,10 +111,10 @@ def __deposit_for_deals(deal_views: list[PoRepMarketDealView], months: int, toke
     filecoinpay_available_funds_str = utils.str_from_wei(filecoinpay_available_funds, token_decimals)
 
     sector_size_bytes = PoRepMarket().get_sector_size_bytes()
-    total_required_amount = sum(client_utils.calculate_deposit_amount(deal_view.terms.requested_size_bytes,
-                                                                      deal_view.payment.price_per_32_gib_per_month,
+    total_required_amount = sum(client_utils.calculate_deposit_amount(deal.terms.requested_size_bytes,
+                                                                      deal.payment.price_per_32_gib_per_month,
                                                                       months,
-                                                                      sector_size_bytes) for deal_view in deal_views)
+                                                                      sector_size_bytes) for deal in deals)
     total_required_amount_str = utils.str_from_wei(total_required_amount, token_decimals)
 
     deposit_amount = total_required_amount - filecoinpay_available_funds
@@ -143,7 +122,7 @@ def __deposit_for_deals(deal_views: list[PoRepMarketDealView], months: int, toke
 
     click.echo()
     click.echo(f"FileCoinPay account token balance: {filecoinpay_available_funds_str} {token_symbol}")
-    click.echo(f"Total required amount to cover {len(deal_views)} deal(s) for {months} month(s): {total_required_amount_str} {token_symbol}")
+    click.echo(f"Total required amount to cover {len(deals)} deal(s) for {months} month(s): {total_required_amount_str} {token_symbol}")
     click.echo(f"FileCoinPay account missing balance: {deposit_amount_str if deposit_amount > 0 else 0} {token_symbol}")
 
     if deposit_amount <= 0:
