@@ -33,16 +33,16 @@ def init_accepted_deals(deal_id: int | None = None):
     Web3Service().wait_for_pending_transactions(client_address())
 
     if deal_id is not None:
-        deal_view = PoRepMarket().get_deal_view(deal_id)
+        deal = PoRepMarket().get_deal_view(deal_id)
 
-        if deal_view.deal.client_address != client_address():
-            raise click.ClickException(f"Deal ID {deal_id} client address {deal_view.deal.client_address} "
+        if deal.deal.client_address != client_address():
+            raise click.ClickException(f"Deal ID {deal_id} client address {deal.deal.client_address} "
                                        f"does not match with connected client address {client_address()}")
 
-        if deal_view.deal.state != PoRepMarketDealState.ACCEPTED:
-            raise click.ClickException(f"Deal ID {deal_id} is in state {deal_view.deal.state} != ACCEPTED")
+        if deal.deal.state != PoRepMarketDealState.ACCEPTED:
+            raise click.ClickException(f"Deal ID {deal_id} is in state {deal.deal.state} != ACCEPTED")
 
-        accepted_deals = [deal_view.deal]
+        accepted_deals = [deal.deal]
     else:
         accepted_deals = commands_utils.get_client_deals(client_address(), PoRepMarketDealState.ACCEPTED)
         click.echo(f"Found {len(accepted_deals)} ACCEPTED deals for client address {client_address()}")
