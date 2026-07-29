@@ -370,6 +370,40 @@ def get_filecoinpay_account(token_address: str, owner_address: EthAddress):
     }
 
 
+def withdraw_from_filecoinpay(to_address: str, amount: float, token_address: str,
+                              account_address: EthAddress, account_signer: TxSigner):
+    _to_address = EthAddress.from_any(to_address)
+    _token_address = EthAddress(token_address)
+
+    token = ERC20Contract(_token_address)
+    token_decimals = token.decimals()
+    token_symbol = token.symbol()
+
+    def print_token_balance(_account_address: EthAddress):
+        token_balance = token.balance_of(_account_address)
+        token_balance_str = utils.str_from_wei(token_balance, token_decimals)
+
+        click.echo(f"Token balance of {_account_address}: {token_balance_str} {token_symbol}")
+        click.echo()
+
+    print_token_balance(_to_address)
+    click.echo(f"FileCoinPay account of {account_address}: " + utils.json_pretty(get_filecoinpay_account(token_address, account_address)))
+    click.echo()
+
+    _amount = utils.to_wei(amount, token_decimals)
+    amount_str = utils.str_from_wei(_amount, token_decimals)
+
+    utils.confirm(f"Withdraw {amount_str} {token_symbol} from {account_address} FileCoinPay account to {_to_address}?", abort=True)
+
+    tx_hash = FileCoinPay().withdraw_to(_token_address,
+                                        _to_address,
+                                        _amount,
+                                        account_signer)
+
+    click.echo(f"Withdraw transaction sent: {tx_hash}")
+    print_token_balance(_to_address)
+
+
 def reject_deal(deal: PoRepMarketDeal, signer: TxSigner, confirm_session_id: str | None = None) -> str:
     # deals are created directly in ACCEPTED state (offer match == acceptance);
     # they can be rejected while no FileCoinPay rail is set yet. PROPOSED is kept

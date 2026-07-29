@@ -69,6 +69,43 @@ def deposit_for_deals(deal_id: int | None = None, months: int = 1):
     _deposit_for_deals(deal_views, months)
 
 
+@click.command()
+@click.argument("deal_id", type=click.IntRange(min=0))
+def deposit_for_whole_deal(deal_id: int):
+    """
+    Deposit funds to FileCoinPay account covering the entire duration of a given deal.
+
+    DEAL_ID - Deal ID to deposit funds for.
+    """
+    Web3Service().wait_for_pending_transactions(client_address())
+    deal_view = PoRepMarket().get_deal_view(deal_id)
+
+    if deal_view.deal.client_address != client_address():
+        raise click.ClickException(f"Deal ID {deal_id} client address {deal_view.deal.client_address} "
+                                   f"does not match with connected client address {client_address()}")
+
+    click.echo(f"Depositing for deal {deal_id}\n")
+
+    if deal_view.deal.state == PoRepMarketDealState.ACCEPTED:
+        if deal_view.deal.rail_id == 0 or not deal_view.deal.validator_address:
+            raise click.ClickException(f"Deal not initialized; run {sys.argv[0]} client init-accepted-deals {deal_id} first")
+
+        else:
+            utils.confirm(f"Deal ID {deal_id} is in ACCEPTED state; "
+                            f"you might want to run {sys.argv[0]} client make-allocations {deal_id} first. Continue anyway?", abort=True)
+
+    elif deal_view.deal.state in [PoRepMarketDealState.REJECTED, PoRepMarketDealState.TERMINATED, PoRepMarketDealState.EXPIRED]:
+        raise click.ClickException("Cannot deposit for REJECTED, TERMINATED or EXPIRED deals")
+
+    elif deal_view.deal.state != PoRepMarketDealState.ACTIVE:
+        utils.confirm(f"Deal ID {deal_id} is in state {deal_view.deal.state} != ACTIVE. Continue anyway?", abort=True)
+
+    epochs_in_month = PoRepMarket().get_epochs_in_month()
+    duration_in_months = deal_view.terms.duration_epochs // epochs_in_month
+
+    _deposit_for_deals([deal_view], duration_in_months)
+
+
 # deposits funds to FileCoinPay account for X month of storing deals
 def _deposit_for_deals(deal_views: list[PoRepMarketDealView], months: int):
     deals_per_token = {}
