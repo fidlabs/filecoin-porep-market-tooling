@@ -14,14 +14,14 @@ from cli.services.web3_service import Web3Service, EthAddress
 
 # TODO LATER propose for multiple manifests + state, retry ??
 # TODO LATER validate params here?
-def _propose_deal_from_manifest(manifest_url: str,
-                                retrievability_bps: int,
-                                bandwidth_mbps: int,
-                                price_per_sector_per_month: int,
-                                duration_months: int,
-                                latency_ms: int,
-                                indexing_pct: int,
-                                payment_token_address: EthAddress):
+def _propose_deal(manifest_url: str,
+                  retrievability_bps: int,
+                  bandwidth_mbps: int,
+                  price_per_sector_per_month: int,
+                  duration_months: int,
+                  latency_ms: int,
+                  indexing_pct: int,
+                  payment_token_address: EthAddress):
     #
     MBPS_TO_BYTES_PER_SECOND = 125_000  # 1 Mbps = 10^6 bits/s / 8 = 125 000 bytes/s
 
@@ -111,14 +111,14 @@ def _propose_deal_from_manifest(manifest_url: str,
               help="IPNI indexing guarantee in percentage; 0 means \"don't care\".")
 @click.option("--payment-token", envvar="USDC_TOKEN", required=True,
               help="Address of the ERC20 token to pay with.  [default: USDC_TOKEN env var]")
-def propose_deal_from_manifest(manifest_url: str,
-                               retrievability_bps: int,
-                               bandwidth_mbps: int,
-                               price_per_sector_per_month: int,
-                               duration_months: int,
-                               latency_ms: int,
-                               indexing_pct: int,
-                               payment_token: str):
+def propose_deal(manifest_url: str,
+                 retrievability_bps: int,
+                 bandwidth_mbps: int,
+                 price_per_sector_per_month: int,
+                 duration_months: int,
+                 latency_ms: int,
+                 indexing_pct: int,
+                 payment_token: str):
     """
     Interactively propose a deal from MANIFEST_URL with the specified parameters.
 
@@ -130,20 +130,20 @@ def propose_deal_from_manifest(manifest_url: str,
     MANIFEST_URL - URL of the deal manifest file to download.
     """
 
-    _propose_deal_from_manifest(manifest_url,
-                                retrievability_bps,
-                                bandwidth_mbps,
-                                price_per_sector_per_month,
-                                duration_months,
-                                latency_ms,
-                                indexing_pct,
-                                EthAddress(payment_token))
+    _propose_deal(manifest_url,
+                  retrievability_bps,
+                  bandwidth_mbps,
+                  price_per_sector_per_month,
+                  duration_months,
+                  latency_ms,
+                  indexing_pct,
+                  EthAddress(payment_token))
 
 
 # TODO LATER remove me
 @click.command(hidden=True)
 @click.argument("manifest_url")
-def propose_deal_from_manifest_mocked(manifest_url: str):
+def propose_deal_mocked(manifest_url: str):
     retrievability_bps = 10
     bandwidth_mbps = 1
     price_per_sector_per_month = utils.to_wei(2, USDCToken().decimals())  # 2 USDC per sector per month
@@ -152,11 +152,11 @@ def propose_deal_from_manifest_mocked(manifest_url: str):
     latency_ms = 999
     indexing_pct = 1
 
-    _propose_deal_from_manifest(manifest_url,
-                                retrievability_bps,
-                                bandwidth_mbps,
-                                price_per_sector_per_month,
-                                duration_months,
-                                latency_ms,
-                                indexing_pct,
-                                USDCToken().address())
+    _propose_deal(manifest_url,
+                  retrievability_bps,
+                  bandwidth_mbps,
+                  price_per_sector_per_month,
+                  duration_months,
+                  latency_ms,
+                  indexing_pct,
+                  USDCToken().address())
