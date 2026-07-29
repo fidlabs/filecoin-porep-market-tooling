@@ -104,7 +104,9 @@ def _write_manifest_file(manifest: list[dict], output_dir: Path, deal_id: int) -
 @click.option("--no-summary", is_flag=True, default=False,
               help="Don't print the initial download summary.  [default: false]")
 @click.option("--claim-allocations", type=click.Choice(["curio", "boost"], case_sensitive=False),
-              help="Claim allocation(s) for each piece right after download using specified software.  [default: none]")
+              help="Claim allocation for each piece right after it downloads, using specified software. "
+                   "Forces sequential (one piece at a time) downloads and requires an interactive terminal "
+                   "to confirm each claim.  [default: none]")
 @click.pass_context
 # TODO add commP files verification after download
 def onboard_data(ctx,
@@ -122,6 +124,11 @@ def onboard_data(ctx,
     \b
     Unknown [OPTIONS] are passed directly to aria2c, allowing for flexible configuration.
     See aria2c --help for available options.
+
+    \b
+    When --claim-allocations is set, pieces download one at a time (not in parallel) and each piece's
+    allocation is claimed - with the usual interactive confirmation - right after it finishes downloading,
+    instead of waiting for the whole deal to be on disk. This requires an interactive terminal.
 
     DEAL_ID - The ID of the deal to download pieces for.
 
@@ -183,7 +190,10 @@ def onboard_data(ctx,
 
         if claim_allocations:
             callback_path = Path(sys.argv[0]).parent / "cli" / "commands" / "sp" / "_aria2_callback.py"
-            command += [f"--on-download-complete={callback_path}"]
+
+            # Claiming needs an interactive confirmation per piece (see _aria2_callback.py), so pieces
+            # must download one at a time - otherwise concurrent callbacks would race for the same terminal.
+            command += ["--max-concurrent-downloads=1", f"--on-download-complete={callback_path}"]
 
             env = {
                 **os.environ,

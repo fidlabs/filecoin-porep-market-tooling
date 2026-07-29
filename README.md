@@ -154,6 +154,14 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
       python3 ./porep_tooling_cli.py sp claim-allocations curio <DEAL ID> 
       ```
 
+    - alternatively, to claim each piece's allocation as soon as it finishes downloading instead of
+      downloading the whole deal first, use `--claim-allocations` on `onboard-data`. This downloads
+      pieces one at a time and prompts you to confirm each claim right after that piece lands; it
+      requires an interactive terminal:
+      ```bash
+      python3 ./porep_tooling_cli.py sp onboard-data <DEAL ID> --output-dir <your dir> --claim-allocations curio
+      ```
+
 10. To get full list of commands for the tooling:
     ```bash
     python3 ./porep_tooling_cli.py sp --help
