@@ -46,9 +46,7 @@ def get_all_deals(state: PoRepMarketDealState | None = None,
     return result
 
 
-def get_client_deals(_client_address: EthAddress,
-                     state: PoRepMarketDealState | None = None) -> list[PoRepMarketDeal]:
-    #
+def get_client_deals(_client_address: EthAddress, state: PoRepMarketDealState | None = None) -> list[PoRepMarketDeal]:
     all_deals = get_all_deals(state)
     return [deal for deal in all_deals if deal.client_address == _client_address]
 
@@ -218,6 +216,7 @@ def fetch_manifest(manifest_url: str,
                    show_manifest: bool | None = None,
                    retries: int | None = None,
                    quiet=False) -> list[dict]:
+    #
     return fetch_manifest_document(manifest_url, show_manifest, retries, quiet).json
 
 
@@ -262,10 +261,7 @@ def validate_and_parse_url(manifest_url: str) -> ParseResult:
     return parsed
 
 
-def _fetch_manifest(parsed_url: ParseResult,
-                    show_manifest: bool | None = None,
-                    quiet=False) -> ManifestDocument:
-    #
+def _fetch_manifest(parsed_url: ParseResult, show_manifest: bool | None = None, quiet=False) -> ManifestDocument:
     resp = requests.get(parsed_url.geturl(), headers={"Host": parsed_url.hostname}, timeout=30, allow_redirects=False)
 
     # don't retry on 4xx errors
@@ -279,7 +275,7 @@ def _fetch_manifest(parsed_url: ParseResult,
 
     try:
         manifest = resp.json()
-        raw_manifest = resp.content 
+        raw_manifest = resp.content
     except ValueError as e:
         raise click.ClickException(f"Manifest is not a valid JSON: {e}") from e
 
@@ -347,17 +343,16 @@ def _validate_manifest(manifest: object, quiet=False) -> list[dict]:
     return manifest
 
 
-def get_filecoinpay_account(token_address: str, owner_address: EthAddress):
-    _token_address = EthAddress(token_address)
-    token = ERC20Contract(_token_address)
+def get_filecoinpay_account(token_address: EthAddress, owner_address: EthAddress):
+    token = ERC20Contract(token_address)
     token_symbol = token.symbol()
     token_decimals = token.decimals()
-    account = FileCoinPay().get_account(_token_address, owner_address)
+    account = FileCoinPay().get_account(token_address, owner_address)
 
     return {
         "owner": str(owner_address),
         "token": {
-            "address": str(_token_address),
+            "address": str(token_address),
             "name": token.name(),
             "symbol": token_symbol,
             "decimals": token_decimals,
@@ -370,12 +365,10 @@ def get_filecoinpay_account(token_address: str, owner_address: EthAddress):
     }
 
 
-def withdraw_from_filecoinpay(to_address: str, amount: float, token_address: str,
-                              account_address: EthAddress, account_signer: TxSigner):
+def withdraw_from_filecoinpay(to_address: str, amount: float, token_address: EthAddress, from_address: EthAddress, signer: TxSigner):
     _to_address = EthAddress.from_any(to_address)
-    _token_address = EthAddress(token_address)
 
-    token = ERC20Contract(_token_address)
+    token = ERC20Contract(token_address)
     token_decimals = token.decimals()
     token_symbol = token.symbol()
 
@@ -387,18 +380,18 @@ def withdraw_from_filecoinpay(to_address: str, amount: float, token_address: str
         click.echo()
 
     print_token_balance(_to_address)
-    click.echo(f"FileCoinPay account of {account_address}: " + utils.json_pretty(get_filecoinpay_account(token_address, account_address)))
+    click.echo(f"FileCoinPay account of {from_address}: " + utils.json_pretty(get_filecoinpay_account(token_address, from_address)))
     click.echo()
 
     _amount = utils.to_wei(amount, token_decimals)
     amount_str = utils.str_from_wei(_amount, token_decimals)
 
-    utils.confirm(f"Withdraw {amount_str} {token_symbol} from {account_address} FileCoinPay account to {_to_address}?", abort=True)
+    utils.confirm(f"Withdraw {amount_str} {token_symbol} from {from_address} FileCoinPay account to {_to_address}?", abort=True)
 
-    tx_hash = FileCoinPay().withdraw_to(_token_address,
+    tx_hash = FileCoinPay().withdraw_to(token_address,
                                         _to_address,
                                         _amount,
-                                        account_signer)
+                                        signer)
 
     click.echo(f"Withdraw transaction sent: {tx_hash}")
     print_token_balance(_to_address)
@@ -408,6 +401,7 @@ def reject_deal(deal: PoRepMarketDeal, signer: TxSigner, confirm_session_id: str
     # deals are created directly in ACCEPTED state (offer match == acceptance);
     # they can be rejected while no FileCoinPay rail is set yet. PROPOSED is kept
     # for deals predating the auto-accept contract.
+
     if deal.state not in (PoRepMarketDealState.PROPOSED, PoRepMarketDealState.ACCEPTED):
         raise click.ClickException(f"Deal ID {deal.deal_id} is in state {deal.state} != PROPOSED/ACCEPTED")
 
@@ -420,6 +414,6 @@ def reject_deal(deal: PoRepMarketDeal, signer: TxSigner, confirm_session_id: str
         tx_hash = PoRepMarket().reject_accepted_deal(deal.deal_id, signer)
     else:
         tx_hash = PoRepMarket().reject_deal(deal.deal_id, signer)
-    click.echo(f"Deal ID {deal.deal_id} rejected: {tx_hash}")
 
+    click.echo(f"Deal ID {deal.deal_id} rejected: {tx_hash}")
     return tx_hash
