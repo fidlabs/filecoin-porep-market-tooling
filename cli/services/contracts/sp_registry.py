@@ -51,15 +51,39 @@ class SPRegistryOfferTerms:
         )
 
 
-# @notice Current offer data plus the payment row for one token.
+# @notice Current payment configuration for one token on an offer.
+# @param token ERC20 token address.
+# @param active True when this token can be selected.
+# @param pricePer32GiBPerMonth Monthly price per 32 GiB in token smallest units.
+@utils.json_dataclass()
+class SPRegistryOfferPaymentView:
+    token: EthAddress
+    active: bool
+    price_per_32_gib_per_month: int
+
+    def __post_init__(self):
+        self.token = EthAddress(self.token)
+
+    @staticmethod
+    def from_web3(data) -> "SPRegistryOfferPaymentView":
+        if data[0] is None:
+            raise RuntimeError("Offer payment view not found")
+
+        # noinspection PyArgumentList
+        return SPRegistryOfferPaymentView(
+            token=EthAddress(data[0]),
+            active=bool(data[1]),
+            price_per_32_gib_per_month=int(data[2])
+        )
+
+
+# @notice Current offer data including all configured payment tokens.
 # @param offerId Offer ID.
 # @param provider Provider actor ID that owns the offer.
 # @param active True when the offer participates in matching.
 # @param terms Offer size and duration bounds.
 # @param slis Promised offer SLIs.
-# @param paymentToken ERC20 token address used for the payment row.
-# @param paymentActive True when this token row can be selected.
-# @param pricePer32GiBPerMonth Monthly price per 32 GiB in token smallest units.
+# @param payments Current payment token rows configured on the offer.
 @utils.json_dataclass()
 class SPRegistryOfferView:
     offer_id: int
@@ -67,13 +91,10 @@ class SPRegistryOfferView:
     active: bool
     terms: SPRegistryOfferTerms
     slis: PoRepMarketSLIThresholds
-    payment_token: EthAddress
-    payment_active: bool
-    price_per_32_gib_per_month: int
+    payments: list[SPRegistryOfferPaymentView]
 
     def __post_init__(self):
         self.provider_id = ActorId(self.provider_id)
-        self.payment_token = EthAddress(self.payment_token)
 
     @staticmethod
     def from_web3(data, expected_offer_id: int | None = None) -> "SPRegistryOfferView":
@@ -90,9 +111,7 @@ class SPRegistryOfferView:
             active=bool(data[2]),
             terms=SPRegistryOfferTerms.from_web3(data[3]),
             slis=PoRepMarketSLIThresholds.from_web3(data[4]),
-            payment_token=EthAddress(data[5]),
-            payment_active=bool(data[6]),
-            price_per_32_gib_per_month=int(data[7])
+            payments=[SPRegistryOfferPaymentView.from_web3(payment) for payment in data[5]]
         )
 
 
@@ -101,25 +120,8 @@ class SPRegistryOfferView:
 #  @param active True when this token row can be selected
 #  @param pricePer32GiBPerMonth Monthly price per 32 GiB in token smallest units
 @utils.json_dataclass()
-class SPRegistryOfferPaymentInput:
-    token: EthAddress
-    active: bool
-    price_per_32_gib_per_month: int
-
-    def __post_init__(self):
-        self.token = EthAddress(self.token)
-
-    @staticmethod
-    def from_web3(data) -> "SPRegistryOfferPaymentInput":
-        if data[0] is None:
-            raise RuntimeError("Offer payment input not found")
-
-        # noinspection PyArgumentList
-        return SPRegistryOfferPaymentInput(
-            token=EthAddress(data[0]),
-            active=bool(data[1]),
-            price_per_32_gib_per_month=int(data[2])
-        )
+class SPRegistryOfferPaymentInput(SPRegistryOfferPaymentView):
+    pass
 
 
 @utils.json_dataclass()
@@ -341,9 +343,9 @@ class SPRegistry(ContractService):
     # @param token ERC20 token address.
     # @param allowed True to allow the token, false to remove it from matching.
     # @param minPricePer32GiBPerMonth Minimum monthly price per 32 GiB in token smallest units.
-    def set_payment_token(self, token: EthAddress, allowed: bool, min_price_per_32_gib_per_month: int, signer: TxSigner) -> str:
+    def set_payment_token(self, token: EthAddress, token_config: SPRegistryTokenConfig, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
-            self.contract.functions.setPaymentToken(token, allowed, min_price_per_32_gib_per_month),
+            self.contract.functions.setPaymentToken(token, token_config.allowed, token_config.min_price_per_32_gib_per_month),
             signer
         )
 
@@ -397,10 +399,9 @@ class SPRegistry(ContractService):
 
     # @notice Returns offer data plus the payment row for one token.
     # @param offerId Offer ID.
-    # @param paymentToken ERC20 token address to read from the offer payment map.
     # @return view_ Current offer view for the requested payment token.
-    def get_offer_view(self, offer_id: int, payment_token: EthAddress) -> SPRegistryOfferView:
-        return SPRegistryOfferView.from_web3(self.contract.functions.getOfferView(offer_id, payment_token).call(), offer_id)
+    def get_offer_view(self, offer_id: int) -> SPRegistryOfferView:
+        return SPRegistryOfferView.from_web3(self.contract.functions.getOfferView(offer_id).call(), offer_id)
 
     # @notice Returns all offer IDs created by a provider.
     # @param provider Provider actor ID.
