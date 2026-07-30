@@ -156,181 +156,111 @@ class PoRepMarketDeal:
         )
 
 
-# @notice DealData struct represents the data associated with a deal
-# @param manifestHash commitment for piece set
-# @param manifestLocation URL or path for humans/tools; contracts do not fetch or trust it.
-@utils.json_dataclass()
-class PoRepMarketDealData:
-    manifest_hash: bytes
-    manifest_location: str
+# @title SettlementReason
+# @notice Settlement-specific reason code constants for PoRepMarket decisions
+class PoRepMarketSettlementReason(enum.Enum):
+    OK = 0
+    DEAL_ENDED = 10
+    DEAL_TERMINATED = 20
+    TOO_EARLY = 30
+    SCORE_BELOW_THRESHOLD = 40
+    DATA_SIZE_MISMATCH = 50
+    EVIDENCE_TOO_STALE = 60
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
 
     @staticmethod
-    def from_web3(data) -> "PoRepMarketDealData":
+    def from_web3(s: str | int | None) -> "PoRepMarketSettlementReason":
+        if s is None or s == "":
+            raise ValueError(f"Invalid settlement reason: {s}")
+
+        s = str(s).strip().lower()
+
+        if s in ("0", "ok"):
+            return PoRepMarketSettlementReason.OK
+        elif s in ("10", "deal_ended"):
+            return PoRepMarketSettlementReason.DEAL_ENDED
+        elif s in ("20", "deal_terminated"):
+            return PoRepMarketSettlementReason.DEAL_TERMINATED
+        elif s in ("30", "too_early"):
+            return PoRepMarketSettlementReason.TOO_EARLY
+        elif s in ("40", "score_below_threshold"):
+            return PoRepMarketSettlementReason.SCORE_BELOW_THRESHOLD
+        elif s in ("50", "data_size_mismatch"):
+            return PoRepMarketSettlementReason.DATA_SIZE_MISMATCH
+        elif s in ("60", "evidence_too_stale"):
+            return PoRepMarketSettlementReason.EVIDENCE_TOO_STALE
+        else:
+            raise ValueError(f"Invalid settlement reason: {s}")
+
+
+# @title SettlementResult
+# @notice Settlement-specific result constants for PoRepMarket decisions
+class PoRepMarketSettlementResult(enum.Enum):
+    NONE = 0
+    ACCEPTED = 10
+    MODIFIED = 20
+    REJECTED = 30
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
+
+    @staticmethod
+    def from_web3(s: str | int | None) -> "PoRepMarketSettlementResult":
+        if s is None or s == "":
+            raise ValueError(f"Invalid settlement result: {s}")
+
+        s = str(s).strip().lower()
+
+        if s in ("0", "none"):
+            return PoRepMarketSettlementResult.NONE
+        elif s in ("10", "accepted"):
+            return PoRepMarketSettlementResult.ACCEPTED
+        elif s in ("20", "modified"):
+            return PoRepMarketSettlementResult.MODIFIED
+        elif s in ("30", "rejected"):
+            return PoRepMarketSettlementResult.REJECTED
+        else:
+            raise ValueError(f"Invalid settlement result: {s}")
+
+
+# @notice SettlementDecision struct represents the decision for deal settlement
+# @param settlementAmount amount to be settled based on evidence and deal terms
+# @param settleUpto epoch up to which the settlement is calculated
+# @param reasonCode code representing the reason for the settlement decision
+# @param result settlement result code
+@utils.json_dataclass()
+class PoRepMarketSettlementDecision:
+    settlement_amount: int
+    settle_upto: int
+    reason_code: PoRepMarketSettlementReason
+    result: PoRepMarketSettlementResult
+    note: str
+
+    @staticmethod
+    def from_web3(data) -> "PoRepMarketSettlementDecision":
         if data[0] is None:
-            raise RuntimeError("Deal data not found")
+            raise RuntimeError("Settlement decision not found")
 
         # noinspection PyArgumentList
-        return PoRepMarketDealData(
-            manifest_hash=data[0],
-            manifest_location=data[1]
-        )
-
-
-# @notice Frozen size and duration terms for a deal.
-@utils.json_dataclass()
-class PoRepMarketDealTermsView:
-    requested_size_bytes: int
-    duration_epochs: int
-
-    @staticmethod
-    def from_web3(data) -> "PoRepMarketDealTermsView":
-        if data[0] is None:
-            raise RuntimeError("Deal terms not found")
-
-        # noinspection PyArgumentList
-        return PoRepMarketDealTermsView(
-            requested_size_bytes=int(data[0]),
-            duration_epochs=int(data[1])
-        )
-
-
-# @notice Proposal timing for expiry-related checks.
-@utils.json_dataclass()
-class PoRepMarketDealTiming:
-    proposed_at_epoch: int
-    expires_at_epoch: int
-
-    @staticmethod
-    def from_web3(data) -> "PoRepMarketDealTiming":
-        if data[0] is None:
-            raise RuntimeError("Deal timing not found")
-
-        # noinspection PyArgumentList
-        return PoRepMarketDealTiming(
-            proposed_at_epoch=int(data[0]),
-            expires_at_epoch=int(data[1])
-        )
-
-
-# @notice Service window established when storage activates.
-@utils.json_dataclass()
-class PoRepMarketDealService:
-    service_start_epoch: int
-    service_end_epoch: int
-    early_termination_epoch: int
-    min_time_between_settlements_in_epochs: int
-    last_settled_epoch: int
-
-    @staticmethod
-    def from_web3(data) -> "PoRepMarketDealService":
-        if data[0] is None:
-            raise RuntimeError("Deal service not found")
-
-        # noinspection PyArgumentList
-        return PoRepMarketDealService(
-            service_start_epoch=int(data[0]),
-            service_end_epoch=int(data[1]),
-            early_termination_epoch=int(data[2]),
-            min_time_between_settlements_in_epochs=int(data[3]),
-            last_settled_epoch=int(data[4])
-        )
-
-
-# @notice Capacity reserved by proposal and committed at activation.
-@utils.json_dataclass()
-class PoRepMarketDealCapacity:
-    reserved_bytes: int
-    committed_bytes: int
-
-    @staticmethod
-    def from_web3(data) -> "PoRepMarketDealCapacity":
-        if data[0] is None:
-            raise RuntimeError("Deal capacity not found")
-
-        # noinspection PyArgumentList
-        return PoRepMarketDealCapacity(
-            reserved_bytes=int(data[0]),
-            committed_bytes=int(data[1])
-        )
-
-
-# @notice Payment fields exposed through DealView.
-@utils.json_dataclass()
-class PoRepMarketDealPayment:
-    payment_token: EthAddress
-    price_per_32_gib_per_month: int
-    billed_32_gib_units: int
-    rail_max_rate_per_epoch: int
-
-    def __post_init__(self):
-        self.payment_token = EthAddress(self.payment_token)
-
-    @staticmethod
-    def from_web3(data) -> "PoRepMarketDealPayment":
-        if data[0] is None:
-            raise RuntimeError("Deal payment not found")
-
-        # noinspection PyArgumentList
-        return PoRepMarketDealPayment(
-            payment_token=EthAddress(data[0]),
-            price_per_32_gib_per_month=int(data[1]),
-            billed_32_gib_units=int(data[2]),
-            rail_max_rate_per_epoch=int(data[3])
-        )
-
-
-# @notice Complete generic read model for one PoRepMarket deal.
-# @dev This is for offchain tools, oracles, CLIs, and RPC consumers that need
-# PoRepMarket-owned or PoRepMarket-frozen deal facts in one bounded response.
-# It is not an adapter inventory API: allocation IDs, claim IDs, raw evidence
-# rows, and adapter-specific progress stay on the selected evidence adapter.
-# @param deal Core deal identity, actors, state, adapter, validator, and rail ID.
-# @param data Manifest hash and location stored for the deal.
-# @param requiredSLIs SLI thresholds required by the client.
-# @param terms Frozen size and duration terms.
-# @param timing Proposal and expiry epochs.
-# @param service Service start and end epochs.
-# @param capacity Reserved and committed bytes.
-# @param payment Frozen payment token, price, billing units, and rail ceiling.
-# @param providerOrganization Organization selected for the provider at proposal time.
-# @param evidenceStatus Adapter-local stored evidence status; this view does not refresh Filecoin actor state.
-@utils.json_dataclass()
-class PoRepMarketDealView:
-    deal: PoRepMarketDeal
-    data: PoRepMarketDealData
-    required_slis: PoRepMarketSLIThresholds
-    terms: PoRepMarketDealTermsView
-    timing: PoRepMarketDealTiming
-    service: PoRepMarketDealService
-    capacity: PoRepMarketDealCapacity
-    payment: PoRepMarketDealPayment
-    provider_organization_address: EthAddress
-    evidence_status: DataCapEvidenceStatus
-
-    def __post_init__(self):
-        self.provider_organization_address = EthAddress(self.provider_organization_address)
-
-    @staticmethod
-    def from_web3(data, expected_deal_id: int | None = None) -> "PoRepMarketDealView":
-        if data[0][0] is None:
-            raise RuntimeError("Deal view not found")
-
-        # noinspection PyArgumentList
-        return PoRepMarketDealView(
-            deal=PoRepMarketDeal.from_web3(data[0], expected_deal_id),
-            data=PoRepMarketDealData.from_web3(data[1]),
-            required_slis=PoRepMarketSLIThresholds.from_web3(data[2]),
-            terms=PoRepMarketDealTermsView.from_web3(data[3]),
-            timing=PoRepMarketDealTiming.from_web3(data[4]),
-            service=PoRepMarketDealService.from_web3(data[5]),
-            capacity=PoRepMarketDealCapacity.from_web3(data[6]),
-            payment=PoRepMarketDealPayment.from_web3(data[7]),
-            provider_organization_address=EthAddress(data[8]),
-            evidence_status=DataCapEvidenceStatus.from_web3(data[9])
+        return PoRepMarketSettlementDecision(
+            settlement_amount=int(data[0]),
+            settle_upto=int(data[1]),
+            reason_code=PoRepMarketSettlementReason.from_web3(data[2]),
+            result=PoRepMarketSettlementResult.from_web3(data[3]),
+            note=data[4]
         )
 
 
 class PoRepMarket(ContractService):
+    # TODO ASAP get address from view helper
     def __init__(self, contract_address: EthAddress | None = None):
         super().__init__(contract_address or utils.get_env_required("POREP_MARKET", required_type=EthAddress),
                          self.abi_dir() / "PoRepMarket.json")
@@ -353,27 +283,25 @@ class PoRepMarket(ContractService):
             signer
         )
 
-    # @notice Gets the complete generic read model for one deal.
-    # @dev External tools, oracles, CLIs, and RPC consumers use this bounded
-    # snapshot when they need all PoRepMarket-owned or PoRepMarket-frozen facts for
-    # one deal in a single eth_call. The evidence status is adapter-local stored
-    # status and does not refresh Filecoin actor state.
-    # @param dealId The id of the deal.
-    # @return dealView Complete generic deal snapshot.
-    def get_deal_view(self, deal_id: int) -> PoRepMarketDealView:
-        return PoRepMarketDealView.from_web3(self.contract.functions.getDealView(deal_id).call(), deal_id)
+    # @notice Proposes a deal against a specific provider offer
+    # @dev Only admins can bypass automatic matching and reserve a specific offer
+    # @param offerId The provider offer to reserve for the deal
+    # @param request The client deal request
+    def propose_deal_with_specific_offer(self, offer_id: int, request: PoRepMarketDealRequest, signer: TxSigner) -> str:
+        slis = request.required_slis
 
-    # @notice Gets a caller-sized page of complete generic deal views.
-    # @dev Oracle jobs and CLI tools use this for normal batch scans. The caller
-    # chooses `limit` because RPC providers and JSON-RPC clients have gas, timeout,
-    # and response-size limits for eth_call.
-    # @param offset Zero-based index in the creation-order deal ID list.
-    # @param limit Maximum number of deal views to return.
-    # @return dealViews Page of complete generic deal snapshots.
-    # @return total Total number of created deal IDs at call time.
-    def get_deal_views(self, offset: int, limit: int) -> tuple[list[PoRepMarketDealView], int]:
-        views, total = self.contract.functions.getDealViews(offset, limit).call()
-        return [PoRepMarketDealView.from_web3(view) for view in views], total
+        return self.sign_and_send_tx(
+            self.contract.functions.proposeDealWithSpecificOffer(offer_id, (
+                request.manifest_hash,
+                request.requested_size_bytes,
+                request.max_price_per_32_gib_per_month,
+                request.manifest_location,
+                request.payment_token_address,
+                request.duration_days,
+                (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
+            )),
+            signer
+        )
 
     # @notice Gets the number of deals created by PoRepMarket.
     # @dev Offchain tools and oracle jobs use this to size full scans and detect
@@ -465,6 +393,10 @@ class PoRepMarket(ContractService):
     def get_max_deal_duration_days(self) -> int:
         return self.contract.functions.MAX_DEAL_DURATION_DAYS().call()
 
+    # @notice Minimum Filecoin deal duration equals 180 days (6 months)
+    def get_min_deal_duration_days(self) -> int:
+        return self.contract.functions.MIN_DEAL_DURATION_DAYS().call()
+
     # @notice Number of epochs in one month
     # @dev 30 days * 24 hours/day * 60 minutes/hour * 2 epochs/minute = 86_400 epochs
     def get_epochs_in_month(self) -> int:
@@ -482,6 +414,23 @@ class PoRepMarket(ContractService):
     # @dev Only callable by the admin
     def set_deal_activation_padding(self, padding: int, signer: TxSigner) -> str:
         return self.sign_and_send_tx(self.contract.functions.setDealActivationPadding(padding), signer)
+
+    # @notice Sets the minimum time between settlements for a deal
+    # @dev Only the admin may update the settlement cadence.
+    # @param dealId The deal being configured
+    # @param minEpochs Minimum time between settlements in epochs
+    def set_min_epochs_between_settlements(self, deal_id: int, min_epochs: int, signer: TxSigner) -> str:
+        return self.sign_and_send_tx(self.contract.functions.setMinEpochsBetweenSettlements(deal_id, min_epochs), signer)
+
+    # @notice Validates the settlement amount for a deal's service window
+    # @dev Only the deal's validator may request a settlement decision. settleUpto controls how far FilecoinPay may
+    # advance its cursor, including for rejected zero-payment windows.
+    # @param dealId The deal being settled
+    # @param fromEpoch The epoch at which the settlement window starts
+    # @param toEpoch The epoch at which the settlement window ends
+    # @return decision The amount and epoch accepted for settlement
+    def validate_deal_settlement(self, deal_id: int, from_epoch: int, to_epoch: int) -> PoRepMarketSettlementDecision:
+        return PoRepMarketSettlementDecision.from_web3(self.contract.functions.validateDealSettlement(deal_id, from_epoch, to_epoch).call())
 
     # @notice Gets the SPRegistry contract address from storage
     # @return ISPRegistry The SPRegistry contract address
@@ -537,6 +486,13 @@ class PoRepMarket(ContractService):
     def current_evidence_status(self, deal_id: int) -> DataCapEvidenceStatus:
         return DataCapEvidenceStatus.from_web3(self.contract.functions.currentEvidenceStatus(deal_id).call())
 
+    # @notice Updates the manifest location for a specific deal
+    # @dev Only callable by the admin
+    # @param dealId The unique identifier of the deal
+    # @param newManifestLocation The new manifest location URL to be updated for the deal
+    def update_manifest_location(self, deal_id: int, new_manifest_location: str, signer: TxSigner) -> str:
+        return self.sign_and_send_tx(self.contract.functions.updateManifestLocation(deal_id, new_manifest_location), signer)
+
     # @notice Updates the validator instance assigned to a deal
     # @param dealId The id of the deal
     def update_validator(self, deal_id: int, signer: TxSigner) -> str:
@@ -550,7 +506,3 @@ class PoRepMarket(ContractService):
     # @param newDealExpiration The new expiration value
     def set_new_deal_expiration(self, new_deal_expiration: int, signer: TxSigner) -> str:
         return self.sign_and_send_tx(self.contract.functions.setNewDealExpiration(new_deal_expiration), signer)
-
-    # @notice Minimum deal duration in days. See PoRepTypes.MIN_DEAL_DURATION_DAYS.
-    def get_min_deal_duration_days(self) -> int:
-        return self.contract.functions.MIN_DEAL_DURATION_DAYS().call()
