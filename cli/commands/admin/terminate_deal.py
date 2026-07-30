@@ -9,6 +9,8 @@ from cli.services.contracts.validator_factory import ValidatorFactory
 from cli.services.web3_service import Web3Service
 
 
+# TODO ASAP verify this
+
 def _terminate_proposed_deal(deal: PoRepMarketDeal) -> str:
     assert deal.state == PoRepMarketDealState.PROPOSED
 
@@ -33,13 +35,14 @@ def _terminate_active_deal(deal: PoRepMarketDeal) -> str:
 
 
 def _terminate_accepted_deal(deal: PoRepMarketDeal) -> str:
-    def terminate_accepted_initialized_deal() -> str:
+    #
+    def terminate_accepted_initialized_deal(deal: PoRepMarketDeal) -> str:
         assert deal.state == PoRepMarketDealState.ACCEPTED
         assert deal.rail_id
 
         return FileCoinPayValidator(deal.validator_address).early_rail_termination(admin_signer())
 
-    def terminate_accepted_not_initialized_deal() -> str:
+    def terminate_accepted_not_initialized_deal(deal: PoRepMarketDeal) -> str:
         assert deal.state == PoRepMarketDealState.ACCEPTED
         assert not deal.rail_id
 
@@ -48,9 +51,9 @@ def _terminate_accepted_deal(deal: PoRepMarketDeal) -> str:
     assert deal.state == PoRepMarketDealState.ACCEPTED
 
     if deal.rail_id == 0:
-        return terminate_accepted_not_initialized_deal()
+        return terminate_accepted_not_initialized_deal(deal)
     else:
-        return terminate_accepted_initialized_deal()
+        return terminate_accepted_initialized_deal(deal)
 
 
 @click.command()
@@ -70,6 +73,7 @@ def terminate_deal(deal_id: int):
     """
 
     Web3Service().wait_for_pending_transactions(admin_address())
+
     deal = PoRepMarketViewHelper().get_deal_view(deal_id).deal
     utils.confirm(f"Terminating deal ID {deal.deal_id}: {deal}", abort=True)
 
