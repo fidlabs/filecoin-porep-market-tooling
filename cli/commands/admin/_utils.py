@@ -151,7 +151,7 @@ def get_db_offers(db_url: str,
     #
 
     MAX_DEAL_DURATION_DAYS_LIMIT = PoRepMarket().get_max_deal_duration_days()
-    MIN_DEAL_DURATION_DAYS_LIMIT = months_to_days(6)  # TODO LATER get minimum deal duration from smart contracts
+    MIN_DEAL_DURATION_DAYS_LIMIT = PoRepMarket().get_min_deal_duration_days()
     result: list[SPRegistryOfferInput] = []
     offers = SPRegistryDB(db_url).get_sla_classes(kyc_status=kyc_status,
                                                   organization_id=organization_db_id,
