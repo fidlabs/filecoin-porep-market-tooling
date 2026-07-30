@@ -54,7 +54,7 @@ def _terminate_accepted_deal(deal: PoRepMarketDeal) -> str:
 
 
 @click.command()
-@click.argument("deal_id", type=click.IntRange(min=0))
+@click.argument("deal_id", type=click.IntRange(min=1))
 def terminate_deal(deal_id: int):
     """
     Terminate a deal early. Not all deals can be terminated.

@@ -8,7 +8,7 @@ from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelpe
 
 
 @click.command()
-@click.argument("deal_id", type=click.IntRange(min=0))
+@click.argument("deal_id", type=click.IntRange(min=1))
 def get_deal_manifest(deal_id: int):
     """
     Get deal manifest by deal ID.
@@ -22,7 +22,7 @@ def get_deal_manifest(deal_id: int):
 
 
 @click.command()
-@click.argument("deal_id", type=click.IntRange(min=0))
+@click.argument("deal_id", type=click.IntRange(min=1))
 def get_deal_rail(deal_id: int):
     """
     Get deal rail info by deal ID.
@@ -34,7 +34,7 @@ def get_deal_rail(deal_id: int):
 
 
 @click.command()
-@click.argument("deal_id", type=click.IntRange(min=0))
+@click.argument("deal_id", type=click.IntRange(min=1))
 def get_deal(deal_id: int):
     """
     Get deal by ID.

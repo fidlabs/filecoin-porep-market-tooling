@@ -6,7 +6,7 @@ from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelpe
 
 
 @click.command()
-@click.argument("deal_id", type=click.IntRange(min=0))
+@click.argument("deal_id", type=click.IntRange(min=1))
 def get_claims(deal_id: int):
     """
     Get DDO allocation claims for a deal.

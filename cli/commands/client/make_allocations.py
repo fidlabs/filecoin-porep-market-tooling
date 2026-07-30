@@ -16,7 +16,7 @@ from cli.services.web3_service import Web3Service, ActorId
 
 
 @click.command()
-@click.argument("deal_id", type=click.IntRange(min=0))
+@click.argument("deal_id", type=click.IntRange(min=1))
 @click.option("--print-only", is_flag=True, default=False,
               help="Print transfer params without broadcasting.  [default: false]")
 @click.option("--exclude-dag", is_flag=True, default=False,

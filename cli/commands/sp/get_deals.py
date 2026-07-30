@@ -10,7 +10,7 @@ from cli.services.web3_service import ActorId
 
 
 @click.command()
-@click.argument("deal_id", type=click.IntRange(min=0))
+@click.argument("deal_id", type=click.IntRange(min=1))
 def get_deal_manifest(deal_id: int):
     """
     Get deal manifest by deal ID.
@@ -20,11 +20,12 @@ def get_deal_manifest(deal_id: int):
 
     deal = PoRepMarketViewHelper().get_deal_view(deal_id)
     manifest = commands_utils.fetch_manifest(deal.data.manifest_location, show_manifest=False, quiet=True, retries=10)
+
     click.echo(utils.json_pretty(manifest))
 
 
 @click.command()
-@click.argument("deal_id", type=click.IntRange(min=0))
+@click.argument("deal_id", type=click.IntRange(min=1))
 def get_deal_rail(deal_id: int):
     """
     Get deal rail info by deal ID.
@@ -36,7 +37,7 @@ def get_deal_rail(deal_id: int):
 
 
 @click.command()
-@click.argument("deal_id", type=click.IntRange(min=0))
+@click.argument("deal_id", type=click.IntRange(min=1))
 def get_deal(deal_id: int):
     """
     Get deal by ID.
