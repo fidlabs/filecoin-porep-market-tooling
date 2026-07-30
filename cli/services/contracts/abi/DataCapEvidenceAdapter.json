@@ -19,19 +19,6 @@
     },
     {
         "type": "function",
-        "name": "RESCUE_ROLE",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "bytes32",
-                "internalType": "bytes32"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
         "name": "TERMINATION_ORACLE",
         "inputs": [],
         "outputs": [
@@ -247,19 +234,6 @@
     },
     {
         "type": "function",
-        "name": "evidenceType",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint8",
-                "internalType": "uint8"
-            }
-        ],
-        "stateMutability": "pure"
-    },
-    {
-        "type": "function",
         "name": "finishDataCapPosting",
         "inputs": [
             {
@@ -373,6 +347,38 @@
                 "name": "status",
                 "type": "uint8",
                 "internalType": "uint8"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "getEvidenceType",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "",
+                "type": "uint8",
+                "internalType": "uint8"
+            }
+        ],
+        "stateMutability": "pure"
+    },
+    {
+        "type": "function",
+        "name": "getExpiration",
+        "inputs": [
+            {
+                "name": "dealId",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "expiration",
+                "type": "int64",
+                "internalType": "CommonTypes.ChainEpoch"
             }
         ],
         "stateMutability": "view"
@@ -539,6 +545,25 @@
     },
     {
         "type": "function",
+        "name": "isClaimTerminated",
+        "inputs": [
+            {
+                "name": "claimId",
+                "type": "uint64",
+                "internalType": "uint64"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "",
+                "type": "bool",
+                "internalType": "bool"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
         "name": "isDataCapPostingFinished",
         "inputs": [
             {
@@ -683,60 +708,6 @@
                 "name": "callerConfirmation",
                 "type": "address",
                 "internalType": "address"
-            }
-        ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "rescueDealAllocations",
-        "inputs": [
-            {
-                "name": "dealId",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "params",
-                "type": "tuple",
-                "internalType": "struct DataCapTypes.TransferParams",
-                "components": [
-                    {
-                        "name": "to",
-                        "type": "tuple",
-                        "internalType": "struct CommonTypes.FilAddress",
-                        "components": [
-                            {
-                                "name": "data",
-                                "type": "bytes",
-                                "internalType": "bytes"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "amount",
-                        "type": "tuple",
-                        "internalType": "struct CommonTypes.BigInt",
-                        "components": [
-                            {
-                                "name": "val",
-                                "type": "bytes",
-                                "internalType": "bytes"
-                            },
-                            {
-                                "name": "neg",
-                                "type": "bool",
-                                "internalType": "bool"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "operator_data",
-                        "type": "bytes",
-                        "internalType": "bytes"
-                    }
-                ]
             }
         ],
         "outputs": [],
@@ -908,25 +879,6 @@
     },
     {
         "type": "function",
-        "name": "terminatedClaims",
-        "inputs": [
-            {
-                "name": "claimId",
-                "type": "uint64",
-                "internalType": "uint64"
-            }
-        ],
-        "outputs": [
-            {
-                "name": "",
-                "type": "bool",
-                "internalType": "bool"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
         "name": "upgradeToAndCall",
         "inputs": [
             {
@@ -1012,31 +964,6 @@
             },
             {
                 "name": "amount",
-                "type": "uint256",
-                "indexed": false,
-                "internalType": "uint256"
-            }
-        ],
-        "anonymous": false
-    },
-    {
-        "type": "event",
-        "name": "DealAllocationsRescued",
-        "inputs": [
-            {
-                "name": "dealId",
-                "type": "uint256",
-                "indexed": true,
-                "internalType": "uint256"
-            },
-            {
-                "name": "rescuer",
-                "type": "address",
-                "indexed": true,
-                "internalType": "address"
-            },
-            {
-                "name": "totalSize",
                 "type": "uint256",
                 "indexed": false,
                 "internalType": "uint256"
