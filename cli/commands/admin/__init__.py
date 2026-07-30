@@ -3,11 +3,12 @@ from .block_sp import block_sp
 from .get_db_offers import get_db_offers, get_devnet_offers
 from .get_db_sps import get_db_sps, get_devnet_sps
 from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals
+from .get_offers import get_offers
 from .get_registered_sps import get_registered_sps
-from .offers import get_offers, set_offer_active
 from .pause_sp import pause_sp
 from .register_sps import register_db_sps, register_devnet_sps
 from .set_completion_padding import set_completion_padding
+from .set_offer_active import set_offer_active
 from .set_role import set_role
 from .terminate_deal import terminate_deal
 from .unblock_sp import unblock_sp
