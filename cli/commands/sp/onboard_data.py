@@ -153,7 +153,7 @@ def onboard_data(ctx,
     click.echo(f"Found {len(allocations_not_claimed)} allocations not claimed and {len(deal_claims)} claims for deal ID {deal_id}, "
                f"{len(deal_allocations) + len(deal_claims)} total")
 
-    manifest = commands_utils.fetch_manifest(deal.data.manifest_location, show_manifest=False, retries=10)
+    manifest, _ = commands_utils.fetch_manifest(deal.data.manifest_location, show_manifest=False, retries=10)
     pieces = manifest[0]["pieces"]
     pieces_claimed = [piece for piece in pieces if piece["pieceCid"] in cids_claimed]
     pieces_to_download = [piece for piece in pieces if piece not in pieces_claimed]

@@ -64,9 +64,9 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
         raise RuntimeError("Some allocations claimed but deal still in ACCEPTED state")
 
     if local_manifest:
-        manifest = commands_utils.fetch_local_manifest(Path(local_manifest).resolve())
+        manifest, _ = commands_utils.fetch_local_manifest(Path(local_manifest).resolve())
     else:
-        manifest = commands_utils.fetch_manifest(deal.data.manifest_location, show_manifest=False)
+        manifest, _ = commands_utils.fetch_manifest(deal.data.manifest_location, show_manifest=False)
 
     pieces = manifest[0]["pieces"]
 
