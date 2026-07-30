@@ -29,6 +29,36 @@ class PoRepMarketSLIThresholds:
         )
 
 
+# @title DealType
+# @notice Shared deal type constants for PoRepMarket
+class PoRepMarketDealType(enum.Enum):
+    NONE = 0
+    PUBLIC = 10
+    PRIVATE = 20
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
+
+    @staticmethod
+    def from_web3(s: str | int | None) -> "PoRepMarketDealType":
+        if s is None or s == "":
+            raise ValueError(f"Invalid deal type: {s}")
+
+        s = str(s).strip().lower()
+
+        if s in ("0", "none"):
+            return PoRepMarketDealType.NONE
+        elif s in ("10", "public"):
+            return PoRepMarketDealType.PUBLIC
+        elif s in ("20", "private"):
+            return PoRepMarketDealType.PRIVATE
+        else:
+            raise ValueError(f"Invalid deal type: {s}")
+
+
 # @notice DealRequest struct represents the client's request for a storage deal
 # @param manifestHash commitment for piece set
 # @param requestedSizeBytes requested data size in bytes
@@ -36,6 +66,7 @@ class PoRepMarketSLIThresholds:
 # @param manifestLocation location of the deal manifest
 # @param paymentToken token used for payments
 # @param durationDays requested deal duration in days
+# @param dealType type of deal requested
 # @param requiredSLIs required service-level indicators
 @utils.json_dataclass()
 class PoRepMarketDealRequest:
@@ -45,6 +76,7 @@ class PoRepMarketDealRequest:
     manifest_location: str
     payment_token_address: EthAddress
     duration_days: int  # Client-facing input; converted once before storage
+    deal_type: PoRepMarketDealType
     required_slis: PoRepMarketSLIThresholds
 
     def __post_init__(self):
@@ -63,7 +95,8 @@ class PoRepMarketDealRequest:
             manifest_location=data[3],
             payment_token_address=EthAddress(data[4]),
             duration_days=int(data[5]),
-            required_slis=PoRepMarketSLIThresholds.from_web3(data[6])
+            deal_type=PoRepMarketDealType.from_web3(data[6]),
+            required_slis=PoRepMarketSLIThresholds.from_web3(data[7])
         )
 
 
@@ -126,8 +159,10 @@ class PoRepMarketDeal:
     offer_id: int
     state: PoRepMarketDealState
     evidence_adapter_address: EthAddress
+    deal_type: PoRepMarketDealType
     validator_address: EthAddress
     rail_id: int
+    proposed_at_epoch: int
 
     def __post_init__(self):
         self.provider_id = ActorId(self.provider_id)
@@ -151,8 +186,10 @@ class PoRepMarketDeal:
             offer_id=int(data[3]),
             state=PoRepMarketDealState.from_web3(data[4]),
             evidence_adapter_address=EthAddress(data[5]),
-            validator_address=EthAddress(data[6]),
-            rail_id=int(data[7])
+            deal_type=PoRepMarketDealType.from_web3(data[6]),
+            validator_address=EthAddress(data[7]),
+            rail_id=int(data[8]),
+            proposed_at_epoch=int(data[9])
         )
 
 
@@ -278,6 +315,7 @@ class PoRepMarket(ContractService):
                 request.manifest_location,
                 request.payment_token_address,
                 request.duration_days,
+                request.deal_type,
                 (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
             )),
             signer
@@ -298,6 +336,7 @@ class PoRepMarket(ContractService):
                 request.manifest_location,
                 request.payment_token_address,
                 request.duration_days,
+                request.deal_type,
                 (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
             )),
             signer
