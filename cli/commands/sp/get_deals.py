@@ -19,7 +19,7 @@ def get_deal_manifest(deal_id: int):
     """
 
     deal = PoRepMarketViewHelper().get_deal_view(deal_id)
-    manifest = commands_utils.fetch_manifest(deal.data.manifest_location, show_manifest=False, quiet=True, retries=10)
+    manifest, _ = commands_utils.fetch_manifest(deal.data.manifest_location, show_manifest=False, quiet=True, retries=10)
 
     click.echo(utils.json_pretty(manifest))
 

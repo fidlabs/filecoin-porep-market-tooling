@@ -1,7 +1,6 @@
 import ipaddress
 import json
 import socket
-from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import ParseResult
 from urllib.parse import urlparse
@@ -9,7 +8,6 @@ from urllib.parse import urlparse
 import click
 import requests
 from requests import RequestException
-from web3 import Web3
 
 from cli import utils
 from cli._cli import is_dry_run
@@ -172,21 +170,11 @@ def print_info(account_address: EthAddress | None = None, account_name: str = "A
     click.echo(f"DEBUG={utils.get_env_required('DEBUG', default='False').capitalize()}")
 
 
-@dataclass(frozen=True)
-class ManifestDocument:
-    json: list[dict]
-    raw: bytes
-
-    @property
-    def manifest_hash(self) -> bytes:
-        return bytes(Web3.keccak(self.raw))
-
-
 # retries = None means "ask user"
-def fetch_manifest_document(manifest_url: str,
-                            show_manifest: bool | None = None,
-                            retries: int | None = None,
-                            quiet=False) -> ManifestDocument:
+def fetch_manifest(manifest_url: str,
+                   show_manifest: bool | None = None,
+                   retries: int | None = None,
+                   quiet=False) -> tuple[list[dict], bytes]:
     #
     if not quiet:
         click.echo(f"Fetching manifest from {manifest_url}")
@@ -212,15 +200,7 @@ def fetch_manifest_document(manifest_url: str,
                     retries -= 1
 
 
-def fetch_manifest(manifest_url: str,
-                   show_manifest: bool | None = None,
-                   retries: int | None = None,
-                   quiet=False) -> list[dict]:
-    #
-    return fetch_manifest_document(manifest_url, show_manifest, retries, quiet).json
-
-
-def fetch_local_manifest_document(manifest_path: Path, quiet=False) -> ManifestDocument:
+def fetch_local_manifest(manifest_path: Path, quiet=False) -> tuple[list[dict], bytes]:
     try:
         raw_manifest = manifest_path.read_bytes()
         manifest = json.loads(raw_manifest.decode("utf-8"))
@@ -229,11 +209,7 @@ def fetch_local_manifest_document(manifest_path: Path, quiet=False) -> ManifestD
     except ValueError as e:
         raise click.ClickException(f"Manifest is not a valid JSON: {e}") from e
 
-    return ManifestDocument(json=_validate_manifest(manifest, quiet), raw=raw_manifest)
-
-
-def fetch_local_manifest(manifest_path: Path, quiet=False) -> list[dict]:
-    return fetch_local_manifest_document(manifest_path, quiet).json
+    return _validate_manifest(manifest, quiet), raw_manifest
 
 
 def _private_manifest_urls_allowed() -> bool:
@@ -261,7 +237,7 @@ def validate_and_parse_url(manifest_url: str) -> ParseResult:
     return parsed
 
 
-def _fetch_manifest(parsed_url: ParseResult, show_manifest: bool | None = None, quiet=False) -> ManifestDocument:
+def _fetch_manifest(parsed_url: ParseResult, show_manifest: bool | None = None, quiet=False) -> tuple[list[dict], bytes]:
     resp = requests.get(parsed_url.geturl(), headers={"Host": parsed_url.hostname}, timeout=30, allow_redirects=False)
 
     # don't retry on 4xx errors
@@ -284,7 +260,7 @@ def _fetch_manifest(parsed_url: ParseResult, show_manifest: bool | None = None, 
         click.echo_via_pager("\n".join([f"{i + 1}. {line}" for i, line in enumerate(_manifest.splitlines())]))
         click.echo()
 
-    return ManifestDocument(json=_validate_manifest(manifest, quiet), raw=raw_manifest)
+    return _validate_manifest(manifest, quiet), raw_manifest
 
 
 def _validate_manifest(manifest: object, quiet=False) -> list[dict]:
