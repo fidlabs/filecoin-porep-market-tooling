@@ -107,12 +107,14 @@ class PoRepMarketDealCapacity:
 @utils.json_dataclass()
 class PoRepMarketDealPayment:
     payment_token: EthAddress
+    payee: EthAddress
     price_per_32_gib_per_month: int
     billed_32_gib_units: int
     rail_max_rate_per_epoch: int
 
     def __post_init__(self):
         self.payment_token = EthAddress(self.payment_token)
+        self.payee = EthAddress(self.payee)
 
     @staticmethod
     def from_web3(data) -> "PoRepMarketDealPayment":
@@ -122,9 +124,10 @@ class PoRepMarketDealPayment:
         # noinspection PyArgumentList
         return PoRepMarketDealPayment(
             payment_token=EthAddress(data[0]),
-            price_per_32_gib_per_month=int(data[1]),
-            billed_32_gib_units=int(data[2]),
-            rail_max_rate_per_epoch=int(data[3])
+            payee=EthAddress(data[1]),
+            price_per_32_gib_per_month=int(data[2]),
+            billed_32_gib_units=int(data[3]),
+            rail_max_rate_per_epoch=int(data[4])
         )
 
 
@@ -149,7 +152,6 @@ class PoRepMarketDealView:
     data: PoRepMarketDealData
     required_slis: PoRepMarketSLIThresholds
     terms: PoRepMarketDealTermsView
-    timing: PoRepMarketDealTiming
     service: PoRepMarketDealService
     capacity: PoRepMarketDealCapacity
     payment: PoRepMarketDealPayment
@@ -170,12 +172,11 @@ class PoRepMarketDealView:
             data=PoRepMarketDealData.from_web3(data[1]),
             required_slis=PoRepMarketSLIThresholds.from_web3(data[2]),
             terms=PoRepMarketDealTermsView.from_web3(data[3]),
-            timing=PoRepMarketDealTiming.from_web3(data[4]),
-            service=PoRepMarketDealService.from_web3(data[5]),
-            capacity=PoRepMarketDealCapacity.from_web3(data[6]),
-            payment=PoRepMarketDealPayment.from_web3(data[7]),
-            provider_organization_address=EthAddress(data[8]),
-            evidence_status=DataCapEvidenceStatus.from_web3(data[9])
+            service=PoRepMarketDealService.from_web3(data[4]),
+            capacity=PoRepMarketDealCapacity.from_web3(data[5]),
+            payment=PoRepMarketDealPayment.from_web3(data[6]),
+            provider_organization_address=EthAddress(data[7]),
+            evidence_status=DataCapEvidenceStatus.from_web3(data[8])
         )
 
 
