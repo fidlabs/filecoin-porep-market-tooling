@@ -1,4 +1,5 @@
 import enum
+import re
 
 from cli import utils
 from cli.services.contract_service import ContractService
@@ -92,7 +93,7 @@ class PoRepMarketDealRequest:
             manifest_hash=data[0],
             requested_size_bytes=int(data[1]),
             max_price_per_32_gib_per_month=int(data[2]),
-            manifest_location=data[3],
+            manifest_location=re.sub(r"\s+", "", data[3]),
             payment_token_address=EthAddress(data[4]),
             duration_days=int(data[5]),
             deal_type=PoRepMarketDealType.from_web3(data[6]),

@@ -1,3 +1,5 @@
+import re
+
 from cli import utils
 from cli.services.contract_service import ContractService
 from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceStatus
@@ -21,7 +23,7 @@ class PoRepMarketDealData:
         # noinspection PyArgumentList
         return PoRepMarketDealData(
             manifest_hash=data[0],
-            manifest_location=data[1]
+            manifest_location=re.sub(r"\s+", "", data[1])
         )
 
 
