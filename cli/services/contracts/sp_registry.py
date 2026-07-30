@@ -412,6 +412,8 @@ class SPRegistry(ContractService):
     # @param request Client deal request.
     # @return selection Selected offer snapshot, or zero provider when no offer matches.
     def preview_provider_for_deal(self, request: PoRepMarketDealRequest) -> SPRegistryProviderDealSelection:
+        slis = request.required_slis
+
         return SPRegistryProviderDealSelection.from_web3(
             self.contract.functions.previewProviderForDeal(
                 (
@@ -421,12 +423,8 @@ class SPRegistry(ContractService):
                     request.manifest_location,
                     request.payment_token_address,
                     request.duration_days,
-                    (
-                        request.required_slis.retrievability_bps,
-                        request.required_slis.bandwidth_bytes_per_second,
-                        request.required_slis.latency_ms,
-                        request.required_slis.indexing_pct
-                    )
+                    request.deal_type,
+                    (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
                 )
             ).call())
 
@@ -434,6 +432,8 @@ class SPRegistry(ContractService):
     # @param request Client deal request.
     # @return selection Selected offer snapshot.
     def reserve_provider_for_deal(self, request: PoRepMarketDealRequest, signer: TxSigner) -> str:
+        slis = request.required_slis
+
         return self.sign_and_send_tx(
             self.contract.functions.reserveProviderForDeal(
                 (
@@ -443,12 +443,8 @@ class SPRegistry(ContractService):
                     request.manifest_location,
                     request.payment_token_address,
                     request.duration_days,
-                    (
-                        request.required_slis.retrievability_bps,
-                        request.required_slis.bandwidth_bytes_per_second,
-                        request.required_slis.latency_ms,
-                        request.required_slis.indexing_pct
-                    )
+                    request.deal_type,
+                    (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
                 )
             ),
             signer
@@ -460,6 +456,8 @@ class SPRegistry(ContractService):
     # @return selection Selected offer snapshot, or zero provider when the offer does not match.
     # @return reason OfferMatch reason code; OfferMatch.OK when the offer is eligible.
     def preview_offer_for_deal(self, offer_id: int, request: PoRepMarketDealRequest) -> tuple[SPRegistryProviderDealSelection, int]:
+        slis = request.required_slis
+
         selection, reason = self.contract.functions.previewOfferForDeal(
             offer_id,
             (
@@ -469,12 +467,8 @@ class SPRegistry(ContractService):
                 request.manifest_location,
                 request.payment_token_address,
                 request.duration_days,
-                (
-                    request.required_slis.retrievability_bps,
-                    request.required_slis.bandwidth_bytes_per_second,
-                    request.required_slis.latency_ms,
-                    request.required_slis.indexing_pct
-                )
+                request.deal_type,
+                (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
             )
         ).call()
 
@@ -485,6 +479,8 @@ class SPRegistry(ContractService):
     # @param request Client deal request.
     # @return selection Selected offer snapshot.
     def reserve_offer_for_deal(self, offer_id: int, request: PoRepMarketDealRequest, signer: TxSigner) -> str:
+        slis = request.required_slis
+
         return self.sign_and_send_tx(
             self.contract.functions.reserveOfferForDeal(
                 offer_id,
@@ -495,12 +491,8 @@ class SPRegistry(ContractService):
                     request.manifest_location,
                     request.payment_token_address,
                     request.duration_days,
-                    (
-                        request.required_slis.retrievability_bps,
-                        request.required_slis.bandwidth_bytes_per_second,
-                        request.required_slis.latency_ms,
-                        request.required_slis.indexing_pct
-                    )
+                    request.deal_type,
+                    (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
                 )
             ),
             signer
