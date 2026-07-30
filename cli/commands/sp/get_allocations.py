@@ -2,7 +2,7 @@ import click
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.services.contracts.porep_market import PoRepMarket
+from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 
 
 @click.command()
@@ -16,7 +16,7 @@ def get_allocations(deal_id: int, not_claimed: bool = False):
     DEAL_ID - The ID of the deal to get DDO allocations for.
     """
 
-    deal = PoRepMarket().get_deal_view(deal_id).deal
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id).deal
     allocations = commands_utils.get_deal_allocations(deal)
 
     if not_claimed:

@@ -8,8 +8,9 @@ from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address, client_signer
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.filecoinpay_validator import FileCoinPayValidator
-from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDeal
+from cli.services.contracts.porep_market import PoRepMarketDeal
 from cli.services.contracts.porep_market import PoRepMarketDealState
+from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.contracts.validator_factory import ValidatorFactory
 from cli.services.web3_service import Web3Service
@@ -33,7 +34,7 @@ def init_accepted_deals(deal_id: int | None = None):
     Web3Service().wait_for_pending_transactions(client_address())
 
     if deal_id is not None:
-        deal = PoRepMarket().get_deal_view(deal_id)
+        deal = PoRepMarketViewHelper().get_deal_view(deal_id)
 
         if deal.deal.client_address != client_address():
             raise click.ClickException(f"Deal ID {deal_id} client address {deal.deal.client_address} "
@@ -72,7 +73,7 @@ def init_accepted_deals(deal_id: int | None = None):
 
 
 def _deploy_and_set_validator(deal_id: int):
-    deal = PoRepMarket().get_deal_view(deal_id)
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
 
     if deal.deal.client_address != client_address():
         raise click.ClickException(f"Deal ID {deal_id} client address {deal.deal.client_address} does not match from address {client_address()}")
@@ -91,7 +92,7 @@ def _deploy_and_set_validator(deal_id: int):
 
 
 def _deposit_and_approve_operator(deal_id: int):
-    deal = PoRepMarket().get_deal_view(deal_id)
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
     payment_token = USDCToken(deal.payment.payment_token)
 
     if not __get_validator_address_for_deal(deal.deal):
@@ -162,7 +163,7 @@ def _deposit_and_approve_operator(deal_id: int):
 
 
 def _initialize_rail(deal_id: int):
-    deal = PoRepMarket().get_deal_view(deal_id)
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
 
     if not __get_validator_address_for_deal(deal.deal):
         raise click.ClickException(f"Validator not found for deal ID {deal.deal.deal_id}, cannot initialize rail")

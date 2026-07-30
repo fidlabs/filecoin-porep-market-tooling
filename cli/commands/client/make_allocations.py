@@ -11,6 +11,7 @@ from cli.commands.client._client import client_address, client_signer
 from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceAdapter, DataCapTransferParams
 from cli.services.contracts.porep_market import PoRepMarket
 from cli.services.contracts.porep_market import PoRepMarketDealState
+from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.web3_service import Web3Service, ActorId
 
 
@@ -38,7 +39,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
 
     # TODO LATER improve click.echo here
     Web3Service().wait_for_pending_transactions(client_address())
-    deal = PoRepMarket().get_deal_view(deal_id)
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
 
     if deal.deal.state != PoRepMarketDealState.ACCEPTED:
         raise click.ClickException(f"Deal ID {deal_id} is in state {deal.deal.state} != ACCEPTED")

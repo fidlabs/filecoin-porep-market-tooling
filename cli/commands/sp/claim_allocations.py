@@ -5,7 +5,8 @@ import click
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDeal, PoRepMarketDealState
+from cli.services.contracts.porep_market import PoRepMarketDeal, PoRepMarketDealState
+from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.web3_service import FilAddress
 
 
@@ -107,7 +108,7 @@ def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = N
     """
 
     click.echo("Fetching deal details...")
-    deal = PoRepMarket().get_deal_view(deal_id).deal
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id).deal
 
     if deal.state not in (PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE):
         raise click.ClickException(f"Deal ID {deal_id} is in state {deal.state}, expected ACCEPTED or ACTIVE")
