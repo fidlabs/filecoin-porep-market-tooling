@@ -397,12 +397,11 @@ class PoRepMarket(ContractService):
     def finalize_deal(self, deal_id: int, signer: TxSigner) -> str:
         return self.sign_and_send_tx(self.contract.functions.finalizeDeal(deal_id), signer)
 
-    # @notice Terminate a deal
-    # @dev Terminates a deal by setting the deal state to terminated
+    # @notice Terminates a deal with the requested terminal state
     # @param dealId The id of the deal
-    # @param endEpoch The Filecoin epoch at which the deal was terminated
-    def terminate_deal(self, deal_id: int, end_epoch: int, signer: TxSigner) -> str:
-        return self.sign_and_send_tx(self.contract.functions.terminateDeal(deal_id, end_epoch), signer)
+    # @param state The terminal state to assign to the deal
+    def terminate_deal(self, deal_id: int, state: PoRepMarketDealState, signer: TxSigner) -> str:
+        return self.sign_and_send_tx(self.contract.functions.terminateDeal(deal_id, state.value), signer)
 
     # @notice Rejects a deal
     # @param dealId The id of the deal proposal
