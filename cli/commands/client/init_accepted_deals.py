@@ -18,7 +18,7 @@ from cli.services.web3_service import Web3Service
 
 # TODO ASAP test this
 @click.command()
-@click.argument("deal_id", type=click.IntRange(min=0), required=False)
+@click.argument("deal_id", type=click.IntRange(min=1), required=False)
 def init_accepted_deals(deal_id: int | None = None):
     """
     Interactively initialize accepted deals.

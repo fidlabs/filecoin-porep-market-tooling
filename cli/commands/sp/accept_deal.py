@@ -7,7 +7,7 @@ from cli.services.web3_service import Web3Service
 
 
 @click.command()
-@click.argument("deal_id", type=click.IntRange(min=0))
+@click.argument("deal_id", type=click.IntRange(min=1))
 def accept_deal(deal_id: int):
     """
     Accept a deal proposal.

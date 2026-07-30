@@ -16,7 +16,7 @@ from cli.services.web3_service import Web3Service, EthAddress
 
 
 @click.command()
-@click.argument("deal_id", type=click.IntRange(min=0), required=False)
+@click.argument("deal_id", type=click.IntRange(min=1), required=False)
 @click.option("--months", type=click.IntRange(min=1), default=1, show_default=True,
               help="Number of months to calculate required deposit amount for.")
 def deposit_for_deals(deal_id: int | None = None, months: int = 1):
@@ -51,7 +51,7 @@ def deposit_for_deals(deal_id: int | None = None, months: int = 1):
 
 
 @click.command()
-@click.argument("deal_id", type=click.IntRange(min=0))
+@click.argument("deal_id", type=click.IntRange(min=1))
 def deposit_for_whole_deal(deal_id: int):
     """
     Deposit funds to FileCoinPay account covering the entire duration of a given deal.
