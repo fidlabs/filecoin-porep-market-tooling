@@ -3,7 +3,7 @@ import enum
 from cli import utils
 from cli.services.contract_service import ContractService
 from cli.services.txsigner import TxSigner
-from cli.services.web3_service import ActorId, EthAddress
+from cli.services.web3_service import EthAddress
 
 
 @utils.json_dataclass()

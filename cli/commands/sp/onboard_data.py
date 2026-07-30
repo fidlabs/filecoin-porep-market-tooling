@@ -11,6 +11,7 @@ import humanfriendly
 from cli import utils
 from cli.commands import utils as commands_utils
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
+from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 
 
 def _get_aria2c_path() -> str:
@@ -132,7 +133,7 @@ def onboard_data(ctx,
     aria2c_path = _get_aria2c_path()
 
     click.echo("Fetching deal details...")
-    deal = PoRepMarket().get_deal_view(deal_id)
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
 
     if deal.deal.state not in (PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE):
         raise click.ClickException(f"Deal ID {deal_id} is in state {deal.deal.state}, expected ACCEPTED or ACTIVE")

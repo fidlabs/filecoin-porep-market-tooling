@@ -4,6 +4,7 @@ from cli import utils
 from cli.commands.admin._admin import admin_signer, admin_address
 from cli.services.contracts.filecoinpay_validator import FileCoinPayValidator
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState, PoRepMarketDeal
+from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.contracts.validator_factory import ValidatorFactory
 from cli.services.web3_service import Web3Service
 
@@ -69,7 +70,7 @@ def terminate_deal(deal_id: int):
     """
 
     Web3Service().wait_for_pending_transactions(admin_address())
-    deal = PoRepMarket().get_deal_view(deal_id).deal
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id).deal
     utils.confirm(f"Terminating deal ID {deal.deal_id}: {deal}", abort=True)
 
     if deal.state == PoRepMarketDealState.FINALIZED:

@@ -8,6 +8,7 @@ from cli.commands.client._client import client_signer, client_address
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.porep_market import PoRepMarket
 from cli.services.contracts.porep_market import PoRepMarketDealRequest, PoRepMarketDealState, PoRepMarketSLIThresholds
+from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.web3_service import Web3Service, EthAddress
 
@@ -59,7 +60,7 @@ def _propose_deal(manifest_url: str,
     # warn if any of existing client deals looks similar to the new deal proposal
     for existing_deal in existing_deals:
         is_active = existing_deal.state in [PoRepMarketDealState.PROPOSED, PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE]
-        existing_deal_view = PoRepMarket().get_deal_view(existing_deal.deal_id)
+        existing_deal_view = PoRepMarketViewHelper().get_deal_view(existing_deal.deal_id)
 
         if deal_request.requested_size_bytes == existing_deal_view.terms.requested_size_bytes:
             utils.confirm(f"\nWarning: Client deal with the same deal size "

@@ -2,7 +2,7 @@ import click
 
 from cli.commands import utils as commands_utils
 from cli.commands.sp._sp import sp_address, sp_signer
-from cli.services.contracts.porep_market import PoRepMarket
+from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.web3_service import Web3Service
 
 
@@ -17,4 +17,4 @@ def reject_deal(deal_id: int):
 
     Web3Service().wait_for_pending_transactions(sp_address())
 
-    commands_utils.reject_deal(PoRepMarket().get_deal_view(deal_id).deal, sp_signer())
+    commands_utils.reject_deal(PoRepMarketViewHelper().get_deal_view(deal_id).deal, sp_signer())

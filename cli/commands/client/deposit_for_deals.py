@@ -10,6 +10,7 @@ from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import PoRepMarket
 from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarketDealView
+from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.web3_service import Web3Service, EthAddress
 
@@ -28,7 +29,7 @@ def deposit_for_deals(deal_id: int | None = None, months: int = 1):
     Web3Service().wait_for_pending_transactions(client_address())
 
     if deal_id is not None:
-        deal = PoRepMarket().get_deal_view(deal_id)
+        deal = PoRepMarketViewHelper().get_deal_view(deal_id)
         click.echo(f"Depositing for deal {deal}\n")
         deals = [deal]
     else:
@@ -44,7 +45,7 @@ def deposit_for_deals(deal_id: int | None = None, months: int = 1):
             click.echo(utils.json_pretty(deals))
             click.echo()
 
-        deals = [PoRepMarket().get_deal_view(deal.deal_id) for deal in deals]
+        deals = [PoRepMarketViewHelper().get_deal_view(deal.deal_id) for deal in deals]
 
     _deposit_for_deals(deals, months)
 
@@ -60,7 +61,7 @@ def deposit_for_whole_deal(deal_id: int):
 
     Web3Service().wait_for_pending_transactions(client_address())
 
-    deal = PoRepMarket().get_deal_view(deal_id)
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
     click.echo(f"Depositing for deal {deal_id}\n")
 
     duration_in_months = deal.terms.duration_epochs // PoRepMarket().get_epochs_in_month()
