@@ -20,7 +20,7 @@ def get_offers(provider_id: str | None = None):
         provider_ids = SPRegistry().get_providers()
         offer_ids = []
 
-        for provider_id in provider_ids:
-            offer_ids.extend(SPRegistry().get_offers_by_provider(provider_id))
+        for _provider_id in provider_ids:
+            offer_ids.extend(SPRegistry().get_offers_by_provider(_provider_id))
 
     click.echo(utils.json_pretty([SPRegistry().get_offer_view(offer_id) for offer_id in offer_ids]))

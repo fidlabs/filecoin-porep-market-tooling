@@ -8,12 +8,14 @@ from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address, client_signer
-from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceAdapter, DataCapTransferParams
-from cli.services.contracts.porep_market import PoRepMarket
-from cli.services.contracts.porep_market import PoRepMarketDealState
+from cli.services.contracts.data_cap_evidence_adapter import (
+    DataCapEvidenceAdapter,
+    DataCapTransferParams,
+)
+from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.self_update import SelfUpdateService
-from cli.services.web3_service import Web3Service, ActorId
+from cli.services.web3_service import ActorId, Web3Service
 
 
 @click.command()

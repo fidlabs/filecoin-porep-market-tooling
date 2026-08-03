@@ -5,7 +5,10 @@ import click
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.services.contracts.porep_market import PoRepMarketDeal, PoRepMarketDealState
+from cli.services.contracts.porep_market import (
+    PoRepMarketDeal,
+    PoRepMarketDealState,
+)
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import FilAddress
@@ -82,7 +85,7 @@ def _build_allocation_command_boost(boostd_path: str,
     ]
 
 
-@click.command(context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
+@click.command(context_settings={"ignore_unknown_options": True, "allow_extra_args": True})
 @click.argument("software", type=click.Choice(["curio", "boost"], case_sensitive=False))
 @click.argument("deal_id", type=click.IntRange(min=1))
 @click.option("--cars-dir", type=click.Path(exists=True, file_okay=False), help="Directory containing .car files, used for boost software.")

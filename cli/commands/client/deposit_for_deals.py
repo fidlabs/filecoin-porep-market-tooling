@@ -8,12 +8,17 @@ from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.filecoin_pay import FileCoinPay
-from cli.services.contracts.porep_market import PoRepMarket
-from cli.services.contracts.porep_market import PoRepMarketDealState
-from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper, PoRepMarketDealView
+from cli.services.contracts.porep_market import (
+    PoRepMarket,
+    PoRepMarketDealState,
+)
+from cli.services.contracts.porep_market_view_helper import (
+    PoRepMarketDealView,
+    PoRepMarketViewHelper,
+)
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.self_update import SelfUpdateService
-from cli.services.web3_service import Web3Service, EthAddress
+from cli.services.web3_service import EthAddress, Web3Service
 
 
 @click.command()

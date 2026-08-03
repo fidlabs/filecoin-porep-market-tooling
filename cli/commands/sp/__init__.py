@@ -1,4 +1,4 @@
-from ._sp import sp, info, wait
+from ._sp import info, sp, wait
 from .accept_deal import accept_deal
 from .claim_allocations import claim_allocations
 from .get_allocations import get_allocations

@@ -1,6 +1,7 @@
 import json
 import logging
 from pathlib import Path
+from typing import ClassVar
 
 import click
 import eth_abi
@@ -12,7 +13,7 @@ from web3.exceptions import ContractCustomError, Web3RPCError
 from cli import utils
 from cli._cli import is_dry_run
 from cli.services.txsigner import TxSigner
-from cli.services.web3_service import Web3Service, EthAddress
+from cli.services.web3_service import EthAddress, Web3Service
 
 
 def _tx_to_log_string(transaction, tx_params: dict | None) -> str:
@@ -36,7 +37,7 @@ def _tx_to_log_string(transaction, tx_params: dict | None) -> str:
 
 
 class ContractService:
-    _KNOWN_ABIS: list[ABIElement] = []
+    _KNOWN_ABIS: ClassVar[list[ABIElement]] = []
 
     def __new__(cls, *args, **kwargs):
         return object.__new__(cls)

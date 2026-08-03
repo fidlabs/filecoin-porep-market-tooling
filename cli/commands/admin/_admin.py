@@ -3,7 +3,7 @@ from eth_typing import HexStr
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.services.txsigner import TxSigner, PrivateKeyTxSigner, LotusWalletTxSigner
+from cli.services.txsigner import LotusWalletTxSigner, PrivateKeyTxSigner, TxSigner
 from cli.services.web3_service import EthAddress, Web3Service
 
 ADMIN_PRIVATE_KEY: str | None = None

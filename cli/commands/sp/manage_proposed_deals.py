@@ -3,9 +3,9 @@ import click
 from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.sp import _utils as sp_utils
-from cli.commands.sp._sp import sp_signer, sp_organization_address, sp_address
+from cli.commands.sp._sp import sp_address, sp_organization_address, sp_signer
 from cli.services.self_update import SelfUpdateService
-from cli.services.web3_service import Web3Service, ActorId
+from cli.services.web3_service import ActorId, Web3Service
 
 
 @click.command()
