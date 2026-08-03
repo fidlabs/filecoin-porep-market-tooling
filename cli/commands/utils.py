@@ -1,14 +1,12 @@
 import ipaddress
 import json
 import socket
-from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import ParseResult, urlparse
 
 import click
 import requests
 from requests import RequestException
-from web3 import Web3
 
 from cli import utils
 from cli._cli import is_dry_run
