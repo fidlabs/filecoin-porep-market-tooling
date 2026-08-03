@@ -1,25 +1,29 @@
 import ipaddress
 import json
 import socket
+from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import ParseResult
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse
 
 import click
 import requests
 from requests import RequestException
+from web3 import Web3
 
 from cli import utils
 from cli._cli import is_dry_run
 from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceAdapter
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.filecoin_pay import FileCoinPay
-from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarket, PoRepMarketDeal
+from cli.services.contracts.porep_market import (
+    PoRepMarket,
+    PoRepMarketDeal,
+    PoRepMarketDealState,
+)
 from cli.services.contracts.sp_registry import SPRegistry
 from cli.services.contracts.validator_factory import ValidatorFactory
 from cli.services.txsigner import TxSigner
-from cli.services.web3_service import EthAddress, ActorId, FilAddress
-from cli.services.web3_service import Web3Service
+from cli.services.web3_service import ActorId, EthAddress, FilAddress, Web3Service
 
 _EVIDENCE_IDS_PAGE_SIZE = 500
 
@@ -169,6 +173,16 @@ def print_info(account_address: EthAddress | None = None, account_name: str = "A
     click.echo()
     click.echo(f"DRY_RUN={is_dry_run()}")
     click.echo(f"DEBUG={utils.get_env_required('DEBUG', default='False').capitalize()}")
+
+
+@dataclass(frozen=True)
+class ManifestDocument:
+    json: list[dict]
+    raw: bytes
+
+    @property
+    def manifest_hash(self) -> bytes:
+        return bytes(Web3.keccak(self.raw))
 
 
 # retries = None means "ask user"

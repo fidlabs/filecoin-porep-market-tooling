@@ -1,10 +1,10 @@
 import click
 
 from cli import utils
-from cli.commands.admin._admin import admin_signer, admin_address
+from cli.commands.admin._admin import admin_address, admin_signer
 from cli.services.contracts.sp_registry import SPRegistry
 from cli.services.self_update import SelfUpdateService
-from cli.services.web3_service import Web3Service, ActorId
+from cli.services.web3_service import ActorId, Web3Service
 
 
 @click.command()

@@ -20,7 +20,7 @@ def get_filecoinpay_account(token_address: str, owner: str | None = None):
 
     if not owner:
         providers = SPRegistry().get_providers_views_by_organization(sp_organization_address())
-        payee_addresses = set(p.payee_address for p in providers)
+        payee_addresses = {p.payee_address for p in providers}
     else:
         payee_addresses = {EthAddress.from_any(owner)}
 

@@ -6,14 +6,18 @@ from web3 import Web3
 from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.client import _utils as client_utils
-from cli.commands.client._client import client_signer, client_address
+from cli.commands.client._client import client_address, client_signer
 from cli.services.contracts.erc20_contract import ERC20Contract
-from cli.services.contracts.porep_market import PoRepMarket
-from cli.services.contracts.porep_market import PoRepMarketDealRequest, PoRepMarketDealState, PoRepMarketSLIThresholds
+from cli.services.contracts.porep_market import (
+    PoRepMarket,
+    PoRepMarketDealRequest,
+    PoRepMarketDealState,
+    PoRepMarketSLIThresholds,
+)
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.self_update import SelfUpdateService
-from cli.services.web3_service import Web3Service, EthAddress
+from cli.services.web3_service import EthAddress, Web3Service
 
 
 def hash_manifest(raw_manifest: bytes) -> HexBytes:

@@ -2,7 +2,11 @@ import click
 
 from cli import utils
 from cli.commands.sp._sp import sp_signer
-from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState, PoRepMarketDeal
+from cli.services.contracts.porep_market import (
+    PoRepMarket,
+    PoRepMarketDeal,
+    PoRepMarketDealState,
+)
 
 
 def accept_deal(deal: PoRepMarketDeal, confirm_session_id: str | None = None) -> str:

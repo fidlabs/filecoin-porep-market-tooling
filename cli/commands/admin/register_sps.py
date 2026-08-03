@@ -2,10 +2,15 @@ import click
 
 from cli import utils
 from cli.commands.admin import _utils as admin_utils
-from cli.commands.admin._admin import admin_signer, admin_address
-from cli.services.contracts.sp_registry import SPRegistry, SPRegistryProviderView, SPRegistryProviderInput, SPRegistryOfferInput, SPRegistryOfferView
+from cli.commands.admin._admin import admin_address, admin_signer
+from cli.services.contracts.sp_registry import (
+    SPRegistry,
+    SPRegistryOfferInput,
+    SPRegistryProviderInput,
+    SPRegistryProviderView,
+)
 from cli.services.self_update import SelfUpdateService
-from cli.services.web3_service import Web3Service, ActorId
+from cli.services.web3_service import ActorId, Web3Service
 
 
 def __update_provider_params(provider: SPRegistryProviderInput,
@@ -94,11 +99,11 @@ def _register_sps(providers: list[SPRegistryProviderInput]):
             click.echo(f"Provider {provider.provider_id} registered: {tx_hash}")
 
 
-def __update_offer_params(offer: SPRegistryOfferInput,
-                          registered_info: SPRegistryOfferView,
-                          different_parameters: dict):
-    #
-    assert offer.provider_id == registered_info.provider_id
+# def __update_offer_params(offer: SPRegistryOfferInput,
+#                           registered_info: SPRegistryOfferView,
+#                           different_parameters: dict):
+#
+#     assert offer.provider_id == registered_info.provider_id
 
     # if (provider.max_deal_duration_days, provider.min_deal_duration_days) != (registered_info.max_deal_duration_days, registered_info.min_deal_duration_days):
     #     _different_parameters = {k: v for k, v in different_parameters.items() if k in ["max_deal_duration_days", "min_deal_duration_days"]}

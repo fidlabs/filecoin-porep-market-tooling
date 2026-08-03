@@ -3,7 +3,8 @@ import enum
 import json
 import os
 import sys
-from typing import TypeVar, Callable
+from collections.abc import Callable
+from typing import TypeVar
 
 import click
 from dotenv import load_dotenv

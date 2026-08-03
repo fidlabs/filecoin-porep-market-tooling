@@ -8,8 +8,7 @@ from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address, client_signer
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.filecoinpay_validator import FileCoinPayValidator
-from cli.services.contracts.porep_market import PoRepMarketDeal
-from cli.services.contracts.porep_market import PoRepMarketDealState
+from cli.services.contracts.porep_market import PoRepMarketDeal, PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.contracts.validator_factory import ValidatorFactory

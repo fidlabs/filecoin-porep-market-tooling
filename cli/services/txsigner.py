@@ -1,12 +1,17 @@
 import rlp
+
 # noinspection PyProtectedMember
 from eth_account._utils.legacy_transactions import (
-    Transaction, encode_transaction, serializable_unsigned_transaction_from_dict,
+    Transaction,
+    encode_transaction,
+    serializable_unsigned_transaction_from_dict,
 )
 from eth_account.datastructures import SignedMessage, SignedTransaction
-from eth_account.messages import encode_typed_data, SignableMessage
+from eth_account.messages import SignableMessage, encode_typed_data
 from eth_account.typed_transactions import TypedTransaction
-from eth_account.typed_transactions.dynamic_fee_transaction import transaction_rpc_to_rlp_structure
+from eth_account.typed_transactions.dynamic_fee_transaction import (
+    transaction_rpc_to_rlp_structure,
+)
 from eth_account.types import PrivateKeyType
 from eth_utils import keccak
 from eth_utils.toolz import dissoc

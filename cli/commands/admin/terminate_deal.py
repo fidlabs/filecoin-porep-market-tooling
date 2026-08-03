@@ -1,16 +1,20 @@
 import click
 
 from cli import utils
-from cli.commands.admin._admin import admin_signer, admin_address
+from cli.commands.admin._admin import admin_address, admin_signer
 from cli.services.contracts.filecoinpay_validator import FileCoinPayValidator
-from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState, PoRepMarketDeal
+from cli.services.contracts.porep_market import (
+    PoRepMarket,
+    PoRepMarketDeal,
+    PoRepMarketDealState,
+)
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.contracts.validator_factory import ValidatorFactory
 from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import Web3Service
 
-
 # TODO ASAP verify this
+
 
 def _terminate_proposed_deal(deal: PoRepMarketDeal) -> str:
     assert deal.state == PoRepMarketDealState.PROPOSED

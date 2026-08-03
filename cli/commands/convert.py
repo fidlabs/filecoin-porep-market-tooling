@@ -1,7 +1,7 @@
 import click
 
 from cli import utils
-from cli.services.web3_service import EthAddress, FilAddress, ActorId
+from cli.services.web3_service import ActorId, EthAddress, FilAddress
 
 
 @click.command()

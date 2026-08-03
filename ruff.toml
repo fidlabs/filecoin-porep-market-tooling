@@ -1,0 +1,21 @@
+[lint]
+ignore = [
+    "PLR2044", # Line with empty comment
+    "UP009",   # UTF-8 encoding declaration is unnecessary
+    "LOG009",  # Use of undocumented logging.WARN constant
+    "RUF010",  # Use explicit conversion flag (str(e) vs {e!s})
+    "PYI041",  # Use `float` instead of `int | float`
+    "BLE001",  # Do not catch blind exception - already accepted by pylint's disable=broad-exception-caught
+    "SIM102",  # Use a single if statement instead of nested if statements - hurts readability
+    "PYI034"   # __new__ methods usually return self at runtime
+]
+
+# flake8-only codes used in inline "# noqa: <code>" comments -- don't flag
+# them as unused just because ruff itself doesn't check these codes.
+external = ["E302"]
+
+[lint.per-file-ignores]
+# python 2 compatible on purpose (see file header) -- keeps %-formatting instead of f-strings
+"porep_tooling_cli.py" = ["UP031", "UP036"]
+# except-pass in __eq__ is deliberate: falls back to super().__eq__() on any comparison failure
+"cli/services/web3_service.py" = ["S110"]
