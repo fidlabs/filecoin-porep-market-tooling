@@ -93,7 +93,7 @@ def _write_manifest_file(manifest: list[dict], output_dir: Path, deal_id: int) -
     return manifest_file.resolve()
 
 
-@click.command(context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
+@click.command(context_settings={"ignore_unknown_options": True, "allow_extra_args": True})
 @click.argument("deal_id", type=click.IntRange(min=1))
 @click.option("--output-dir", type=click.Path(file_okay=False), required=True,
               help="Directory to save downloaded pieces.")

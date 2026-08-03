@@ -1,4 +1,5 @@
 from cli import commands
+
 from ._cli import cli
 
 cli.add_command(commands.admin)

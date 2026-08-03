@@ -8,8 +8,11 @@ from cli import utils
 from cli.commands.client._client import client_address, client_signer
 from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceAdapter
 from cli.services.contracts.filecoin_pay import FileCoinPay
-from cli.services.contracts.porep_market import PoRepMarket
-from cli.services.contracts.porep_market import PoRepMarketDeal, PoRepMarketDealState
+from cli.services.contracts.porep_market import (
+    PoRepMarket,
+    PoRepMarketDeal,
+    PoRepMarketDealState,
+)
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.web3_service import Web3Service

@@ -3,10 +3,9 @@ from cli.services.contract_service import ContractService
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress
 
-
 # https://github.com/FilOzone/filecoin-pay
 
-@utils.json_dataclass()
+@utils.json_dataclass()  # noqa: E302  silencing flake8
 class FileCoinPayAccount:
     funds: int
     lockup_current: int

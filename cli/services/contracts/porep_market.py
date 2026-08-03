@@ -5,7 +5,7 @@ from cli import utils
 from cli.services.contract_service import ContractService
 from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceStatus
 from cli.services.txsigner import TxSigner
-from cli.services.web3_service import EthAddress, ActorId
+from cli.services.web3_service import ActorId, EthAddress
 
 
 # @notice Unified SLI thresholds for requirements, capabilities, and attestations

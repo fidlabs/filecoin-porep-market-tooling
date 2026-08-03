@@ -1,6 +1,5 @@
 import base64
 import time
-from typing import Dict
 
 import click
 from eth_account.datastructures import SignedTransaction
@@ -9,7 +8,7 @@ from hexbytes import HexBytes
 from web3 import Web3
 from web3.contract import Contract
 from web3.exceptions import Web3RPCError
-from web3.types import TxParams, BlockIdentifier, TxData, TxReceipt, RPCEndpoint
+from web3.types import BlockIdentifier, RPCEndpoint, TxData, TxParams, TxReceipt
 
 from cli import utils
 
@@ -338,12 +337,12 @@ class Web3Service:
             except ValueError as e:
                 raise RuntimeError(f"Filecoin.WalletBalance({address}) failed: invalid balance format {response['result']!r}") from e
 
-        if isinstance(address, FilAddress) or isinstance(address, ActorId):
+        if isinstance(address, (FilAddress, ActorId)):
             return filecoin_wallet_balance(address)
         elif isinstance(address, EthAddress):
             return self._w3.eth.get_balance(address)
         else:
-            raise ValueError(f"Unsupported address type: {address!r}")
+            raise TypeError(f"Unsupported address type: {address!r}")
 
     def wallet_sign(self, from_address: FilAddress, raw_bytes: bytes, lotus_token: str) -> bytes:
         _w3 = Web3(Web3.HTTPProvider(utils.get_env_required("RPC_URL"), request_kwargs={"headers": {"Authorization": f"Bearer {lotus_token}"}}))
@@ -378,7 +377,7 @@ class Web3Service:
 
         return sig_bytes
 
-    def state_get_allocations(self, actor_id: ActorId) -> Dict[str, dict]:
+    def state_get_allocations(self, actor_id: ActorId) -> dict[str, dict]:
         response = self._w3.provider.make_request(
             RPCEndpoint("Filecoin.StateGetAllocations"),
             [str(actor_id), None]
@@ -392,7 +391,7 @@ class Web3Service:
 
         return response["result"]
 
-    def state_get_claims(self, actor_id: ActorId, client: ActorId | None = None) -> Dict[str, dict]:
+    def state_get_claims(self, actor_id: ActorId, client: ActorId | None = None) -> dict[str, dict]:
         response = self._w3.provider.make_request(
             RPCEndpoint("Filecoin.StateGetClaims"),
             [str(actor_id), None]

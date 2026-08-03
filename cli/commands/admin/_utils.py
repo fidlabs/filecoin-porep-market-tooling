@@ -4,10 +4,15 @@ import humanfriendly
 from cli import utils
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketSLIThresholds
-from cli.services.contracts.sp_registry import SPRegistryProviderInput, SPRegistryOfferInput, SPRegistryOfferTerms, SPRegistryOfferPaymentInput
+from cli.services.contracts.sp_registry import (
+    SPRegistryOfferInput,
+    SPRegistryOfferPaymentInput,
+    SPRegistryOfferTerms,
+    SPRegistryProviderInput,
+)
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.sp_registry_db import SPRegistryDB
-from cli.services.web3_service import EthAddress, ActorId, FilAddress
+from cli.services.web3_service import ActorId, EthAddress, FilAddress
 
 
 def get_db_offers(db_url: str,
@@ -300,7 +305,7 @@ def get_db_sps(db_url: str,
 
     provider_ids = [sp.provider_id for sp in result]
     if len(provider_ids) != len(set(provider_ids)):
-        duplicated_ids = list(set([provider_id for provider_id in provider_ids if provider_ids.count(provider_id) > 1]))
+        duplicated_ids = list({provider_id for provider_id in provider_ids if provider_ids.count(provider_id) > 1})
         raise click.ClickException(f"\nDuplicated miner_id in SPRegistry database: {duplicated_ids}")
 
     return result

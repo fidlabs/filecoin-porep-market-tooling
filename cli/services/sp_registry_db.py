@@ -3,7 +3,7 @@ from datetime import datetime
 import psycopg
 
 from cli import utils
-from cli.services.web3_service import EthAddress, ActorId
+from cli.services.web3_service import ActorId, EthAddress
 
 
 @utils.json_dataclass()
