@@ -175,16 +175,6 @@ def print_info(account_address: EthAddress | None = None, account_name: str = "A
     click.echo(f"DEBUG={utils.get_env_required('DEBUG', default='False').capitalize()}")
 
 
-@dataclass(frozen=True)
-class ManifestDocument:
-    json: list[dict]
-    raw: bytes
-
-    @property
-    def manifest_hash(self) -> bytes:
-        return bytes(Web3.keccak(self.raw))
-
-
 # retries = None means "ask user"
 def fetch_manifest(manifest_url: str,
                    show_manifest: bool | None = None,
