@@ -1,5 +1,7 @@
 import click
 
+from cli.services import self_update
+
 DRY_RUN: bool = False
 
 
@@ -15,6 +17,8 @@ def cli(dry_run: bool = False):
 
     global DRY_RUN
     DRY_RUN = dry_run
+
+    self_update.check_and_prompt()
 
 
 def is_dry_run() -> bool:
