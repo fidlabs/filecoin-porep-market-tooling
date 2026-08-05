@@ -3,6 +3,7 @@ import click
 from cli import utils
 from cli.commands.admin._admin import admin_address, admin_signer
 from cli.services.contracts.sp_registry import SPRegistry
+from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import Web3Service
 
 
@@ -18,6 +19,7 @@ def set_offer_active(offer_id: int, active: str):
     ACTIVE - true to enable the offer, false to disable it.
     """
 
+    SelfUpdateService.check_and_prompt(manual=False)
     Web3Service().wait_for_pending_transactions(admin_address())
 
     _active = utils.string_to_bool(active)

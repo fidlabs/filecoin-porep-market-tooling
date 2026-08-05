@@ -3,6 +3,7 @@ import click
 from cli import utils
 from cli.commands.admin._admin import admin_signer, admin_address
 from cli.services.contracts.porep_market import PoRepMarket
+from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import Web3Service
 
 
@@ -15,6 +16,7 @@ def set_completion_padding(padding: int):
     PADDING - New padding value to be set.
     """
 
+    SelfUpdateService.check_and_prompt(manual=False)
     Web3Service().wait_for_pending_transactions(admin_address())
 
     current_padding = PoRepMarket().get_deal_activation_padding()

@@ -7,6 +7,7 @@ from cli import utils
 from cli.commands import utils as commands_utils
 from cli.services.contracts.porep_market import PoRepMarketDeal, PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
+from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import FilAddress
 
 
@@ -106,6 +107,8 @@ def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = N
     SOFTWARE - The software to use for claiming allocations.
     DEAL_ID - The ID of the deal to claim allocations for.
     """
+
+    SelfUpdateService.check_and_prompt(manual=False)
 
     click.echo("Fetching deal details...")
     deal = PoRepMarketViewHelper().get_deal_view(deal_id).deal

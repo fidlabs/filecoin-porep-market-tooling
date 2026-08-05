@@ -64,7 +64,7 @@ class SelfUpdateService:
 
             if not tracking_branch:
                 if manual:
-                    click.echo("Unable to check for updates: no tracking branch found")
+                    click.echo("Unable to check for updates: no tracking branch found.")
 
                 return None
 
@@ -80,7 +80,7 @@ class SelfUpdateService:
 
         if not manual and branch_name not in ["main", "master"]:
             if manual:
-                click.echo(f"Skipping update for branch '{branch_name}': not 'main' or 'master'")
+                click.echo(f"Skipping update for branch '{branch_name}': not 'main' or 'master'.")
 
             return None
 
@@ -103,7 +103,7 @@ class SelfUpdateService:
 
         if behind == 0:
             if manual:
-                click.echo(f"{SelfUpdateService.REPO_NAME} is up to date")
+                click.echo(f"{SelfUpdateService.REPO_NAME} is up to date.")
 
             return None
 
@@ -161,7 +161,7 @@ class SelfUpdateService:
             sys.exit(0)
 
         else:
-            click.echo("\n")
+            click.echo("Skip this check next time by setting the environment variable `SKIP_SELF_UPDATE=true`.\n")
 
     # manual means a self-update command explicitly invoked by the user
     # as opposed to an automatic check before running a command

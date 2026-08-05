@@ -12,6 +12,7 @@ from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceAdap
 from cli.services.contracts.porep_market import PoRepMarket
 from cli.services.contracts.porep_market import PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
+from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import Web3Service, ActorId
 
 
@@ -38,7 +39,9 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
     """
 
     # TODO LATER improve click.echo here
+    SelfUpdateService.check_and_prompt(manual=False)
     Web3Service().wait_for_pending_transactions(client_address())
+
     deal = PoRepMarketViewHelper().get_deal_view(deal_id)
 
     if deal.deal.state != PoRepMarketDealState.ACCEPTED:

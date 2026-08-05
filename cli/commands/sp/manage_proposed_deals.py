@@ -4,6 +4,7 @@ from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.sp import _utils as sp_utils
 from cli.commands.sp._sp import sp_signer, sp_organization_address, sp_address
+from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import Web3Service, ActorId
 
 
@@ -17,6 +18,7 @@ def manage_proposed_deals(action: str | None = None, provider_id: str | None = N
     ACTION - Action to perform on proposed deals.
     """
 
+    SelfUpdateService.check_and_prompt(manual=False)
     Web3Service().wait_for_pending_transactions(sp_address())
 
     deals = commands_utils.get_sp_deals(sp_utils.PoRepMarketDealState.PROPOSED,

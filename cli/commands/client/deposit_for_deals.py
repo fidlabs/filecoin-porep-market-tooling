@@ -12,6 +12,7 @@ from cli.services.contracts.porep_market import PoRepMarket
 from cli.services.contracts.porep_market import PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper, PoRepMarketDealView
 from cli.services.contracts.usdc_token import USDCToken
+from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import Web3Service, EthAddress
 
 
@@ -59,6 +60,7 @@ def deposit_for_whole_deal(deal_id: int):
     DEAL_ID - Deal ID to deposit funds for.
     """
 
+    SelfUpdateService.check_and_prompt(manual=False)
     Web3Service().wait_for_pending_transactions(client_address())
 
     deal = PoRepMarketViewHelper().get_deal_view(deal_id)
