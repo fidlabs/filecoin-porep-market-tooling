@@ -147,6 +147,7 @@ def print_info(account_address: EthAddress | None = None, account_name: str = "A
     click.echo(f"RPC_URL={utils.get_env('RPC_URL', required=False)}")
     click.echo()
     click.echo(f"POREP_MARKET={utils.get_env('POREP_MARKET', required=False)}")
+    click.echo(f"POREP_MARKET_VIEW_HELPER={utils.get_env('POREP_MARKET_VIEW_HELPER', required=False)}")
     click.echo(f"FILECOIN_PAY={utils.get_env('FILECOIN_PAY', required=False)}")
     click.echo(f"USDC_TOKEN={utils.get_env('USDC_TOKEN', required=False)}")
 
