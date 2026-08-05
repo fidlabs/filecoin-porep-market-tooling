@@ -32,7 +32,7 @@ class SelfUpdateService:
         return repo.is_dirty(untracked_files=True)
 
     @staticmethod
-    def _get_tracking_branch(repo: git.Repo) -> git.RemoteReference | None:
+    def _get_tracking_branch(repo: git.Repo) -> "git.refs.remote.RemoteReference | None":
         if repo.head.is_detached:
             return None
 
@@ -49,14 +49,21 @@ class SelfUpdateService:
         return ahead, behind
 
     @staticmethod
-    def check_for_update(quiet: bool) -> UpdateInfo | None:
+    def _skip_self_update() -> bool:
+        return utils.string_to_bool(utils.get_env("SKIP_SELF_UPDATE", default="false")) or False
+
+    @staticmethod
+    def check_for_update(manual: bool) -> UpdateInfo | None:
+        if not manual and SelfUpdateService._skip_self_update():
+            return None
+
         # noinspection PyBroadException
         try:
             repo = SelfUpdateService._get_repo()
             tracking_branch = SelfUpdateService._get_tracking_branch(repo)
 
             if not tracking_branch:
-                if not quiet:
+                if manual:
                     click.echo("Unable to check for updates: no tracking branch found")
 
                 return None
@@ -66,13 +73,16 @@ class SelfUpdateService:
 
         # pylint: disable=broad-exception-caught
         except Exception as e:
-            if not quiet:
+            if manual:
                 click.echo(f"Unable to check for updates: {e}")
 
             return None
 
-        # TODO MASTER / MAIN ONLY?
-        # TODO SKIP_AUTO_UPDATE ENV VAR?
+        if not manual and branch_name not in ["main", "master"]:
+            if manual:
+                click.echo(f"Skipping update for branch '{branch_name}': not 'main' or 'master'")
+
+            return None
 
         # noinspection PyBroadException
         try:
@@ -84,7 +94,7 @@ class SelfUpdateService:
 
         # pylint: disable=broad-exception-caught
         except Exception as e:
-            if not quiet:
+            if manual:
                 click.echo(f"Unable to fetch updates from remote '{remote_name}': {e}")
 
             return None
@@ -92,7 +102,7 @@ class SelfUpdateService:
         ahead, behind = SelfUpdateService._commit_counts(repo, local_sha, remote_sha)
 
         if behind == 0:
-            if not quiet:
+            if manual:
                 click.echo(f"{SelfUpdateService.REPO_NAME} is up to date")
 
             return None
@@ -145,6 +155,7 @@ class SelfUpdateService:
             click.echo(f"{echo_str}, but auto-update cannot be performed:\n{update_unsafe_reason}.\n\n")
 
         elif utils.confirm(f"{echo_str}.\nDo you want to pull the update now?", default=True):
+            click.echo()
             SelfUpdateService._pull_update(update_info)
             click.echo("Please run the command again to use the updated version.")
             sys.exit(0)
@@ -152,11 +163,13 @@ class SelfUpdateService:
         else:
             click.echo("\n")
 
+    # manual means a self-update command explicitly invoked by the user
+    # as opposed to an automatic check before running a command
     @staticmethod
-    def check_and_prompt(quiet: bool):
+    def check_and_prompt(manual: bool):
         # noinspection PyBroadException
         try:
-            update_info = SelfUpdateService.check_for_update(quiet)
+            update_info = SelfUpdateService.check_for_update(manual)
 
             if update_info is not None:
                 SelfUpdateService._prompt_and_update(update_info)
@@ -164,5 +177,5 @@ class SelfUpdateService:
         # pylint: disable=broad-exception-caught
         except Exception as e:
             # self-update must never break the command the user actually ran
-            if not quiet:
+            if manual:
                 click.echo(f"Self-update failed: {e}")
