@@ -3,6 +3,7 @@ import click
 from cli import utils
 from cli.commands.admin._admin import admin_signer, admin_address
 from cli.services.contracts.sp_registry import SPRegistry
+from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import Web3Service, ActorId
 
 
@@ -15,7 +16,9 @@ def block_sp(provider_id: str):
     PROVIDER_ID - Storage Provider ID to block.
     """
 
+    SelfUpdateService.check_and_prompt(manual=False)
     Web3Service().wait_for_pending_transactions(admin_address())
+
     provider = SPRegistry().get_provider_view(ActorId(provider_id))
 
     if provider.blocked:

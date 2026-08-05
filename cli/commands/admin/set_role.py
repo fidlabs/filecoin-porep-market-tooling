@@ -4,6 +4,7 @@ from eth_hash.backends.pycryptodome import keccak256
 from cli import utils
 from cli.commands.admin._admin import admin_signer
 from cli.services.contracts.access_control_upgradeable import AccessControlUpgradeable
+from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import EthAddress
 
 
@@ -19,6 +20,8 @@ def set_role(contract_address: str, role: str, account: str):
     ROLE - The role to modify. Can be a hex, integer or alpha-only string.
     ACCOUNT - The address to grant the role to. Can be any format possible.
     """
+
+    SelfUpdateService.check_and_prompt(manual=False)
 
     _contract_address = EthAddress.from_any(contract_address)
     _account = EthAddress.from_any(account)

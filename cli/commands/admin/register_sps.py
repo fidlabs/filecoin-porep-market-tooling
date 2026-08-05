@@ -4,6 +4,7 @@ from cli import utils
 from cli.commands.admin import _utils as admin_utils
 from cli.commands.admin._admin import admin_signer, admin_address
 from cli.services.contracts.sp_registry import SPRegistry, SPRegistryProviderView, SPRegistryProviderInput, SPRegistryOfferInput, SPRegistryOfferView
+from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import Web3Service, ActorId
 
 
@@ -197,6 +198,8 @@ def register_db_sps(db_url: str,
     DB_ID - SPRegistry database organization ID to register SPs from.
     """
 
+    SelfUpdateService.check_and_prompt(manual=False)
+
     _register_sps(admin_utils.get_db_sps(db_url,
                                          kyc_status="approved",
                                          organization_db_id=db_id,
@@ -212,5 +215,7 @@ def register_db_sps(db_url: str,
 
 @click.command(hidden=True)
 def register_devnet_sps():
+    SelfUpdateService.check_and_prompt(manual=False)
+
     _register_sps(admin_utils.get_devnet_sps())
     _register_offers(admin_utils.get_devnet_offers())
