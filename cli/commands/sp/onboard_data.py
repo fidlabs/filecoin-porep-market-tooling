@@ -12,6 +12,7 @@ from cli import utils
 from cli.commands import utils as commands_utils
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
+from cli.services.self_update import SelfUpdateService
 
 
 def _get_aria2c_path() -> str:
@@ -129,6 +130,8 @@ def onboard_data(ctx,
     \b
     See https://aria2.github.io/ and https://github.com/aria2/aria2 for more information about aria2 and installation instructions.
     """
+
+    SelfUpdateService.check_and_prompt(manual=False)
 
     aria2c_path = _get_aria2c_path()
 

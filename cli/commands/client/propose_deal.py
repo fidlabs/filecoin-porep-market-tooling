@@ -12,6 +12,7 @@ from cli.services.contracts.porep_market import PoRepMarket
 from cli.services.contracts.porep_market import PoRepMarketDealRequest, PoRepMarketDealState, PoRepMarketSLIThresholds
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.contracts.usdc_token import USDCToken
+from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import Web3Service, EthAddress
 
 
@@ -30,8 +31,9 @@ def _propose_deal(manifest_url: str,
                   indexing_pct: int,
                   payment_token_address: EthAddress):
     #
-    MBPS_TO_BYTES_PER_SECOND = 125_000  # 1 Mbps = 10^6 bits/s / 8 = 125 000 bytes/s
+    SelfUpdateService.check_and_prompt(manual=False)
 
+    MBPS_TO_BYTES_PER_SECOND = 125_000  # 1 Mbps = 10^6 bits/s / 8 = 125 000 bytes/s
     manifest, raw_manifest = commands_utils.fetch_manifest(manifest_url)
     pieces = manifest[0]["pieces"]
     pieces_size_bytes = sum(piece.get("pieceSize", 0) for piece in pieces)

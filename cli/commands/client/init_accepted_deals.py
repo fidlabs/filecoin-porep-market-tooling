@@ -13,6 +13,7 @@ from cli.services.contracts.porep_market import PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.contracts.validator_factory import ValidatorFactory
+from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import Web3Service
 
 
@@ -31,6 +32,7 @@ def init_accepted_deals(deal_id: int | None = None):
     3. initialize FileCoinPay rail.
     """
 
+    SelfUpdateService.check_and_prompt(manual=False)
     Web3Service().wait_for_pending_transactions(client_address())
 
     if deal_id is not None:
