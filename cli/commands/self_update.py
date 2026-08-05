@@ -9,4 +9,4 @@ def self_update():
     Update the CLI tool to the latest version from the remote Git repository.
     """
 
-    SelfUpdateService.check_and_prompt(quiet=False)
+    SelfUpdateService.check_and_prompt(manual=True)

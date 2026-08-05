@@ -8,7 +8,7 @@ from cli.services.web3_service import EthAddress, FilAddress, ActorId
 @click.argument("xinput")
 def convert(xinput: str):
     """
-    Convert input string to all address formats.
+    Convert XINPUT string to all address formats.
 
     XINPUT - can be Ethereum address, Filecoin address, or ActorId
     """
