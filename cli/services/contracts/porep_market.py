@@ -298,7 +298,7 @@ class PoRepMarketSettlementDecision:
 
 
 class PoRepMarket(ContractService):
-    # TODO ASAP get address from view helper
+    # TODO ASAP get address from view helper + update config command
     def __init__(self, contract_address: EthAddress | None = None):
         super().__init__(contract_address or utils.get_env_required("POREP_MARKET", required_type=EthAddress),
                          self.abi_dir() / "PoRepMarket.json")

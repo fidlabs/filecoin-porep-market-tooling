@@ -1,4 +1,5 @@
 import dataclasses
+import sys
 from pathlib import Path
 
 import click
@@ -6,161 +7,162 @@ import git
 
 from cli import utils
 
-FETCH_TIMEOUT_SECONDS = 5
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
+# git-based self-update service
+class SelfUpdateService:
+    FETCH_TIMEOUT_SECONDS = 5
+    REPO_ROOT = Path(__file__).resolve().parents[2]
+    REPO_NAME = "filecoin-porep-market-tooling"
 
+    @dataclasses.dataclass
+    class UpdateInfo:
+        remote_name: str
+        branch_name: str
+        remote_sha: str
+        commits_behind: int
+        commits_ahead: int
+        repo: git.Repo
 
-@dataclasses.dataclass
-class UpdateInfo:
-    remote_name: str
-    branch_name: str
-    remote_sha: str
-    commits_behind: int
-    commits_ahead: int
+    @staticmethod
+    def _get_repo() -> git.Repo:
+        return git.Repo(SelfUpdateService.REPO_ROOT, search_parent_directories=True)
 
+    @staticmethod
+    def _has_local_changes(repo: git.Repo) -> bool:
+        return repo.is_dirty(untracked_files=True)
 
-def _get_repo() -> git.Repo | None:
-    try:
-        return git.Repo(_REPO_ROOT, search_parent_directories=True)
-    except (git.InvalidGitRepositoryError, git.NoSuchPathError):
-        return None
-
-
-def has_local_changes(repo: git.Repo) -> bool:
-    return repo.is_dirty(untracked_files=True)
-
-
-def _get_tracking_branch(repo: git.Repo) -> git.RemoteReference | None:
-    if repo.head.is_detached:
-        return None
-
-    try:
-        return repo.active_branch.tracking_branch()
-    except TypeError:
-        return None
-
-
-def _commit_counts(repo: git.Repo, local_sha: str, remote_sha: str) -> tuple[int, int]:
-    ahead = sum(1 for _ in repo.iter_commits(f"{remote_sha}..{local_sha}"))
-    behind = sum(1 for _ in repo.iter_commits(f"{local_sha}..{remote_sha}"))
-
-    return ahead, behind
-
-
-def check_for_update() -> UpdateInfo | None:
-    repo = _get_repo()
-
-    if repo is None:
-        return None
-
-    tracking_branch = _get_tracking_branch(repo)
-
-    if tracking_branch is None:
+    @staticmethod
+    def _get_tracking_branch(repo: git.Repo) -> git.RemoteReference | None:
         if repo.head.is_detached:
-            click.echo("[porep-tooling] Tooling repo is in detached HEAD state - auto-update skipped.")
+            return None
+
+        return repo.active_branch.tracking_branch()
+
+    @staticmethod
+    def _commit_counts(repo: git.Repo, local_sha: str, remote_sha: str) -> tuple[int, int]:
+        if remote_sha == local_sha:
+            return 0, 0
+
+        ahead = sum(1 for _ in repo.iter_commits(f"{remote_sha}..{local_sha}"))
+        behind = sum(1 for _ in repo.iter_commits(f"{local_sha}..{remote_sha}"))
+
+        return ahead, behind
+
+    @staticmethod
+    def check_for_update(quiet: bool) -> UpdateInfo | None:
+        # noinspection PyBroadException
+        try:
+            repo = SelfUpdateService._get_repo()
+            tracking_branch = SelfUpdateService._get_tracking_branch(repo)
+
+            if not tracking_branch:
+                if not quiet:
+                    click.echo("Unable to check for updates: no tracking branch found")
+
+                return None
+
+            remote_name = tracking_branch.remote_name
+            branch_name = tracking_branch.remote_head
+
+        # pylint: disable=broad-exception-caught
+        except Exception as e:
+            if not quiet:
+                click.echo(f"Unable to check for updates: {e}")
+
+            return None
+
+        # TODO MASTER / MAIN ONLY?
+        # TODO SKIP_AUTO_UPDATE ENV VAR?
+
+        # noinspection PyBroadException
+        try:
+            remote = repo.remotes[remote_name]
+            remote.fetch(branch_name, kill_after_timeout=SelfUpdateService.FETCH_TIMEOUT_SECONDS)
+            remote_ref = remote.refs[branch_name]
+            remote_sha = remote_ref.commit.hexsha
+            local_sha = repo.head.commit.hexsha
+
+        # pylint: disable=broad-exception-caught
+        except Exception as e:
+            if not quiet:
+                click.echo(f"Unable to fetch updates from remote '{remote_name}': {e}")
+
+            return None
+
+        ahead, behind = SelfUpdateService._commit_counts(repo, local_sha, remote_sha)
+
+        if behind == 0:
+            if not quiet:
+                click.echo(f"{SelfUpdateService.REPO_NAME} is up to date")
+
+            return None
+
+        return SelfUpdateService.UpdateInfo(
+            remote_name=remote_name,
+            branch_name=branch_name,
+            remote_sha=remote_sha,
+            commits_behind=behind,
+            commits_ahead=ahead,
+            repo=repo
+        )
+
+    @staticmethod
+    def _pull_update(update_info: UpdateInfo):
+        try:
+            update_info.repo.git.merge(f"{update_info.remote_name}/{update_info.branch_name}", "--ff-only")
+            click.echo(f"{SelfUpdateService.REPO_NAME} updated to {update_info.remote_sha[:8]}.")
+        except git.GitCommandError as e:
+            click.echo(f"Self-update failed: {e}")
+
+    # returns reason for skipping update if unsafe, or None if safe to update
+    @staticmethod
+    def _update_unsafe_reason(update_info: UpdateInfo) -> str | None:
+        remote_ref_name = f"{update_info.remote_name}/{update_info.branch_name}"
+
+        if update_info.commits_ahead > 0:
+            return f"{update_info.commits_ahead} local commit(s) detected ahead of {remote_ref_name}"
+
+        if SelfUpdateService._has_local_changes(update_info.repo):
+            return "uncommitted local changes detected; commit or stash your changes (`git stash`) and try again"
+
+        branch = None if update_info.repo.head.is_detached else update_info.repo.active_branch.name
+
+        if branch != update_info.branch_name:
+            where = "in detached HEAD state" if branch is None else f"on branch '{branch}'"
+            return f"repository is {where}, not on '{update_info.branch_name}' anymore"
+
+        return None
+
+    @staticmethod
+    def _prompt_and_update(update_info: UpdateInfo):
+        remote_ref_name = f"{update_info.remote_name}/{update_info.branch_name}"
+        update_unsafe_reason = SelfUpdateService._update_unsafe_reason(update_info)
+        echo_str = (f"A new version of {SelfUpdateService.REPO_NAME} is available "
+                    f"({update_info.commits_behind} commit(s) behind {remote_ref_name} @ "
+                    f"{update_info.remote_sha[:8]})")
+
+        if update_unsafe_reason:
+            click.echo(f"{echo_str}, but auto-update cannot be performed:\n{update_unsafe_reason}.\n\n")
+
+        elif utils.confirm(f"{echo_str}.\nDo you want to pull the update now?", default=True):
+            SelfUpdateService._pull_update(update_info)
+            click.echo("Please run the command again to use the updated version.")
+            sys.exit(0)
+
         else:
-            click.echo(
-                f"[porep-tooling] Branch '{repo.active_branch.name}' has no remote tracking branch "
-                "- auto-update skipped."
-            )
-        return None
+            click.echo("\n")
 
-    remote_name = tracking_branch.remote_name
-    branch_name = tracking_branch.remote_head
+    @staticmethod
+    def check_and_prompt(quiet: bool):
+        # noinspection PyBroadException
+        try:
+            update_info = SelfUpdateService.check_for_update(quiet)
 
-    try:
-        remote = repo.remotes[remote_name]
-        remote.fetch(branch_name, kill_after_timeout=FETCH_TIMEOUT_SECONDS)
-    except Exception:
-        return None
+            if update_info is not None:
+                SelfUpdateService._prompt_and_update(update_info)
 
-    try:
-        remote_ref = remote.refs[branch_name]
-    except IndexError:
-        return None
-
-    remote_sha = remote_ref.commit.hexsha
-    local_sha = repo.head.commit.hexsha
-
-    if remote_sha == local_sha:
-        return None
-
-    ahead, behind = _commit_counts(repo, local_sha, remote_sha)
-
-    if behind == 0:
-        return None
-
-    return UpdateInfo(
-        remote_name=remote_name,
-        branch_name=branch_name,
-        remote_sha=remote_sha,
-        commits_behind=behind,
-        commits_ahead=ahead,
-    )
-
-
-def _pull(repo: git.Repo, update_info: UpdateInfo) -> None:
-    if has_local_changes(repo):
-        click.echo(
-            "[porep-tooling] Uncommitted local changes detected - auto-update skipped. "
-            "Commit or stash your changes ('git stash') and try again."
-        )
-        return
-
-    branch = None if repo.head.is_detached else repo.active_branch.name
-
-    if branch != update_info.branch_name:
-        where = "in detached HEAD state" if branch is None else f"on branch '{branch}'"
-        click.echo(
-            f"[porep-tooling] Tooling repo is {where}, not on '{update_info.branch_name}' anymore "
-            "- auto-update skipped."
-        )
-        return
-
-    try:
-        repo.git.merge(f"{update_info.remote_name}/{update_info.branch_name}", "--ff-only")
-    except git.GitCommandError as e:
-        click.echo(f"[porep-tooling] Update failed: {e}")
-        return
-
-    click.echo(f"[porep-tooling] Updated tooling to {update_info.remote_sha[:8]}.")
-
-
-def _prompt_and_apply(update_info: UpdateInfo) -> None:
-    remote_ref_name = f"{update_info.remote_name}/{update_info.branch_name}"
-
-    if update_info.commits_ahead > 0:
-        click.echo(
-            f"\n[porep-tooling] Local branch has diverged from {remote_ref_name} "
-            f"({update_info.commits_ahead} local commit(s) not on {remote_ref_name}, "
-            f"{update_info.commits_behind} commit(s) behind) - auto-update skipped, update manually."
-        )
-        return
-
-    click.echo(
-        f"\n[porep-tooling] A new version of the tool is available "
-        f"({update_info.commits_behind} commit(s) behind {remote_ref_name}, "
-        f"{update_info.remote_sha[:8]})."
-    )
-
-    if not utils.confirm("Do you want to pull the update now?", default=False):
-        return
-
-    repo = _get_repo()
-
-    if repo is None:
-        return
-
-    _pull(repo, update_info)
-
-
-def check_and_prompt() -> None:
-    try:
-        update_info = check_for_update()
-
-        if update_info is not None:
-            _prompt_and_apply(update_info)
-    except Exception:
-        # self-update must never break the command the user actually ran
-        pass
+        # pylint: disable=broad-exception-caught
+        except Exception as e:
+            # self-update must never break the command the user actually ran
+            if not quiet:
+                click.echo(f"Self-update failed: {e}")

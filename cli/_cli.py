@@ -1,6 +1,6 @@
 import click
 
-from cli.services import self_update
+from cli.services.self_update import SelfUpdateService
 
 DRY_RUN: bool = False
 
@@ -18,7 +18,7 @@ def cli(dry_run: bool = False):
     global DRY_RUN
     DRY_RUN = dry_run
 
-    self_update.check_and_prompt()
+    SelfUpdateService.check_and_prompt(quiet=True)
 
 
 def is_dry_run() -> bool:
