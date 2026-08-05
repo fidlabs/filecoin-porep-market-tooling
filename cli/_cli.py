@@ -18,7 +18,7 @@ def cli(dry_run: bool = False):
     global DRY_RUN
     DRY_RUN = dry_run
 
-    SelfUpdateService.check_and_prompt(quiet=True)
+    SelfUpdateService.check_and_prompt(manual=False)
 
 
 def is_dry_run() -> bool:
