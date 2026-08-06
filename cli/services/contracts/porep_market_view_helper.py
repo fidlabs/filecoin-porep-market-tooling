@@ -192,7 +192,7 @@ class PoRepMarketViewHelper(ContractService):
 
     # @notice PoRepMarket contract used to fetch deal data.
     def porep_market_contract(self) -> EthAddress:
-        return EthAddress(self.contract.functions.POREPMARKET_CONTRACT().call())
+        return EthAddress(self.call_contract(self.contract.functions.POREPMARKET_CONTRACT()))
 
     # @notice Gets the complete generic read model for one deal.
     # @dev External tools, oracles, CLIs, and RPC consumers use this bounded
@@ -202,7 +202,7 @@ class PoRepMarketViewHelper(ContractService):
     # @param dealId The id of the deal.
     # @return dealView Complete generic deal snapshot.
     def get_deal_view(self, deal_id: int) -> PoRepMarketDealView:
-        return PoRepMarketDealView.from_web3(self.contract.functions.getDealView(deal_id).call(), deal_id)
+        return PoRepMarketDealView.from_web3(self.call_contract(self.contract.functions.getDealView(deal_id)), deal_id)
 
     # @notice Gets a caller-sized page of complete generic deal views.
     # @dev Oracle jobs and CLI tools use this for normal batch scans. The caller
@@ -213,5 +213,5 @@ class PoRepMarketViewHelper(ContractService):
     # @return dealViews Page of complete generic deal snapshots.
     # @return total Total number of created deal IDs at call time.
     def get_deal_views(self, offset: int, limit: int) -> tuple[list[PoRepMarketDealView], int]:
-        views, total = self.contract.functions.getDealViews(offset, limit).call()
+        views, total = self.call_contract(self.contract.functions.getDealViews(offset, limit))
         return [PoRepMarketDealView.from_web3(view) for view in views], total

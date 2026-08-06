@@ -354,7 +354,7 @@ class PoRepMarket(ContractService):
     # whether new deals appeared while a scan was running.
     # @return count Total number of created deal IDs.
     def get_deal_count(self) -> int:
-        return self.contract.functions.getDealCount().call()
+        return self.call_contract(self.contract.functions.getDealCount())
 
     # @notice Gets a creation-order page of deal IDs.
     # @dev This exists for ID-first backfills, queue construction, retry logic,
@@ -366,7 +366,7 @@ class PoRepMarket(ContractService):
     # @return dealIds Page of deal IDs in creation order.
     # @return total Total number of created deal IDs at call time.
     def get_deal_ids(self, offset: int, limit: int) -> tuple[list[int], int]:
-        return self.contract.functions.getDealIds(offset, limit).call()
+        return self.call_contract(self.contract.functions.getDealIds(offset, limit))
 
     # @notice Gets a page of deal IDs for one lifecycle state.
     # @dev Oracle jobs use this for recurring scans over active or finalized deals
@@ -378,7 +378,7 @@ class PoRepMarket(ContractService):
     # @return dealIds Page of deal IDs in the state's existing index order.
     # @return total Total number of deal IDs in this state at call time.
     def get_deal_ids_by_state(self, state: PoRepMarketDealState, offset: int, limit: int) -> tuple[list[int], int]:
-        return self.contract.functions.getDealIdsByState(state.value, offset, limit).call()
+        return self.call_contract(self.contract.functions.getDealIdsByState(state.value, offset, limit))
 
     # @notice Gets deals for a specific organization by state
     # @param organization_address The address of the organization
@@ -386,12 +386,12 @@ class PoRepMarket(ContractService):
     # @return deals Array of deal proposals for the organization in the specified state (from all providers associated with the organization)
     def get_deals_for_organization_by_state(self, organization_address: EthAddress, state: PoRepMarketDealState) -> list[PoRepMarketDeal]:
         return [PoRepMarketDeal.from_web3(deal) for deal in
-                self.contract.functions.getDealsForOrganizationByState(organization_address, state.value).call()]
+                self.call_contract(self.contract.functions.getDealsForOrganizationByState(organization_address, state.value))]
 
     # @notice Gets all deals
     # @return deals Array of all deals
     def get_deals(self) -> list[PoRepMarketDeal]:
-        return [PoRepMarketDeal.from_web3(deal) for deal in self.contract.functions.getDeals().call()]
+        return [PoRepMarketDeal.from_web3(deal) for deal in self.call_contract(self.contract.functions.getDeals())]
 
     # @notice Accepts a deal
     # @param dealId The id of the deal proposal
@@ -436,24 +436,24 @@ class PoRepMarket(ContractService):
     # @notice Maximum deal duration in days. See PoRepTypes.MAX_DEAL_DURATION_DAYS.
     # @dev Any provider limit above this is unreachable: PoRepMarket rejects deals with durationDays > 1278.
     def get_max_deal_duration_days(self) -> int:
-        return self.contract.functions.MAX_DEAL_DURATION_DAYS().call()
+        return self.call_contract(self.contract.functions.MAX_DEAL_DURATION_DAYS())
 
     # @notice Minimum Filecoin deal duration equals 180 days (6 months)
     def get_min_deal_duration_days(self) -> int:
-        return self.contract.functions.MIN_DEAL_DURATION_DAYS().call()
+        return self.call_contract(self.contract.functions.MIN_DEAL_DURATION_DAYS())
 
     # @notice Number of epochs in one month
     # @dev 30 days * 24 hours/day * 60 minutes/hour * 2 epochs/minute = 86_400 epochs
     def get_epochs_in_month(self) -> int:
-        return self.contract.functions.EPOCHS_IN_MONTH().call()
+        return self.call_contract(self.contract.functions.EPOCHS_IN_MONTH())
 
     # @notice Size of a single Filecoin sector in bytes (32 GiB)
     def get_sector_size_bytes(self) -> int:
-        return self.contract.functions.SECTOR_SIZE().call()
+        return self.call_contract(self.contract.functions.SECTOR_SIZE())
 
     # @notice Gets the deal activation padding (in percent)
     def get_deal_activation_padding(self) -> int:
-        return self.contract.functions.getDealActivationPadding().call()
+        return self.call_contract(self.contract.functions.getDealActivationPadding())
 
     # @notice Sets the deal activation padding (in percent)
     # @dev Only callable by the admin
@@ -475,28 +475,30 @@ class PoRepMarket(ContractService):
     # @param toEpoch The epoch at which the settlement window ends
     # @return decision The amount and epoch accepted for settlement
     def validate_deal_settlement(self, deal_id: int, from_epoch: int, to_epoch: int) -> PoRepMarketSettlementDecision:
-        return PoRepMarketSettlementDecision.from_web3(self.contract.functions.validateDealSettlement(deal_id, from_epoch, to_epoch).call())
+        return PoRepMarketSettlementDecision.from_web3(
+            self.call_contract(self.contract.functions.validateDealSettlement(deal_id, from_epoch, to_epoch))
+        )
 
     # @notice Gets the SPRegistry contract address from storage
     # @return ISPRegistry The SPRegistry contract address
     def get_sp_registry_contract_address(self) -> EthAddress:
-        return self.contract.functions.getSPRegistryContract().call()
+        return EthAddress(self.call_contract(self.contract.functions.getSPRegistryContract()))
 
     # @notice Gets the global evidence adapter address from storage
     # @return The global evidence adapter address
     def get_global_evidence_adapter_address(self) -> EthAddress:
-        return self.contract.functions.getGlobalEvidenceAdapter().call()
+        return EthAddress(self.call_contract(self.contract.functions.getGlobalEvidenceAdapter()))
 
     # @notice Gets the validator factory contract address from storage
     # @return IValidatorFactory The validator factory contract address
     def get_validator_factory_contract_address(self) -> EthAddress:
-        return self.contract.functions.getValidatorFactoryContract().call()
+        return EthAddress(self.call_contract(self.contract.functions.getValidatorFactoryContract()))
 
     # @notice Gets the evidence adapter address assigned to a deal
     # @param dealId The id of the deal
     # @return The evidence adapter address for the deal
     def get_deal_evidence_adapter_address(self, deal_id: int) -> EthAddress:
-        return self.contract.functions.getDealEvidenceAdapter(deal_id).call()
+        return EthAddress(self.call_contract(self.contract.functions.getDealEvidenceAdapter(deal_id)))
 
     # @notice Activates an accepted deal and starts payment
     # @dev Verifies evidence, commits capacity, initializes the service window, and asks the validator to update the rail.
@@ -529,7 +531,7 @@ class PoRepMarket(ContractService):
     # @param dealId The id of the deal
     # @return status Current evidence status
     def current_evidence_status(self, deal_id: int) -> DataCapEvidenceStatus:
-        return DataCapEvidenceStatus.from_web3(self.contract.functions.currentEvidenceStatus(deal_id).call())
+        return DataCapEvidenceStatus.from_web3(self.call_contract(self.contract.functions.currentEvidenceStatus(deal_id)))
 
     # @notice Updates the manifest location for a specific deal
     # @dev Only callable by the admin
@@ -545,7 +547,7 @@ class PoRepMarket(ContractService):
 
     # @notice Gets the deal proposal expiration window (in epochs)
     def get_deal_expiration(self) -> int:
-        return self.contract.functions.getDealExpiration().call()
+        return self.call_contract(self.contract.functions.getDealExpiration())
 
     # @notice Sets a new deal proposal expiration window (in epochs)
     # @param newDealExpiration The new expiration value

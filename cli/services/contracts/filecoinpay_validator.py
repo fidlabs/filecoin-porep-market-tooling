@@ -64,7 +64,7 @@ class FileCoinPayValidator(ContractService):
     # @notice Retrieves the current status of the payment rail
     # @return railStatus Current status of the payment rail
     def get_rail_status(self) -> FileCoinPayRailStatus:
-        return FileCoinPayRailStatus.from_web3(self.contract.functions.getRailStatus().call())
+        return FileCoinPayRailStatus.from_web3(self.call_contract(self.contract.functions.getRailStatus()))
 
     # @notice Modifies the payment rate
     # @dev Only callable by the PoRepMarket contract

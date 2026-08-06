@@ -3,6 +3,7 @@ from cli.services.contract_service import ContractService
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress
 
+
 # https://github.com/FilOzone/filecoin-pay
 
 @utils.json_dataclass()  # noqa: E302  silencing flake8
@@ -179,17 +180,17 @@ class FileCoinPay(ContractService):
 
     # token => client => operator => Approval
     def get_operator_approval(self, token: EthAddress, client: EthAddress, operator: EthAddress) -> FileCoinPayOperatorApproval:
-        return FileCoinPayOperatorApproval.from_web3(self.contract.functions.operatorApprovals(token, client, operator).call())
+        return FileCoinPayOperatorApproval.from_web3(self.call_contract(self.contract.functions.operatorApprovals(token, client, operator)))
 
     # Internal balances
     # The self-balance collects network fees
     def get_account(self, token: EthAddress, owner: EthAddress) -> FileCoinPayAccount:
-        return FileCoinPayAccount.from_web3(self.contract.functions.accounts(token, owner).call())
+        return FileCoinPayAccount.from_web3(self.call_contract(self.contract.functions.accounts(token, owner)))
 
     # @notice Gets the current state of the target rail or reverts if the rail isn't active.
     # @param railId the ID of the rail.
     def get_rail(self, rail_id: int) -> FileCoinPayRailView:
-        return FileCoinPayRailView.from_web3(self.contract.functions.getRail(rail_id).call())
+        return FileCoinPayRailView.from_web3(self.call_contract(self.contract.functions.getRail(rail_id)))
 
     # @notice Withdraws tokens from the caller's account to the caller's account, up to the amount of currently available tokens
     #     (the tokens not currently locked in rails).
