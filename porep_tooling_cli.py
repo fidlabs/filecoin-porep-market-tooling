@@ -31,7 +31,7 @@ def configure_logger():
             "fatal": logging.FATAL,
             "error": logging.ERROR,
             "warning": logging.WARNING,
-            "warn": logging.WARN,
+            "warn": logging.WARNING,
             "info": logging.INFO,
             "debug": logging.DEBUG,
             "notset": logging.NOTSET,

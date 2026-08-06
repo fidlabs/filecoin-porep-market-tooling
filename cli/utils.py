@@ -178,17 +178,17 @@ def json_pretty(json_data, sort_keys: bool = False):
 
 
 # converts 1100000000000000000 wei -> 1.1 ETH
-def from_wei(amount: int | float, decimals: int) -> float:
+def from_wei(amount: float, decimals: int) -> float:
     return amount / (10 ** decimals)
 
 
-def str_from_wei(amount: int | float, decimals: int) -> str:
+def str_from_wei(amount: float, decimals: int) -> str:
     # pylint: disable=consider-using-f-string
     return "{:.{}f}".format(from_wei(amount, decimals), decimals)  # cannot be f-string because decimals is dynamic
 
 
 # converts 1.1 ETH -> 1100000000000000000 wei
-def to_wei(amount: int | float, decimals: int) -> int:
+def to_wei(amount: float, decimals: int) -> int:
     result = amount * (10 ** decimals)
 
     if result != int(result):
