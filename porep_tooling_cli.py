@@ -15,7 +15,7 @@ import sys
 _ = __future__
 
 LOG_FILE = "logs/logs.log"
-ERROR_LOG_FILE = "logs/error.logs"
+ERROR_LOG_FILE = "logs/error.log"
 DEBUG = True
 
 
