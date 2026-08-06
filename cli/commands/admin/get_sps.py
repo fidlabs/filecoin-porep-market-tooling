@@ -5,7 +5,7 @@ from cli.services.contracts.sp_registry import SPRegistry
 
 
 @click.command()
-def get_registered_sps():
+def get_sps():
     """
     Get registered SPs from the SPRegistry Smart Contract.
     """

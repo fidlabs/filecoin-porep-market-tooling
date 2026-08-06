@@ -3,8 +3,8 @@ from .block_sp import block_sp
 from .get_db_offers import get_db_offers, get_devnet_offers
 from .get_db_sps import get_db_sps, get_devnet_sps
 from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals
-from .get_offers import get_offers
-from .get_registered_sps import get_registered_sps
+from .get_offers import get_offers, get_offer
+from .get_sps import get_sps
 from .pause_sp import pause_sp
 from .register_sps import register_db_sps, register_devnet_sps
 from .set_completion_padding import set_completion_padding
@@ -14,6 +14,7 @@ from .terminate_deal import terminate_deal
 from .unblock_sp import unblock_sp
 from .unpause_sp import unpause_sp
 
+admin.add_command(get_offer)
 admin.add_command(get_db_offers)
 admin.add_command(set_role)
 admin.add_command(get_deal_rail)
@@ -30,7 +31,7 @@ admin.add_command(get_devnet_sps)
 admin.add_command(get_devnet_offers)
 admin.add_command(get_deals)
 admin.add_command(get_db_sps)
-admin.add_command(get_registered_sps)
+admin.add_command(get_sps)
 admin.add_command(register_db_sps)
 admin.add_command(register_devnet_sps)
 admin.add_command(set_completion_padding)
