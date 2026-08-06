@@ -83,8 +83,8 @@ def _propose_deal(manifest_url: str,
     deal_duration_months = deal_request.duration_days // 30  # PoRep Market smart contracts assumes month == 30 days
 
     max_cost_per_month = commands_utils.calculate_deposit_amount(deal_request.requested_size_bytes,
-                                                                  deal_request.max_price_per_32_gib_per_month,
-                                                                  deposit_for_months=1)
+                                                                 deal_request.max_price_per_32_gib_per_month,
+                                                                 deposit_for_months=1)
     max_cost_per_month_str = utils.str_from_wei(max_cost_per_month, payment_token.decimals())
 
     total_max_cost = max_cost_per_month * deal_duration_months
