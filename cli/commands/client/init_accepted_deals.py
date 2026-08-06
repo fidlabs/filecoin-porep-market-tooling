@@ -117,8 +117,8 @@ def _deposit_and_approve_operator(deal_id: int):
     token_balance = payment_token.balance_of(client_address())
     token_balance_str = utils.str_from_wei(token_balance, token_decimals)
 
-    deposit_amount = client_utils.calculate_deposit_amount(deal.terms.requested_size_bytes,
-                                                           deal.payment.price_per_32_gib_per_month)
+    deposit_amount = commands_utils.calculate_deposit_amount(deal.terms.requested_size_bytes,
+                                                              deal.payment.price_per_32_gib_per_month)
     deposit_amount_str = utils.str_from_wei(deposit_amount, token_decimals)
 
     if token_balance < deposit_amount:

@@ -1,5 +1,4 @@
 import time
-from math import ceil
 
 import click
 from eth_account.datastructures import SignedMessage
@@ -16,25 +15,6 @@ from cli.services.contracts.porep_market import (
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.web3_service import Web3Service
-
-
-def calculate_deposit_amount(size_bytes: int,
-                             price_per_32_gib_per_month: int,
-                             deposit_for_months: int = 1,
-                             sector_size_bytes: int | None = None) -> int:
-    #
-    assert deposit_for_months > 0
-
-    if not sector_size_bytes:
-        sector_size_bytes = PoRepMarket().get_sector_size_bytes()
-
-    deal_size_sectors = utils.bytes_to_sectors(size_bytes, sector_size_bytes)
-    result = deal_size_sectors * price_per_32_gib_per_month * deposit_for_months
-
-    if result != ceil(result):
-        utils.confirm(f"Calculated deposit amount {result} != {ceil(result)}. Continue?", default=True, abort=True, session_id="calculated-deposit-amount")
-
-    return ceil(result)
 
 
 def get_filecoin_permit_deadline() -> int:

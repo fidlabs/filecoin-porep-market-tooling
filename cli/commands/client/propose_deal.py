@@ -1,11 +1,8 @@
 import click
 import humanfriendly
-from hexbytes import HexBytes
-from web3 import Web3
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address, client_signer
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.porep_market import (
@@ -18,10 +15,6 @@ from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelpe
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import EthAddress, Web3Service
-
-
-def hash_manifest(raw_manifest: bytes) -> HexBytes:
-    return Web3.keccak(text=raw_manifest)
 
 
 # TODO LATER propose for multiple manifests + state, retry ??
@@ -52,7 +45,7 @@ def _propose_deal(manifest_url: str,
 
     # noinspection PyArgumentList
     deal_request = PoRepMarketDealRequest(
-        manifest_hash=hash_manifest(raw_manifest),
+        manifest_hash=commands_utils.hash_manifest(raw_manifest),
         requested_size_bytes=pieces_size_bytes,
         max_price_per_32_gib_per_month=price_per_sector_per_month,
         manifest_location=manifest_url,
@@ -89,9 +82,9 @@ def _propose_deal(manifest_url: str,
     token_symbol = payment_token.symbol()
     deal_duration_months = deal_request.duration_days // 30  # PoRep Market smart contracts assumes month == 30 days
 
-    max_cost_per_month = client_utils.calculate_deposit_amount(deal_request.requested_size_bytes,
-                                                               deal_request.max_price_per_32_gib_per_month,
-                                                               deposit_for_months=1)
+    max_cost_per_month = commands_utils.calculate_deposit_amount(deal_request.requested_size_bytes,
+                                                                  deal_request.max_price_per_32_gib_per_month,
+                                                                  deposit_for_months=1)
     max_cost_per_month_str = utils.str_from_wei(max_cost_per_month, payment_token.decimals())
 
     total_max_cost = max_cost_per_month * deal_duration_months

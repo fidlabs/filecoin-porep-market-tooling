@@ -1,12 +1,15 @@
 import ipaddress
 import json
 import socket
+from math import ceil
 from pathlib import Path
 from urllib.parse import ParseResult, urlparse
 
 import click
 import requests
+from hexbytes import HexBytes
 from requests import RequestException
+from web3 import Web3
 
 from cli import utils
 from cli._cli import is_dry_run
@@ -44,6 +47,29 @@ def get_all_deals(state: PoRepMarketDealState | None = None,
             result = [deal for deal in result if deal.state == state]
 
     return result
+
+
+def hash_manifest(raw_manifest: bytes) -> HexBytes:
+    return Web3.keccak(text=raw_manifest)
+
+
+def calculate_deposit_amount(size_bytes: int,
+                             price_per_32_gib_per_month: int,
+                             deposit_for_months: int = 1,
+                             sector_size_bytes: int | None = None) -> int:
+    #
+    assert deposit_for_months > 0
+
+    if not sector_size_bytes:
+        sector_size_bytes = PoRepMarket().get_sector_size_bytes()
+
+    deal_size_sectors = utils.bytes_to_sectors(size_bytes, sector_size_bytes)
+    result = deal_size_sectors * price_per_32_gib_per_month * deposit_for_months
+
+    if result != ceil(result):
+        utils.confirm(f"Calculated deposit amount {result} != {ceil(result)}. Continue?", default=True, abort=True, session_id="calculated-deposit-amount")
+
+    return ceil(result)
 
 
 def get_client_deals(_client_address: EthAddress, state: PoRepMarketDealState | None = None) -> list[PoRepMarketDeal]:
