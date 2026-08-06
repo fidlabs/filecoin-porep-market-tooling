@@ -22,6 +22,7 @@ def calculate_deposit_amount(size_bytes: int,
                              price_per_32_gib_per_month: int,
                              deposit_for_months: int = 1,
                              sector_size_bytes: int | None = None) -> int:
+    #
     assert deposit_for_months > 0
 
     if not sector_size_bytes:

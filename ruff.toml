@@ -5,6 +5,7 @@ ignore = [
     "BLE001", # Do not catch blind exception - already accepted by pylint's disable=broad-exception-caught
     "SIM102", # Use a single if statement instead of nested if statements - hurts readability
     "PYI034", # __new__ methods usually return self at runtime
+    "I001", # Already handled by other linters
 ]
 
 # flake8-only codes used in inline "# noqa: <code>" comments -- don't flag
