@@ -39,7 +39,7 @@ class DataCapEvidenceType(enum.Enum):
 
     @staticmethod
     def to_string_list():
-        return [_type.name for _type in DataCapEvidenceType]
+        return [v.name for v in DataCapEvidenceType]
 
     def __str__(self):
         return self.name
@@ -76,7 +76,7 @@ class DataCapAllocationStatus(enum.Enum):
 
     @staticmethod
     def to_string_list():
-        return [_status.name for _status in DataCapAllocationStatus]
+        return [v.name for v in DataCapAllocationStatus]
 
     def __str__(self):
         return self.name
@@ -122,7 +122,7 @@ class DataCapEvidenceResult(enum.Enum):
 
     @staticmethod
     def to_string_list():
-        return [_result.name for _result in DataCapEvidenceResult]
+        return [v.name for v in DataCapEvidenceResult]
 
     def __str__(self):
         return self.name

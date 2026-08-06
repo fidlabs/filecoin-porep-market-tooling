@@ -122,7 +122,7 @@ class PoRepMarketDealState(enum.Enum):
 
     @staticmethod
     def to_string_list():
-        return [state.name for state in PoRepMarketDealState]
+        return [v.name for v in PoRepMarketDealState]
 
     @staticmethod
     def from_web3(s: str | int | None) -> "PoRepMarketDealState":

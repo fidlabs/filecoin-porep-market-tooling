@@ -33,7 +33,7 @@ class FileCoinPayRailStatus(enum.Enum):
 
     @staticmethod
     def to_string_list():
-        return [status.name for status in FileCoinPayRailStatus]
+        return [v.name for v in FileCoinPayRailStatus]
 
     def __str__(self):
         return self.name
