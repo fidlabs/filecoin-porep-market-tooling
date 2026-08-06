@@ -20,7 +20,7 @@ class PoRepMarketDealData:
 
     @staticmethod
     def from_web3(data) -> "PoRepMarketDealData":
-        if data[0] is None:
+        if not data[0] or data[0] == b"":
             raise RuntimeError("Deal data not found")
 
         # noinspection PyArgumentList
@@ -38,9 +38,6 @@ class PoRepMarketDealTermsView:
 
     @staticmethod
     def from_web3(data) -> "PoRepMarketDealTermsView":
-        if data[0] is None:
-            raise RuntimeError("Deal terms not found")
-
         # noinspection PyArgumentList
         return PoRepMarketDealTermsView(
             requested_size_bytes=int(data[0]),
@@ -56,7 +53,7 @@ class PoRepMarketDealTiming:
 
     @staticmethod
     def from_web3(data) -> "PoRepMarketDealTiming":
-        if data[0] is None:
+        if not data[0] or str(data[0]) == "0":
             raise RuntimeError("Deal timing not found")
 
         # noinspection PyArgumentList
@@ -77,9 +74,6 @@ class PoRepMarketDealService:
 
     @staticmethod
     def from_web3(data) -> "PoRepMarketDealService":
-        if data[0] is None:
-            raise RuntimeError("Deal service not found")
-
         # noinspection PyArgumentList
         return PoRepMarketDealService(
             service_start_epoch=int(data[0]),
@@ -98,9 +92,6 @@ class PoRepMarketDealCapacity:
 
     @staticmethod
     def from_web3(data) -> "PoRepMarketDealCapacity":
-        if data[0] is None:
-            raise RuntimeError("Deal capacity not found")
-
         # noinspection PyArgumentList
         return PoRepMarketDealCapacity(
             reserved_bytes=int(data[0]),
@@ -123,7 +114,7 @@ class PoRepMarketDealPayment:
 
     @staticmethod
     def from_web3(data) -> "PoRepMarketDealPayment":
-        if data[0] is None:
+        if not data[0] or not EthAddress(data[0]):
             raise RuntimeError("Deal payment not found")
 
         # noinspection PyArgumentList
@@ -168,9 +159,6 @@ class PoRepMarketDealView:
 
     @staticmethod
     def from_web3(data, expected_deal_id: int | None = None) -> "PoRepMarketDealView":
-        if data[0][0] is None:
-            raise RuntimeError("Deal view not found")
-
         # noinspection PyArgumentList
         return PoRepMarketDealView(
             deal=PoRepMarketDeal.from_web3(data[0], expected_deal_id),

@@ -15,9 +15,6 @@ class FileCoinPayAccount:
 
     @staticmethod
     def from_web3(data) -> "FileCoinPayAccount":
-        if data[0] is None:
-            raise ValueError("FileCoinPay account not found")
-
         # noinspection PyArgumentList
         return FileCoinPayAccount(
             funds=int(data[0]),
@@ -38,9 +35,6 @@ class FileCoinPayOperatorApproval:
 
     @staticmethod
     def from_web3(data) -> "FileCoinPayOperatorApproval":
-        if data[0] is None:
-            raise ValueError("FileCoinPay operator approval not found")
-
         # noinspection PyArgumentList
         return FileCoinPayOperatorApproval(
             is_approved=bool(data[0]),
@@ -69,7 +63,7 @@ class FileCoinPayRailView:
 
     @staticmethod
     def from_web3(data) -> "FileCoinPayRailView":
-        if data[0] is None:
+        if not data[0] or not EthAddress(data[0]):
             raise ValueError("Rail not found")
 
         # noinspection PyArgumentList

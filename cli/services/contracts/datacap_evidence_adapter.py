@@ -149,9 +149,6 @@ class DataCapEvidenceStatus:
 
     @staticmethod
     def from_web3(data) -> "DataCapEvidenceStatus":
-        if data[0] is None:
-            raise ValueError("DataCap evidence status not found")
-
         # noinspection PyArgumentList
         return DataCapEvidenceStatus(
             active_covered_bytes=data[0],

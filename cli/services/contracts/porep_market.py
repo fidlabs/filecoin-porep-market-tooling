@@ -18,9 +18,6 @@ class PoRepMarketSLIThresholds:
 
     @staticmethod
     def from_web3(data) -> "PoRepMarketSLIThresholds":
-        if data[0] is None:
-            raise RuntimeError("SLI thresholds not found")
-
         # noinspection PyArgumentList
         return PoRepMarketSLIThresholds(
             retrievability_bps=int(data[0]),
@@ -85,7 +82,7 @@ class PoRepMarketDealRequest:
 
     @staticmethod
     def from_web3(data) -> "PoRepMarketDealRequest":
-        if data[0] is None:
+        if not data[0] or data[0] == b"":
             raise RuntimeError("Deal request not found")
 
         # noinspection PyArgumentList
@@ -173,7 +170,7 @@ class PoRepMarketDeal:
 
     @staticmethod
     def from_web3(data, expected_deal_id: int | None = None) -> "PoRepMarketDeal":
-        if data[0] is None:
+        if not data[0] or str(data[0]) == "0":
             raise RuntimeError("Deal not found")
 
         if expected_deal_id is not None and int(data[0]) != expected_deal_id:
@@ -284,9 +281,6 @@ class PoRepMarketSettlementDecision:
 
     @staticmethod
     def from_web3(data) -> "PoRepMarketSettlementDecision":
-        if data[0] is None:
-            raise RuntimeError("Settlement decision not found")
-
         # noinspection PyArgumentList
         return PoRepMarketSettlementDecision(
             settlement_amount=int(data[0]),

@@ -18,9 +18,6 @@ class SPRegistryTokenConfig:
 
     @staticmethod
     def from_web3(data) -> "SPRegistryTokenConfig":
-        if data[0] is None:
-            raise RuntimeError("Token config not found")
-
         # noinspection PyArgumentList
         return SPRegistryTokenConfig(
             allowed=bool(data[0]),
@@ -42,7 +39,7 @@ class SPRegistryOfferTerms:
 
     @staticmethod
     def from_web3(data) -> "SPRegistryOfferTerms":
-        if data[0] is None:
+        if not data[1] or str(data[1]) == "0":
             raise RuntimeError("Offer terms not found")
 
         # noinspection PyArgumentList
@@ -69,7 +66,7 @@ class SPRegistryOfferPaymentView:
 
     @staticmethod
     def from_web3(data) -> "SPRegistryOfferPaymentView":
-        if data[0] is None:
+        if not data[0] or not EthAddress(data[0]):
             raise RuntimeError("Offer payment view not found")
 
         # noinspection PyArgumentList
@@ -101,7 +98,7 @@ class SPRegistryOfferView:
 
     @staticmethod
     def from_web3(data, expected_offer_id: int | None = None) -> "SPRegistryOfferView":
-        if data[0] is None:
+        if not data[0] or str(data[0]) == "0":
             raise RuntimeError("Offer not found")
 
         if expected_offer_id is not None and expected_offer_id != data[0]:
@@ -169,9 +166,6 @@ class SPRegistryProviderView(SPRegistryProviderInput):
 
     @staticmethod
     def from_web3(data, expected_provider_id: ActorId | None = None) -> "SPRegistryProviderView":
-        if data[0] is None:
-            raise RuntimeError("Provider not found")
-
         if expected_provider_id is not None and expected_provider_id != ActorId(data[0]):
             raise RuntimeError(f"Invalid provider returned from contract; expected provider_id {expected_provider_id}, got {data[0]}")
 
@@ -213,7 +207,7 @@ class SPRegistryProviderDealSelection:
 
     @staticmethod
     def from_web3(data) -> "SPRegistryProviderDealSelection":
-        if data[0] is None:
+        if not data[0] or str(data[0]) == "0":
             raise RuntimeError("Provider deal selection not found")
 
         # noinspection PyArgumentList
