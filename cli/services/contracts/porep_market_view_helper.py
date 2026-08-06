@@ -2,7 +2,7 @@ import re
 
 from cli import utils
 from cli.services.contract_service import ContractService
-from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceStatus
+from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceStatus
 from cli.services.contracts.porep_market import (
     PoRepMarketDeal,
     PoRepMarketSLIThresholds,

@@ -10,7 +10,7 @@ from requests import RequestException
 
 from cli import utils
 from cli._cli import is_dry_run
-from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceAdapter
+from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import (

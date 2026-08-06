@@ -8,7 +8,7 @@ from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address, client_signer
-from cli.services.contracts.data_cap_evidence_adapter import (
+from cli.services.contracts.datacap_evidence_adapter import (
     DataCapEvidenceAdapter,
     DataCapTransferParams,
 )
@@ -57,7 +57,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
 
     evidence_adapter = DataCapEvidenceAdapter(deal.deal.evidence_adapter_address)
 
-    if evidence_adapter.is_data_cap_posting_finished(deal_id):
+    if evidence_adapter.is_datacap_posting_finished(deal_id):
         raise click.ClickException(f"DataCap posting for deal ID {deal_id} is already finished; no more allocations can be made")
 
     deal_allocations = commands_utils.get_deal_allocations(deal.deal)
@@ -126,7 +126,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
         if print_only:
             click.echo(f"to={params.to[0].hex()}  amount={params.amount[0].hex()}  operator_data={params.operator_data.hex()}")
         else:
-            tx_hash = evidence_adapter.submit_data_cap_batch(params, deal_id, client_signer())
+            tx_hash = evidence_adapter.submit_datacap_batch(params, deal_id, client_signer())
             click.echo(f"params: {params!r}, tx={tx_hash}")
 
             if tx_hash == Web3Service.ZERO_TX_HASH:
@@ -138,7 +138,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
             click.echo(f"Allocated size ({allocation_size}/{deal.terms.requested_size_bytes})")
 
     if not print_only:
-        client_utils.finish_data_cap_posting(deal.deal)
+        client_utils.finish_datacap_posting(deal.deal)
 
     click.echo("\nAll done!")
 

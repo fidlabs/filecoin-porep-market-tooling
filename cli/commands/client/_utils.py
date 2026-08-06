@@ -6,7 +6,7 @@ from eth_account.datastructures import SignedMessage
 
 from cli import utils
 from cli.commands.client._client import client_address, client_signer
-from cli.services.contracts.data_cap_evidence_adapter import DataCapEvidenceAdapter
+from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import (
     PoRepMarket,
@@ -87,14 +87,14 @@ def finalize_deal(deal: PoRepMarketDeal) -> str:
     return tx_hash
 
 
-def finish_data_cap_posting(deal: PoRepMarketDeal) -> str:
+def finish_datacap_posting(deal: PoRepMarketDeal) -> str:
     if deal.state != PoRepMarketDealState.ACCEPTED:
         raise click.ClickException(f"Deal id {deal.deal_id} is not in ACCEPTED state, current state: {deal.state}")
 
     check_allocations_size(deal.deal_id)
     utils.confirm(f"Finishing DataCap posting for deal id {deal.deal_id} (blocks further allocation batches)", default=True, abort=True)
 
-    tx_hash = DataCapEvidenceAdapter(deal.evidence_adapter_address).finish_data_cap_posting(deal.deal_id, client_signer())
+    tx_hash = DataCapEvidenceAdapter(deal.evidence_adapter_address).finish_datacap_posting(deal.deal_id, client_signer())
     click.echo(f"DataCap posting for deal id {deal.deal_id} finished: {tx_hash}")
 
     return tx_hash

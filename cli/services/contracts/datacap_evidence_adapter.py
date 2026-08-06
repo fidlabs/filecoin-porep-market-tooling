@@ -164,22 +164,22 @@ class DataCapEvidenceStatus:
 
 
 class DataCapEvidenceAdapter(ContractService):
-    _DATA_CAP_EVIDENCE_ADAPTER_ADDRESS: EthAddress | None = None
+    _DATACAP_EVIDENCE_ADAPTER_ADDRESS: EthAddress | None = None
 
     def __init__(self, contract_address: EthAddress | None = None):
-        if not contract_address and not DataCapEvidenceAdapter._DATA_CAP_EVIDENCE_ADAPTER_ADDRESS:
+        if not contract_address and not DataCapEvidenceAdapter._DATACAP_EVIDENCE_ADAPTER_ADDRESS:
             from cli.services.contracts.porep_market import PoRepMarket
-            DataCapEvidenceAdapter._DATA_CAP_EVIDENCE_ADAPTER_ADDRESS = PoRepMarket().get_global_evidence_adapter_address()
+            DataCapEvidenceAdapter._DATACAP_EVIDENCE_ADAPTER_ADDRESS = PoRepMarket().get_global_evidence_adapter_address()
 
         # noinspection PyTypeChecker
-        super().__init__(contract_address or DataCapEvidenceAdapter._DATA_CAP_EVIDENCE_ADAPTER_ADDRESS,
+        super().__init__(contract_address or DataCapEvidenceAdapter._DATACAP_EVIDENCE_ADAPTER_ADDRESS,
                          self.abi_dir() / "DataCapEvidenceAdapter.json")
 
     # @notice This function transfers DataCap tokens from the client to the storage provider
     # @dev This function can only be called by the client
     # @param params The parameters for the transfer
     # @param dealId The id of the deal
-    def submit_data_cap_batch(self, transfer_params: DataCapTransferParams, deal_id: int, signer: TxSigner) -> str:
+    def submit_datacap_batch(self, transfer_params: DataCapTransferParams, deal_id: int, signer: TxSigner) -> str:
         return self.sign_and_send_tx(
             self.contract.functions.submitDataCapBatch(
                 (transfer_params.to, transfer_params.amount, transfer_params.operator_data),
@@ -219,13 +219,13 @@ class DataCapEvidenceAdapter(ContractService):
     # @notice Closes DataCap posting for a deal in a separate transaction
     # @dev Only callable by the deal client while the deal is Accepted and posting is open
     # @param dealId The id of the deal
-    def finish_data_cap_posting(self, deal_id: int, signer: TxSigner) -> str:
+    def finish_datacap_posting(self, deal_id: int, signer: TxSigner) -> str:
         return self.sign_and_send_tx(self.contract.functions.finishDataCapPosting(deal_id), signer)
 
     # @notice Returns whether DataCap posting has been finished for a deal
     # @param dealId The id of the deal
     # @return True if posting is finished, false otherwise
-    def is_data_cap_posting_finished(self, deal_id: int) -> bool:
+    def is_datacap_posting_finished(self, deal_id: int) -> bool:
         return self.contract.functions.isDataCapPostingFinished(deal_id).call()
 
     # @notice Getter for the DataCap allocation status of a deal
