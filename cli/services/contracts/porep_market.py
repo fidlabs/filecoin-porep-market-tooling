@@ -298,9 +298,15 @@ class PoRepMarketSettlementDecision:
 
 
 class PoRepMarket(ContractService):
-    # TODO ASAP get address from view helper + update config command
+    _POREP_MARKET_ADDRESS: EthAddress | None = None
+
     def __init__(self, contract_address: EthAddress | None = None):
-        super().__init__(contract_address or utils.get_env_required("POREP_MARKET", required_type=EthAddress),
+        if not contract_address and not PoRepMarket._POREP_MARKET_ADDRESS:
+            from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
+            PoRepMarket._POREP_MARKET_ADDRESS = PoRepMarketViewHelper().porep_market_contract()
+
+        # noinspection PyTypeChecker
+        super().__init__(contract_address or PoRepMarket._POREP_MARKET_ADDRESS,
                          self.abi_dir() / "PoRepMarket.json")
 
     # @notice Proposes a deal

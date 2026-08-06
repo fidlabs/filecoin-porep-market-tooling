@@ -190,6 +190,10 @@ class PoRepMarketViewHelper(ContractService):
         super().__init__(contract_address or utils.get_env_required("POREP_MARKET_VIEW_HELPER", required_type=EthAddress),
                          self.abi_dir() / "PoRepMarketViewHelper.json")
 
+    # @notice PoRepMarket contract used to fetch deal data.
+    def porep_market_contract(self) -> EthAddress:
+        return EthAddress(self.contract.functions.POREPMARKET_CONTRACT().call())
+
     # @notice Gets the complete generic read model for one deal.
     # @dev External tools, oracles, CLIs, and RPC consumers use this bounded
     # snapshot when they need all PoRepMarket-owned or PoRepMarket-frozen facts for
