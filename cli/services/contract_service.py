@@ -1,7 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, TypeVar
 
 import click
 import eth_abi
@@ -15,22 +15,24 @@ from cli._cli import is_dry_run
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress, Web3Service
 
+T = TypeVar("T")
 
-def _tx_to_log_string(transaction, tx_params: dict | None) -> str:
-    # transaction.args is sensitive info, should never be logged
+
+def _tx_to_log_string(operation, tx_params: dict | None) -> str:
+    # operation.args is sensitive info, should never be logged
     # tx_params.data is sensitive info, should never be logged
 
     result = {
         "chainId": tx_params["chainId"],
         "from": tx_params["from"],
         "to": tx_params["to"],
-        "signature": transaction.signature,
+        "signature": operation.signature,
         "nonce": tx_params["nonce"],
         "gas": tx_params["gas"],
         "value": tx_params["value"],
     } if tx_params else {
-        "to": transaction.address,
-        "signature": transaction.signature,
+        "to": operation.address,
+        "signature": operation.signature,
     }
 
     return utils.json_pretty(result)
@@ -160,6 +162,28 @@ class ContractService:
         self.logger.warning(f"Transaction succeeded: {tx_hash.to_0x_hex()}: {_tx_to_log_string(transaction, tx_params)}")
         return tx_hash.to_0x_hex()
 
+    def _handle_contract_error(self, err: Exception, operation, tx_params: dict | None):
+        # tx_params.data is sensitive info, should never be logged
+
+        if isinstance(err, ContractCustomError):
+            reason = self.__decode_contract_error_name(err)
+            self.logger.error(f"Contract operation reverted with error: {reason}: {_tx_to_log_string(operation, tx_params)}")
+            raise click.ClickException(f"Contract operation reverted with error: {reason}") from err
+
+        elif isinstance(err, Web3RPCError):
+            reason = err.rpc_response["error"]["message"] if (err.rpc_response and
+                                                              "error" in err.rpc_response and
+                                                              "message" in err.rpc_response["error"] and
+                                                              err.rpc_response["error"]["message"]) else str(err)
+
+            self.logger.error(f"Web3 RPC error: {reason}: {_tx_to_log_string(operation, tx_params)}")
+            raise click.ClickException(f"Web3 RPC error: {reason}") from err
+
+        else:
+            reason = str(err)
+            self.logger.error(f"Contract operation failed: {reason}: {_tx_to_log_string(operation, tx_params)}")
+            raise click.ClickException(f"Contract operation failed: {reason}") from err
+
     def sign_and_send_tx(self, transaction, signer: TxSigner) -> str:
         # transaction.args is sensitive info, should never be logged
 
@@ -167,6 +191,7 @@ class ContractService:
         nonce = self.web3.get_address_nonce(from_address)
         tx_params = None
 
+        # noinspection PyBroadException
         try:
             # tx_params.data is sensitive info, should never be logged
             tx_params = transaction.build_transaction({"from": from_address, "nonce": nonce})
@@ -190,21 +215,17 @@ class ContractService:
             click.echo()
             return self._sign_and_send_tx(transaction, tx_params, signer, _dry_run)
 
-        except ContractCustomError as cce:
-            reason = self.__decode_contract_error_name(cce)
-            self.logger.error(f"Transaction reverted with error: {reason}: {_tx_to_log_string(transaction, tx_params)}")
-            raise click.ClickException(f"Transaction reverted with error: {reason}") from cce
+        # pylint: disable=broad-exception-caught
+        except Exception as err:
+            self._handle_contract_error(err, transaction, tx_params)
+            assert False  # unreachable
 
-        except Web3RPCError as rpc_err:
-            reason = rpc_err.rpc_response["error"]["message"] if (rpc_err.rpc_response and
-                                                                  "error" in rpc_err.rpc_response and
-                                                                  "message" in rpc_err.rpc_response["error"] and
-                                                                  rpc_err.rpc_response["error"]["message"]) else str(rpc_err)
+    def call_contract(self, call) -> T:
+        # noinspection PyBroadException
+        try:
+            return call.call()
 
-            self.logger.error(f"Web3 RPC error: {reason}: {_tx_to_log_string(transaction, tx_params)}")
-            raise click.ClickException(f"Web3 RPC error: {reason}") from rpc_err
-
-        except Exception as e:
-            reason = str(e)
-            self.logger.error(f"Transaction failed: {reason}: {_tx_to_log_string(transaction, tx_params)}")
-            raise click.ClickException(f"Transaction failed: {reason}") from e
+        # pylint: disable=broad-exception-caught
+        except Exception as err:
+            self._handle_contract_error(err, call, None)
+            assert False  # unreachable

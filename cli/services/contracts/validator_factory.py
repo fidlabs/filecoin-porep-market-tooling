@@ -26,4 +26,4 @@ class ValidatorFactory(ContractService):
     # @param dealId The ID of the deal
     # @return The instance for the given deal
     def get_instance(self, deal_id: int) -> EthAddress:
-        return EthAddress(self.contract.functions.getInstance(deal_id).call())
+        return EthAddress(self.call_contract(self.contract.functions.getInstance(deal_id)))

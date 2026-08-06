@@ -9,13 +9,13 @@ class ERC20Contract(ContractService):
         super().__init__(contract_address, contract_abi_path or (self.abi_dir() / "ERC20.json"))
 
     def balance_of(self, account: EthAddress) -> int:
-        return self.contract.functions.balanceOf(account).call()
+        return self.call_contract(self.contract.functions.balanceOf(account))
 
     def decimals(self) -> int:
-        return self.contract.functions.decimals().call()
+        return self.call_contract(self.contract.functions.decimals())
 
     def name(self) -> str:
-        return self.contract.functions.name().call()
+        return self.call_contract(self.contract.functions.name())
 
     def symbol(self) -> str:
-        return self.contract.functions.symbol().call()
+        return self.call_contract(self.contract.functions.symbol())

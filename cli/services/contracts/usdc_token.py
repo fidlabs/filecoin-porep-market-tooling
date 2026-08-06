@@ -9,4 +9,4 @@ class USDCToken(ERC20Contract):
                          self.abi_dir() / "USDC.json")
 
     def nonces(self, account: EthAddress) -> int:
-        return self.contract.functions.nonces(account).call()
+        return self.call_contract(self.contract.functions.nonces(account))

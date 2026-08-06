@@ -263,12 +263,12 @@ class SPRegistry(ContractService):
     # @param provider_id The provider actor ID
     # @return True if the provider is registered
     def is_provider_registered(self, provider_id: ActorId) -> bool:
-        return self.contract.functions.isProviderRegistered(provider_id).call()
+        return self.call_contract(self.contract.functions.isProviderRegistered(provider_id))
 
     # @notice Returns all registered provider actor IDs.
     # @return Array of provider actor IDs.
     def get_providers(self) -> list[ActorId]:
-        return [ActorId(provider_id) for provider_id in self.contract.functions.getProviders().call()]
+        return [ActorId(provider_id) for provider_id in self.call_contract(self.contract.functions.getProviders())]
 
     def get_providers_views(self) -> list[SPRegistryProviderView]:
         return [self.get_provider_view(provider_id) for provider_id in self.get_providers()]
@@ -282,7 +282,7 @@ class SPRegistry(ContractService):
     # @param provider Provider actor ID.
     # @return view_ Current provider view.
     def get_provider_view(self, provider_id: ActorId) -> SPRegistryProviderView:
-        return SPRegistryProviderView.from_web3(self.contract.functions.getProviderView(provider_id).call(), provider_id)
+        return SPRegistryProviderView.from_web3(self.call_contract(self.contract.functions.getProviderView(provider_id)), provider_id)
 
     # @notice Check if address is authorized to act on behalf of a provider
     # @dev Admin and OPERATOR_ROLE always return true. Otherwise checks MinerUtils.isControllingAddress.
@@ -290,7 +290,7 @@ class SPRegistry(ContractService):
     # @param provider Provider to check against
     # @return True if caller is authorized for provider
     def is_authorized_for_provider(self, caller: EthAddress, provider_id: ActorId) -> bool:
-        return self.contract.functions.isAuthorizedForProvider(caller, provider_id).call()
+        return self.call_contract(self.contract.functions.isAuthorizedForProvider(caller, provider_id))
 
     # @notice Block a provider (admin only, excluded from matching)
     # @param provider The provider to block
@@ -355,13 +355,13 @@ class SPRegistry(ContractService):
     # @notice Returns allowed payment token addresses.
     # @return tokens Array of allowed token addresses.
     def get_payment_tokens(self) -> list[EthAddress]:
-        return [EthAddress(token) for token in self.contract.functions.getPaymentTokens().call()]
+        return [EthAddress(token) for token in self.call_contract(self.contract.functions.getPaymentTokens())]
 
     # @notice Returns payment token policy.
     # @param token ERC20 token address.
     # @return config Token policy.
     def get_payment_token_config(self, token: EthAddress) -> SPRegistryTokenConfig:
-        return SPRegistryTokenConfig.from_web3(self.contract.functions.getPaymentTokenConfig(token).call())
+        return SPRegistryTokenConfig.from_web3(self.call_contract(self.contract.functions.getPaymentTokenConfig(token)))
 
     # @notice Creates an active provider offer.
     # @param provider Provider actor ID.
@@ -404,13 +404,13 @@ class SPRegistry(ContractService):
     # @param offerId Offer ID.
     # @return view_ Current offer view for the requested payment token.
     def get_offer_view(self, offer_id: int) -> SPRegistryOfferView:
-        return SPRegistryOfferView.from_web3(self.contract.functions.getOfferView(offer_id).call(), offer_id)
+        return SPRegistryOfferView.from_web3(self.call_contract(self.contract.functions.getOfferView(offer_id)), offer_id)
 
     # @notice Returns all offer IDs created by a provider.
     # @param provider Provider actor ID.
     # @return offerIds Offer IDs for the provider.
     def get_offers_by_provider(self, provider_id: ActorId) -> list[int]:
-        return [int(offer_id) for offer_id in self.contract.functions.getOffersByProvider(provider_id).call()]
+        return [int(offer_id) for offer_id in self.call_contract(self.contract.functions.getOffersByProvider(provider_id))]
 
     # @notice Previews automatic offer matching without reserving capacity.
     # @param request Client deal request.
@@ -419,18 +419,20 @@ class SPRegistry(ContractService):
         slis = request.required_slis
 
         return SPRegistryProviderDealSelection.from_web3(
-            self.contract.functions.previewProviderForDeal(
-                (
-                    request.manifest_hash,
-                    request.requested_size_bytes,
-                    request.max_price_per_32_gib_per_month,
-                    request.manifest_location,
-                    request.payment_token_address,
-                    request.duration_days,
-                    request.deal_type,
-                    (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
+            self.call_contract(
+                self.contract.functions.previewProviderForDeal(
+                    (
+                        request.manifest_hash,
+                        request.requested_size_bytes,
+                        request.max_price_per_32_gib_per_month,
+                        request.manifest_location,
+                        request.payment_token_address,
+                        request.duration_days,
+                        request.deal_type,
+                        (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
+                    )
                 )
-            ).call())
+            ))
 
     # @notice Selects an offer automatically and reserves pending provider capacity.
     # @param request Client deal request.
@@ -462,19 +464,21 @@ class SPRegistry(ContractService):
     def preview_offer_for_deal(self, offer_id: int, request: PoRepMarketDealRequest) -> tuple[SPRegistryProviderDealSelection, int]:
         slis = request.required_slis
 
-        selection, reason = self.contract.functions.previewOfferForDeal(
-            offer_id,
-            (
-                request.manifest_hash,
-                request.requested_size_bytes,
-                request.max_price_per_32_gib_per_month,
-                request.manifest_location,
-                request.payment_token_address,
-                request.duration_days,
-                request.deal_type,
-                (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
+        selection, reason = self.call_contract(
+            self.contract.functions.previewOfferForDeal(
+                offer_id,
+                (
+                    request.manifest_hash,
+                    request.requested_size_bytes,
+                    request.max_price_per_32_gib_per_month,
+                    request.manifest_location,
+                    request.payment_token_address,
+                    request.duration_days,
+                    request.deal_type,
+                    (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
+                )
             )
-        ).call()
+        )
 
         return SPRegistryProviderDealSelection.from_web3(selection), int(reason)
 
@@ -507,7 +511,7 @@ class SPRegistry(ContractService):
     # @param provider Provider actor ID.
     # @return True when provider is locked for the manifest.
     def is_manifest_assigned_to_provider(self, manifest_hash: bytes, provider_id: ActorId) -> bool:
-        return self.contract.functions.isManifestAssignedToProvider(manifest_hash, provider_id).call()
+        return self.call_contract(self.contract.functions.isManifestAssignedToProvider(manifest_hash, provider_id))
 
     # @notice Releases committed provider capacity and clears the manifest/provider assignment.
     # @param provider Provider actor ID.
