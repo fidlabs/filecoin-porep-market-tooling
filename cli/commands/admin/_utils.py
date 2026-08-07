@@ -35,50 +35,6 @@ def get_db_offers(db_url: str,
     def days_to_epochs(days: int) -> int:
         return days * EPOCHS_IN_DAY
 
-    #  deprecated porep v1:
-
-    # def retrievability_guarantees_to_bps(guarantees: list[str]) -> int:
-    #     def _retrievability_guarantee_to_bps(guarantee: str) -> int:
-    #         DECIMALS = 2
-    #         DECIMALS_MULTIPLIER = 10 ** DECIMALS
-    #
-    #         if guarantee == "hot":
-    #             return 90 * DECIMALS_MULTIPLIER  # 90 %
-    #         elif guarantee == "sometimes":
-    #             return 75 * DECIMALS_MULTIPLIER  # 75 %
-    #         elif guarantee == "rarely":
-    #             return 0 * DECIMALS_MULTIPLIER  # 0 %
-    #         else:
-    #             raise ValueError(f"Unknown retrievability guarantee: {guarantee}")
-    #
-    #     return max([_retrievability_guarantee_to_bps(g) for g in guarantees]) if guarantees else 0
-    #
-    # def bandwidth_tiers_to_bytes_per_second(tiers: list[str]) -> int:
-    #     def _bandwidth_tier_to_bytes_per_second(tier: str) -> int:
-    #         if tier == "fast":
-    #             return 1000 * 1024 * 1024 // 8  # 1 Gbps
-    #         elif tier == "normal":
-    #             return 300 * 1024 * 1024 // 8  # 300 Mbps
-    #         elif tier == "slow":
-    #             return 1 * 1024 * 1024 // 8  # 1 Mbps
-    #         else:
-    #             raise ValueError(f"Unknown bandwidth tier: {tier}")
-    #
-    #     return max([_bandwidth_tier_to_bytes_per_second(tier) for tier in tiers]) if tiers else 0
-    #
-    # def retrievability_guarantees_to_latency_ms(guarantees: list[str]) -> int:
-    #     def _retrievability_guarantee_to_latency_ms(guarantee: str) -> int:
-    #         if guarantee == "hot":
-    #             return 20 * 1000  # 20 seconds
-    #         elif guarantee == "sometimes":
-    #             return 20 * 1000  # 20 seconds
-    #         elif guarantee == "rarely":
-    #             return 24 * 60 * 60 * 1000  # 24 hours
-    #         else:
-    #             raise ValueError(f"Unknown retrievability guarantee: {guarantee}")
-    #
-    #     return min([_retrievability_guarantee_to_latency_ms(g) for g in guarantees]) if guarantees else 0
-
     def sla_class_to_sli_thresholds(sla_class: str) -> PoRepMarketSLIThresholds:
         sla_class = sla_class.lower()
 
