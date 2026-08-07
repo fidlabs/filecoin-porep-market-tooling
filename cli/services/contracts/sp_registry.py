@@ -166,6 +166,9 @@ class SPRegistryProviderView(SPRegistryProviderInput):
 
     @staticmethod
     def from_web3(data, expected_provider_id: ActorId | None = None) -> "SPRegistryProviderView":
+        if not data[1] or not EthAddress(data[1]):
+            raise RuntimeError("Provider view not found")
+
         if expected_provider_id is not None and expected_provider_id != ActorId(data[0]):
             raise RuntimeError(f"Invalid provider returned from contract; expected provider_id {expected_provider_id}, got {data[0]}")
 

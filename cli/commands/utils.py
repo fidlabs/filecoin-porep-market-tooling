@@ -348,7 +348,7 @@ def get_filecoinpay_account(token_address: EthAddress, owner_address: EthAddress
     }
 
 
-def withdraw_from_filecoinpay(to_address: str, amount: float, token_address: EthAddress, from_address: EthAddress, signer: TxSigner):
+def withdraw_from_filecoinpay(to_address: str, amount: float, token_address: EthAddress, from_address: EthAddress, signer: TxSigner) -> str:
     _to_address = EthAddress.from_any(to_address)
 
     token = ERC20Contract(token_address)
@@ -378,6 +378,7 @@ def withdraw_from_filecoinpay(to_address: str, amount: float, token_address: Eth
 
     click.echo(f"Withdraw transaction sent: {tx_hash}")
     print_token_balance(_to_address)
+    return tx_hash
 
 
 def reject_deal(deal: PoRepMarketDeal, signer: TxSigner, confirm_session_id: str | None = None) -> str:
@@ -399,4 +400,60 @@ def reject_deal(deal: PoRepMarketDeal, signer: TxSigner, confirm_session_id: str
         tx_hash = PoRepMarket().reject_deal(deal.deal_id, signer)
 
     click.echo(f"Deal ID {deal.deal_id} rejected: {tx_hash}")
+    return tx_hash
+
+
+def pause_sp(provider_id: ActorId, signer: TxSigner) -> str:
+    provider = SPRegistry().get_provider_view(provider_id)
+
+    if provider.paused:
+        raise click.ClickException(f"Storage Provider {provider.provider_id} is already paused")
+
+    utils.confirm(f"Pausing Storage Provider {provider.provider_id}: "
+                  f"{utils.json_pretty(provider)}", abort=True)
+
+    tx_hash = SPRegistry().pause_provider(provider.provider_id, signer)
+    click.echo(f"Storage Provider {provider.provider_id} paused: {tx_hash}")
+    return tx_hash
+
+
+def unpause_sp(provider_id: ActorId, signer: TxSigner) -> str:
+    provider = SPRegistry().get_provider_view(provider_id)
+
+    if not provider.paused:
+        raise click.ClickException(f"Storage Provider {provider.provider_id} is not paused")
+
+    utils.confirm(f"Unpausing Storage Provider {provider.provider_id}: "
+                  f"{utils.json_pretty(provider)}", abort=True)
+
+    tx_hash = SPRegistry().unpause_provider(provider.provider_id, signer)
+    click.echo(f"Storage Provider {provider.provider_id} unpaused: {tx_hash}")
+    return tx_hash
+
+
+def block_sp(provider_id: ActorId, signer: TxSigner) -> str:
+    provider = SPRegistry().get_provider_view(provider_id)
+
+    if provider.blocked:
+        raise click.ClickException(f"Storage Provider {provider.provider_id} is already blocked")
+
+    utils.confirm(f"Blocking Storage Provider {provider.provider_id}: "
+                  f"{utils.json_pretty(provider)}", abort=True)
+
+    tx_hash = SPRegistry().block_provider(provider.provider_id, signer)
+    click.echo(f"Storage Provider {provider.provider_id} blocked: {tx_hash}")
+    return tx_hash
+
+
+def unblock_sp(provider_id: ActorId, signer: TxSigner) -> str:
+    provider = SPRegistry().get_provider_view(provider_id)
+
+    if not provider.blocked:
+        raise click.ClickException(f"Storage Provider {provider.provider_id} is not blocked")
+
+    utils.confirm(f"Unblocking Storage Provider {provider.provider_id}: "
+                  f"{utils.json_pretty(provider)}", abort=True)
+
+    tx_hash = SPRegistry().unblock_provider(provider.provider_id, signer)
+    click.echo(f"Storage Provider {provider.provider_id} unblocked: {tx_hash}")
     return tx_hash
