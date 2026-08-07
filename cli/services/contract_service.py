@@ -168,7 +168,7 @@ class ContractService:
         if isinstance(err, ContractCustomError):
             reason = self.__decode_contract_error_name(err)
             self.logger.error(f"Contract operation reverted with error: {reason}: {_tx_to_log_string(operation, tx_params)}")
-            raise click.ClickException(f"Contract operation reverted with error: {reason}") from err
+            raise click.ClickException(f"Contract operation reverted with error: {reason}: {_tx_to_log_string(operation, tx_params)}") from err
 
         elif isinstance(err, Web3RPCError):
             reason = err.rpc_response["error"]["message"] if (err.rpc_response and
@@ -177,12 +177,12 @@ class ContractService:
                                                               err.rpc_response["error"]["message"]) else str(err)
 
             self.logger.error(f"Web3 RPC error: {reason}: {_tx_to_log_string(operation, tx_params)}")
-            raise click.ClickException(f"Web3 RPC error: {reason}") from err
+            raise click.ClickException(f"Web3 RPC error: {reason}: {_tx_to_log_string(operation, tx_params)}") from err
 
         else:
             reason = str(err)
             self.logger.error(f"Contract operation failed: {reason}: {_tx_to_log_string(operation, tx_params)}")
-            raise click.ClickException(f"Contract operation failed: {reason}") from err
+            raise click.ClickException(f"Contract operation failed: {reason}: {_tx_to_log_string(operation, tx_params)}") from err
 
     def sign_and_send_tx(self, transaction, signer: TxSigner) -> str:
         # transaction.args is sensitive info, should never be logged
