@@ -211,6 +211,8 @@ def register_sps(db_url: str,
                                          miner_id=ActorId(miner_id) if miner_id else None,
                                          organization_address=organization_address))
 
+    click.echo()
+
     _register_offers(admin_utils.get_db_offers(db_url,
                                                kyc_status="approved",
                                                organization_db_id=db_id,
@@ -219,8 +221,9 @@ def register_sps(db_url: str,
 
 
 @click.command(hidden=True)
-def register_devnet_sps():
+def register_mocked_sps():
     SelfUpdateService.check_and_prompt(manual=False)
 
-    _register_sps(admin_utils.get_devnet_sps())
-    _register_offers(admin_utils.get_devnet_offers())
+    _register_sps(admin_utils.get_mocked_sps())
+    click.echo()
+    _register_offers(admin_utils.get_mocked_offers())

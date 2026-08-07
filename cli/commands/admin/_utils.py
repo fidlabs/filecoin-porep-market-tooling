@@ -311,24 +311,24 @@ def get_db_sps(db_url: str,
     return result
 
 
-def get_devnet_sps() -> list[SPRegistryProviderInput]:
+def get_mocked_sps() -> list[SPRegistryProviderInput]:
     # noinspection PyArgumentList
     return [
         SPRegistryProviderInput(provider_id=1000,
-                                organization_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7",
+                                organization_address="0x99A1b7CE10b02b490F14B1921feCc53625c1952D",
                                 available_bytes=94359739998368,
-                                payee_address="0x99f063C701a97545B760aD6C2F7F5401850C9F11"),
+                                payee_address="0x99A1b7CE10b02b490F14B1921feCc53625c1952D"),
         SPRegistryProviderInput(provider_id=1001,
-                                organization_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7",
+                                organization_address="0x087Ea8b72CBf4B435023356776834eB10dd07f2a",
                                 available_bytes=94359739998368,
-                                payee_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7"),
+                                payee_address="0x087Ea8b72CBf4B435023356776834eB10dd07f2a"),
         SPRegistryProviderInput(provider_id=1002,
-                                organization_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7",
+                                organization_address="0x25d4D2EC6814f9FD405a9c3e32E9b7c38358b9ED",
                                 available_bytes=10 * 1024 * 1024 * 1024,
-                                payee_address="0x62c671c2f1A89916DD0F550E5EB2318e9Aeb59b7"),
+                                payee_address="0x1efBbe336C7763fB63f57d2490269A577fAbD841"),
     ]
 
 
-def get_devnet_offers() -> list[SPRegistryOfferInput]:
+def get_mocked_offers() -> list[SPRegistryOfferInput]:
     # TODO ASAP
     return []

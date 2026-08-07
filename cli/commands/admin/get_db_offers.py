@@ -38,4 +38,4 @@ def get_db_offers(db_url: str,
 
 @click.command(hidden=True)
 def get_devnet_offers():
-    click.echo(utils.json_pretty(admin_utils.get_devnet_offers()))
+    click.echo(utils.json_pretty(admin_utils.get_mocked_offers()))
