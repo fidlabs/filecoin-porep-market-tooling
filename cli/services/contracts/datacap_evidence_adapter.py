@@ -3,7 +3,7 @@ import enum
 from cli import utils
 from cli.services.contract_service import ContractService
 from cli.services.txsigner import TxSigner
-from cli.services.web3_service import EthAddress
+from cli.services.web3_service import EthAddress, FilAddress
 
 
 @utils.json_dataclass()
@@ -163,7 +163,7 @@ class DataCapEvidenceStatus:
 class DataCapEvidenceAdapter(ContractService):
     _DATACAP_EVIDENCE_ADAPTER_ADDRESS: EthAddress | None = None
 
-    def __init__(self, contract_address: EthAddress | None = None):
+    def __init__(self, contract_address: EthAddress | FilAddress | None = None):
         if not contract_address and not DataCapEvidenceAdapter._DATACAP_EVIDENCE_ADAPTER_ADDRESS:
             from cli.services.contracts.porep_market import PoRepMarket
             DataCapEvidenceAdapter._DATACAP_EVIDENCE_ADAPTER_ADDRESS = PoRepMarket().get_global_evidence_adapter_address()

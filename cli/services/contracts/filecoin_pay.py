@@ -1,7 +1,7 @@
 from cli import utils
 from cli.services.contract_service import ContractService
 from cli.services.txsigner import TxSigner
-from cli.services.web3_service import EthAddress
+from cli.services.web3_service import EthAddress, FilAddress
 
 
 # https://github.com/FilOzone/filecoin-pay
@@ -84,8 +84,8 @@ class FileCoinPayRailView:
 
 
 class FileCoinPay(ContractService):
-    def __init__(self, contract_address: EthAddress | None = None):
-        super().__init__(contract_address or utils.get_env_required("FILECOIN_PAY", required_type=EthAddress),
+    def __init__(self, contract_address: EthAddress | FilAddress | None = None):
+        super().__init__(contract_address or utils.get_env_required("FILECOIN_PAY", required_type=EthAddress.from_any),
                          self.abi_dir() / "FileCoinPay.json")
 
     # @notice Deposits tokens using permit (EIP-2612) approval in a single transaction,

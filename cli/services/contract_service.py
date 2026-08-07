@@ -13,7 +13,7 @@ from web3.exceptions import ContractCustomError, Web3RPCError
 from cli import utils
 from cli._cli import is_dry_run
 from cli.services.txsigner import TxSigner
-from cli.services.web3_service import EthAddress, Web3Service
+from cli.services.web3_service import EthAddress, Web3Service, FilAddress
 
 T = TypeVar("T")
 
@@ -44,14 +44,14 @@ class ContractService:
     def __new__(cls, *args, **kwargs):
         return object.__new__(cls)
 
-    def __init__(self, contract_address: EthAddress, contract_abi_path: Path):
+    def __init__(self, contract_address: EthAddress | FilAddress, contract_abi_path: Path):
         super().__init__()
         self.logger = logging.getLogger(self._get_class_name())
         self.web3 = Web3Service()
 
         with open(contract_abi_path, "r", encoding="utf-8") as abi_file:
             contract_abi = json.load(abi_file)
-            self.contract = self.web3.contract(EthAddress(str(contract_address)), contract_abi)
+            self.contract = self.web3.contract(EthAddress.from_any(contract_address), contract_abi)
 
     def _get_class_name(self):
         return self.__class__.__name__

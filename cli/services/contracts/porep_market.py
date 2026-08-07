@@ -5,7 +5,7 @@ from cli import utils
 from cli.services.contract_service import ContractService
 from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceStatus
 from cli.services.txsigner import TxSigner
-from cli.services.web3_service import ActorId, EthAddress
+from cli.services.web3_service import ActorId, EthAddress, FilAddress
 
 
 # @notice Unified SLI thresholds for requirements, capabilities, and attestations
@@ -294,7 +294,7 @@ class PoRepMarketSettlementDecision:
 class PoRepMarket(ContractService):
     _POREP_MARKET_ADDRESS: EthAddress | None = None
 
-    def __init__(self, contract_address: EthAddress | None = None):
+    def __init__(self, contract_address: EthAddress | FilAddress | None = None):
         if not contract_address and not PoRepMarket._POREP_MARKET_ADDRESS:
             from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
             PoRepMarket._POREP_MARKET_ADDRESS = PoRepMarketViewHelper().porep_market_contract()

@@ -7,7 +7,7 @@ from cli.services.contracts.porep_market import (
     PoRepMarketDeal,
     PoRepMarketSLIThresholds,
 )
-from cli.services.web3_service import EthAddress
+from cli.services.web3_service import EthAddress, FilAddress
 
 
 # @notice DealData struct represents the data associated with a deal
@@ -174,8 +174,8 @@ class PoRepMarketDealView:
 
 
 class PoRepMarketViewHelper(ContractService):
-    def __init__(self, contract_address: EthAddress | None = None):
-        super().__init__(contract_address or utils.get_env_required("POREP_MARKET_VIEW_HELPER", required_type=EthAddress),
+    def __init__(self, contract_address: EthAddress | FilAddress | None = None):
+        super().__init__(contract_address or utils.get_env_required("POREP_MARKET_VIEW_HELPER", required_type=EthAddress.from_any),
                          self.abi_dir() / "PoRepMarketViewHelper.json")
 
     # @notice PoRepMarket contract used to fetch deal data.

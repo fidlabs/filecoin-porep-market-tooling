@@ -1,10 +1,10 @@
 from cli.services.contract_service import ContractService
 from cli.services.txsigner import TxSigner
-from cli.services.web3_service import EthAddress
+from cli.services.web3_service import EthAddress, FilAddress
 
 
 class AccessControlUpgradeable(ContractService):
-    def __init__(self, contract_address: EthAddress):
+    def __init__(self, contract_address: EthAddress | FilAddress):
         super().__init__(contract_address, self.abi_dir() / "AccessControlUpgradeable.json")
 
     # @dev Grants `role` to `account`.

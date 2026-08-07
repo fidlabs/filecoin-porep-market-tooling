@@ -5,7 +5,7 @@ from cli.services.contracts.porep_market import (
     PoRepMarketSLIThresholds,
 )
 from cli.services.txsigner import TxSigner
-from cli.services.web3_service import ActorId, EthAddress
+from cli.services.web3_service import ActorId, EthAddress, FilAddress
 
 
 # @notice Payment token policy.
@@ -228,7 +228,7 @@ class SPRegistryProviderDealSelection:
 class SPRegistry(ContractService):
     _SP_REGISTRY_ADDRESS: EthAddress | None = None
 
-    def __init__(self, contract_address: EthAddress | None = None):
+    def __init__(self, contract_address: EthAddress | FilAddress | None = None):
         if not contract_address and not SPRegistry._SP_REGISTRY_ADDRESS:
             from cli.services.contracts.porep_market import PoRepMarket
             SPRegistry._SP_REGISTRY_ADDRESS = PoRepMarket().get_sp_registry_contract_address()

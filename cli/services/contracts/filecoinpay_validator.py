@@ -2,7 +2,7 @@ import enum
 
 from cli.services.contract_service import ContractService
 from cli.services.txsigner import TxSigner
-from cli.services.web3_service import EthAddress
+from cli.services.web3_service import EthAddress, FilAddress
 
 
 # @title RailStatus
@@ -43,7 +43,7 @@ class FileCoinPayRailStatus(enum.Enum):
 
 
 class FileCoinPayValidator(ContractService):
-    def __init__(self, contract_address: EthAddress):
+    def __init__(self, contract_address: EthAddress | FilAddress):
         super().__init__(contract_address, self.abi_dir() / "Validator.json")
 
     # @notice Creates the FilecoinPay rail for this validator and sets the initial lockup period.

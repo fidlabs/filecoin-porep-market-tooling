@@ -1,12 +1,12 @@
 from cli.services.contract_service import ContractService
 from cli.services.txsigner import TxSigner
-from cli.services.web3_service import EthAddress
+from cli.services.web3_service import EthAddress, FilAddress
 
 
 class ValidatorFactory(ContractService):
     _VALIDATOR_FACTORY_ADDRESS: EthAddress | None = None
 
-    def __init__(self, contract_address: EthAddress | None = None):
+    def __init__(self, contract_address: EthAddress | FilAddress | None = None):
         if not contract_address and not ValidatorFactory._VALIDATOR_FACTORY_ADDRESS:
             from cli.services.contracts.porep_market import PoRepMarket
             ValidatorFactory._VALIDATOR_FACTORY_ADDRESS = PoRepMarket().get_validator_factory_contract_address()
