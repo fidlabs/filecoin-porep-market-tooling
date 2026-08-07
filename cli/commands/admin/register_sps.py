@@ -105,53 +105,53 @@ def _register_sps(providers: list[SPRegistryProviderInput]):
 #
 #     assert offer.provider_id == registered_info.provider_id
 
-    # if (provider.max_deal_duration_days, provider.min_deal_duration_days) != (registered_info.max_deal_duration_days, registered_info.min_deal_duration_days):
-    #     _different_parameters = {k: v for k, v in different_parameters.items() if k in ["max_deal_duration_days", "min_deal_duration_days"]}
-    #
-    #     if utils.confirm(f"Updating (max_deal_duration_days, min_deal_duration_days) for Storage Provider {provider.provider_id}: "
-    #                      f"{_different_parameters}",
-    #                      default=True,
-    #                      session_id=f"update-{provider.provider_id}"):
-    #         #
-    #         tx_hash = SPRegistry().set_deal_duration_limits(provider.provider_id,
-    #                                                         provider.min_deal_duration_days,
-    #                                                         provider.max_deal_duration_days,
-    #                                                         admin_signer())
-    #
-    #         click.echo(f"Updated (max_deal_duration_days, min_deal_duration_days) for Storage Provider {provider.provider_id}: {tx_hash}")
-    #
-    #     else:
-    #         click.echo("Skipped this parameter\n")
-    #
-    # if provider.price_per_sector_per_month != registered_info.price_per_sector_per_month:
-    #     if utils.confirm(f"Updating price_per_sector_per_month for Storage Provider {provider.provider_id}: "
-    #                      f"{different_parameters['price_per_sector_per_month']}",
-    #                      default=True,
-    #                      session_id=f"update-{provider.provider_id}"):
-    #         #
-    #         tx_hash = SPRegistry().set_price(provider.provider_id,
-    #                                          provider.price_per_sector_per_month,
-    #                                          admin_signer())
-    #
-    #         click.echo(f"Updated price_per_sector_per_month for Storage Provider {provider.provider_id}: {tx_hash}")
-    #
-    #     else:
-    #         click.echo("Skipped this parameter\n")
-    #
-    # if provider.capabilities != registered_info.capabilities:
-    #     if utils.confirm(f"\nUpdating capabilities for Storage Provider {provider.provider_id}: "
-    #                      f"{utils.json_pretty(different_parameters['capabilities'])}",
-    #                      default=True,
-    #                      session_id=f"update-{provider.provider_id}"):
-    #         #
-    #         tx_hash = SPRegistry().set_capabilities(provider.provider_id,
-    #                                                 provider.capabilities,
-    #                                                 admin_signer())
-    #
-    #         click.echo(f"Updated capabilities for Storage Provider {provider.provider_id}: {tx_hash}")
-    #
-    #     else:
-    #         click.echo("Skipped this parameter\n")
+# if (provider.max_deal_duration_days, provider.min_deal_duration_days) != (registered_info.max_deal_duration_days, registered_info.min_deal_duration_days):
+#     _different_parameters = {k: v for k, v in different_parameters.items() if k in ["max_deal_duration_days", "min_deal_duration_days"]}
+#
+#     if utils.confirm(f"Updating (max_deal_duration_days, min_deal_duration_days) for Storage Provider {provider.provider_id}: "
+#                      f"{_different_parameters}",
+#                      default=True,
+#                      session_id=f"update-{provider.provider_id}"):
+#         #
+#         tx_hash = SPRegistry().set_deal_duration_limits(provider.provider_id,
+#                                                         provider.min_deal_duration_days,
+#                                                         provider.max_deal_duration_days,
+#                                                         admin_signer())
+#
+#         click.echo(f"Updated (max_deal_duration_days, min_deal_duration_days) for Storage Provider {provider.provider_id}: {tx_hash}")
+#
+#     else:
+#         click.echo("Skipped this parameter\n")
+#
+# if provider.price_per_sector_per_month != registered_info.price_per_sector_per_month:
+#     if utils.confirm(f"Updating price_per_sector_per_month for Storage Provider {provider.provider_id}: "
+#                      f"{different_parameters['price_per_sector_per_month']}",
+#                      default=True,
+#                      session_id=f"update-{provider.provider_id}"):
+#         #
+#         tx_hash = SPRegistry().set_price(provider.provider_id,
+#                                          provider.price_per_sector_per_month,
+#                                          admin_signer())
+#
+#         click.echo(f"Updated price_per_sector_per_month for Storage Provider {provider.provider_id}: {tx_hash}")
+#
+#     else:
+#         click.echo("Skipped this parameter\n")
+#
+# if provider.capabilities != registered_info.capabilities:
+#     if utils.confirm(f"\nUpdating capabilities for Storage Provider {provider.provider_id}: "
+#                      f"{utils.json_pretty(different_parameters['capabilities'])}",
+#                      default=True,
+#                      session_id=f"update-{provider.provider_id}"):
+#         #
+#         tx_hash = SPRegistry().set_capabilities(provider.provider_id,
+#                                                 provider.capabilities,
+#                                                 admin_signer())
+#
+#         click.echo(f"Updated capabilities for Storage Provider {provider.provider_id}: {tx_hash}")
+#
+#     else:
+#         click.echo("Skipped this parameter\n")
 
 
 def _register_offers(offers: list[SPRegistryOfferInput]):
@@ -188,10 +188,10 @@ def _register_offers(offers: list[SPRegistryOfferInput]):
               help="SPRegistry database miner_id (PoRep Market SP ID) to register.")
 @click.option("--organization-address", required=False,
               help="SPRegistry database organization_address to register.")
-def register_db_sps(db_url: str,
-                    db_id: int | None = None,
-                    miner_id: str | None = None,
-                    organization_address: str | None = None):
+def register_sps(db_url: str,
+                 db_id: int | None = None,
+                 miner_id: str | None = None,
+                 organization_address: str | None = None):
     """
     Interactively register SPs and offers from SPRegistry database.
 
