@@ -11,8 +11,10 @@ from .manage_proposed_deals import manage_proposed_deals
 from .onboard_data import onboard_data
 from .pause_block_sp import pause_sp, unpause_sp, block_sp, unblock_sp
 from .reject_deal import reject_deal
+from .set_offer_active import set_offer_active
 from .withdraw_from_filecoinpay import withdraw_from_filecoinpay
 
+sp.add_command(set_offer_active)
 sp.add_command(pause_sp)
 sp.add_command(unpause_sp)
 sp.add_command(block_sp)
