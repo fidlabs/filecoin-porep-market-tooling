@@ -18,7 +18,7 @@ def get_offers(provider_id: str | None = None):
     if provider_id is not None:
         offer_ids = SPRegistry().get_offers_by_provider(ActorId(provider_id))
     else:
-        providers = SPRegistry().get_providers_views_by_organization(sp_organization_address())
+        providers = SPRegistry().get_provider_views_by_organization(sp_organization_address())
         offer_ids = []
 
         for provider in providers:

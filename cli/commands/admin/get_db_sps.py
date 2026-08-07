@@ -38,5 +38,5 @@ def get_db_sps(db_url: str,
 
 
 @click.command(hidden=True)
-def get_devnet_sps():
+def get_mocked_sps():
     click.echo(utils.json_pretty(admin_utils.get_mocked_sps()))

@@ -8,7 +8,7 @@ from cli.services.web3_service import EthAddress
 
 
 @click.command()
-@click.argument("token_address", envvar="USDC_TOKEN", required=True)
+@click.argument("token_address", envvar="USDC_TOKEN")
 @click.option("--owner", required=False,
               help="Address / actor ID of the FileCoinPay account owner.  [default: all payee addresses under current SP_ORGANIZATION address]")
 def get_filecoinpay_account(token_address: str, owner: str | None = None):
@@ -19,7 +19,7 @@ def get_filecoinpay_account(token_address: str, owner: str | None = None):
     """
 
     if not owner:
-        providers = SPRegistry().get_providers_views_by_organization(sp_organization_address())
+        providers = SPRegistry().get_provider_views_by_organization(sp_organization_address())
         payee_addresses = {p.payee_address for p in providers}
     else:
         payee_addresses = {EthAddress.from_any(owner)}

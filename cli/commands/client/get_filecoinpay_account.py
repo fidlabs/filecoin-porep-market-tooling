@@ -7,7 +7,7 @@ from cli.services.web3_service import EthAddress
 
 
 @click.command()
-@click.argument("token_address", envvar="USDC_TOKEN", required=True)
+@click.argument("token_address", envvar="USDC_TOKEN")
 def get_filecoinpay_account(token_address: str):
     """
     Get FileCoinPay account.

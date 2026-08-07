@@ -188,10 +188,10 @@ def _register_offers(offers: list[SPRegistryOfferInput]):
               help="SPRegistry database miner_id (PoRep Market SP ID) to register.")
 @click.option("--organization-address", required=False,
               help="SPRegistry database organization_address to register.")
-def register_sps(db_url: str,
-                 db_id: int | None = None,
-                 miner_id: str | None = None,
-                 organization_address: str | None = None):
+def register_db_sps(db_url: str,
+                    db_id: int | None = None,
+                    miner_id: str | None = None,
+                    organization_address: str | None = None):
     """
     Interactively register SPs and offers from SPRegistry database.
 

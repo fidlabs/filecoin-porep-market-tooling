@@ -39,9 +39,6 @@ class SPRegistryOfferTerms:
 
     @staticmethod
     def from_web3(data) -> "SPRegistryOfferTerms":
-        if not data[1] or str(data[1]) == "0":
-            raise RuntimeError("Offer terms not found")
-
         # noinspection PyArgumentList
         return SPRegistryOfferTerms(
             min_size_bytes=int(data[0]),
@@ -267,13 +264,13 @@ class SPRegistry(ContractService):
     def get_providers(self) -> list[ActorId]:
         return [ActorId(provider_id) for provider_id in self.call_contract(self.contract.functions.getProviders())]
 
-    def get_providers_views(self) -> list[SPRegistryProviderView]:
+    def get_provider_views(self) -> list[SPRegistryProviderView]:
         return [self.get_provider_view(provider_id) for provider_id in self.get_providers()]
 
     # @notice Returns provider views owned by the given organization
     # @dev The contract has no by-organization getter; filters all providers client-side
-    def get_providers_views_by_organization(self, organization_address: EthAddress) -> list[SPRegistryProviderView]:
-        return [provider for provider in self.get_providers_views() if provider.organization_address == organization_address]
+    def get_provider_views_by_organization(self, organization_address: EthAddress) -> list[SPRegistryProviderView]:
+        return [provider for provider in self.get_provider_views() if provider.organization_address == organization_address]
 
     # @notice Returns current provider registration and capacity data.
     # @param provider Provider actor ID.
