@@ -17,3 +17,7 @@ class AccessControlUpgradeable(ContractService):
             self.contract.functions.grantRole(role, account),
             signer
         )
+
+    # @dev Returns `true` if `account` has been granted `role`.
+    def has_role(self, role: bytes, account: EthAddress) -> bool:
+        return self.call_contract(self.contract.functions.hasRole(role, account))

@@ -8,9 +8,10 @@ from .pause_block_sp import pause_sp, unpause_sp, block_sp, unblock_sp
 from .register_sps import register_db_sps, register_devnet_sps
 from .set_completion_padding import set_completion_padding
 from .set_offer_active import set_offer_active
-from .set_role import set_role
+from .set_role import set_role, has_role
 from .terminate_deal import terminate_deal
 
+admin.add_command(has_role)
 admin.add_command(get_offer)
 admin.add_command(get_db_offers)
 admin.add_command(set_role)
