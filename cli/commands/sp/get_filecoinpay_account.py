@@ -24,5 +24,5 @@ def get_filecoinpay_account(token_address: str, owner: str | None = None):
     else:
         payee_addresses = {EthAddress.from_any(owner)}
 
-    result = [commands_utils.get_filecoinpay_account(EthAddress(token_address), address) for address in payee_addresses]
+    result = [commands_utils.get_filecoinpay_account(EthAddress.from_any(token_address), address) for address in payee_addresses]
     click.echo(utils.json_pretty(result))

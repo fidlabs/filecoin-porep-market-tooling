@@ -150,7 +150,7 @@ def propose_deal(manifest_url: str,
                   duration_months,
                   latency_ms,
                   indexing_pct,
-                  EthAddress(payment_token))
+                  EthAddress.from_any(payment_token))
 
 
 # TODO LATER remove me

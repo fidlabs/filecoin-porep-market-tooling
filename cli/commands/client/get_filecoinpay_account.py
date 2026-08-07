@@ -15,4 +15,4 @@ def get_filecoinpay_account(token_address: str):
     TOKEN_ADDRESS - ERC20 token address to ask for.  [default: USDC_TOKEN env var]
     """
 
-    click.echo(utils.json_pretty(commands_utils.get_filecoinpay_account(EthAddress(token_address), client_address())))
+    click.echo(utils.json_pretty(commands_utils.get_filecoinpay_account(EthAddress.from_any(token_address), client_address())))

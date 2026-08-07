@@ -21,7 +21,7 @@ def deposit_amount(amount: float, token_address: str):
 
     SelfUpdateService.check_and_prompt(manual=False)
 
-    _token_address = EthAddress(token_address)
+    _token_address = EthAddress.from_any(token_address)
     token_decimals = ERC20Contract(_token_address).decimals()
 
     client_utils.deposit_to_filecoinpay(utils.to_wei(amount, token_decimals), USDCToken(_token_address))

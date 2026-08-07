@@ -22,4 +22,4 @@ def withdraw_from_filecoinpay(to_address: str, amount: float, token_address: str
 
     SelfUpdateService.check_and_prompt(manual=False)
 
-    commands_utils.withdraw_from_filecoinpay(to_address, amount, EthAddress(token_address), client_address(), client_signer())
+    commands_utils.withdraw_from_filecoinpay(to_address, amount, EthAddress.from_any(token_address), client_address(), client_signer())
