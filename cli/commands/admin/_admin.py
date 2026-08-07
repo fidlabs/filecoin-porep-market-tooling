@@ -40,7 +40,7 @@ def admin_address() -> EthAddress:
     elif ADMIN_LOTUS_WALLET:
         return EthAddress.from_any(ADMIN_LOTUS_WALLET)
     else:
-        raise click.ClickException("Admin private key or Lotus wallet is not set")
+        raise click.ClickException("Admin private key is not set, set ADMIN_PRIVATE_KEY or both ADMIN_LOTUS_WALLET and ADMIN_LOTUS_TOKEN env vars")
 
 
 # lazy initialization

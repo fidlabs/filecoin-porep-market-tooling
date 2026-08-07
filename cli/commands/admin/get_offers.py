@@ -11,7 +11,7 @@ def get_offers(provider_id: str | None = None):
     """
     Get PoRep Market offers for a given Storage Provider.
 
-    PROVIDER_ID - Storage Provider ID to list offers for. If not provided, lists offers for all providers.
+    PROVIDER_ID - Optional Storage Provider ID to list offers for.  [default: all registered SPs]
     """
 
     if provider_id is not None:

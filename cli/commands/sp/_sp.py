@@ -44,7 +44,7 @@ def sp(private_key: str | None = None, organization: str | None = None, confirm_
 # lazy initialization
 def sp_organization_address() -> EthAddress:
     if not SP_ORGANIZATION:
-        raise click.ClickException("SP organization is not set")
+        raise click.ClickException("SP organization is not set, set SP_ORGANIZATION env var or use --organization option")
 
     global SP_ORGANIZATION_ETH_ADDRESS
 
@@ -67,7 +67,7 @@ def sp_address() -> EthAddress:
     elif SP_LOTUS_WALLET:
         return EthAddress.from_any(SP_LOTUS_WALLET)
     else:
-        raise click.ClickException("SP private key or Lotus wallet is not set")
+        raise click.ClickException("SP private key is not set, set SP_PRIVATE_KEY or both SP_LOTUS_WALLET and SP_LOTUS_TOKEN env vars")
 
 
 # lazy initialization
