@@ -5,6 +5,7 @@ from .get_allocations import get_allocations
 from .get_claims import get_claims
 from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals
 from .get_filecoinpay_account import get_filecoinpay_account
+from .get_offers import get_offers, get_offer
 from .get_registered_info import get_registered_info
 from .is_authorized import is_authorized
 from .manage_proposed_deals import manage_proposed_deals
@@ -14,6 +15,8 @@ from .reject_deal import reject_deal
 from .set_offer_active import set_offer_active
 from .withdraw_from_filecoinpay import withdraw_from_filecoinpay
 
+sp.add_command(get_offers)
+sp.add_command(get_offer)
 sp.add_command(set_offer_active)
 sp.add_command(pause_sp)
 sp.add_command(unpause_sp)
