@@ -13,30 +13,53 @@ from web3.types import BlockIdentifier, RPCEndpoint, TxData, TxParams, TxReceipt
 from cli import utils
 
 
-# TODO LATER support testnet t0 id
 class ActorId(int):
-    VALID_PREFIXES = ("f0", "t0")
+    VALID_PREFIX_PER_CHAIN_ID = {
+        314: "f0",  # Filecoin Mainnet
+        314159: "t0",  # Filecoin Calibration Testnet
+        31415926: "f0",  # Lotus devnet
+    }
 
     def __new__(cls, actor_id: int | str) -> "ActorId":
+        chain_id = Web3Service().get_chain_id()
+
+        try:
+            expected_prefix = cls.VALID_PREFIX_PER_CHAIN_ID[chain_id]
+        except KeyError as e:
+            raise ValueError(f"Unknown network prefix for chain ID {chain_id} ({Web3Service().get_network_name()})") from e
+
         if isinstance(actor_id, str):
-            if actor_id.startswith(cls.VALID_PREFIXES):
+            # case: string "f1000" or "t1000"
+            if actor_id.startswith(tuple(cls.VALID_PREFIX_PER_CHAIN_ID.values())):
+                prefix = actor_id[:2]
                 actor_id = actor_id[2:]
+
+                if prefix != expected_prefix:
+                    raise ValueError(f"Invalid ActorId prefix: {prefix}{actor_id} on {Web3Service().get_network_name()}: "
+                                     f"expected {expected_prefix!r}, got {prefix!r}")
+
+            # case: string "1000"
             try:
                 actor_id = int(actor_id)
             except ValueError as e:
                 raise ValueError(f"Invalid ActorId format: {actor_id!r}") from e
 
+        # case: int 1000
         if not isinstance(actor_id, int) or actor_id < 100:
             raise ValueError(f"Invalid ActorId: {actor_id!r}")
 
         # noinspection PyTypeChecker
-        return super().__new__(cls, actor_id)
+        self = super().__new__(cls, actor_id)
+        self.prefix = expected_prefix
+
+        # noinspection PyTypeChecker
+        return self
 
     def __str__(self) -> str:
-        return f"f0{int(self)}"
+        return f"{self.prefix}{int(self)}"
 
     def __repr__(self) -> str:
-        return f"ActorId({int(self)})"
+        return f"ActorId({str(self)!r})"
 
     @classmethod
     def try_parse(cls, actor_id: str | int) -> "ActorId | None":
@@ -274,6 +297,7 @@ class Web3Service:
     ZERO_TX_HASH = "0x" + "00" * 32
 
     def __new__(cls) -> "Web3Service":
+        # singleton pattern
         if cls._instance is None:
             cls._instance = super().__new__(cls)
 
@@ -282,15 +306,16 @@ class Web3Service:
 
     def __init__(self):
         if hasattr(self, "_w3"):
-            return
+            return  # already initialized
 
         self._w3 = Web3(Web3.HTTPProvider(utils.get_env_required("RPC_URL")))
+        self._chain_id = self._w3.eth.chain_id  # cache
 
     def w3(self) -> Web3:
         return self._w3
 
     def get_chain_id(self) -> int:
-        return self._w3.eth.chain_id
+        return self._chain_id
 
     def get_network_name(self, chain_id: int | None = None) -> str:
         return {
