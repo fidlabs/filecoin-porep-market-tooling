@@ -8,7 +8,7 @@ from cli.services.web3_service import ActorId, EthAddress
 
 @click.command()
 @click.argument('provider_id', required=False)
-@click.option("--organization", required=False, help="SP Organization to query.  [default: SP_ORGANIZATION env var]")
+@click.option("--organization", help="SP Organization to query.  [default: SP_ORGANIZATION env var]")
 def get_sps(provider_id: str | None = None, organization: str | None = None):
     """
     Get PoRep Market registered info for the SP.

@@ -11,10 +11,12 @@ from .is_authorized import is_authorized
 from .manage_proposed_deals import manage_proposed_deals
 from .onboard_data import onboard_data
 from .pause_block_sp import pause_sp, unpause_sp, block_sp, unblock_sp
+from .register_sp import register_sp
 from .reject_deal import reject_deal
 from .set_offer_active import set_offer_active
 from .withdraw_from_filecoinpay import withdraw_from_filecoinpay
 
+sp.add_command(register_sp)
 sp.add_command(get_offers)
 sp.add_command(get_offer)
 sp.add_command(set_offer_active)
