@@ -8,6 +8,7 @@ from .init_accepted_deals import init_accepted_deals
 from .make_allocations import make_allocations
 from .propose_deal_from_manifest import propose_deal_from_manifest, propose_deal_from_manifest_mocked
 from .reject_deal import reject_deal
+from .sign_retrieval_voucher import sign_retrieval_voucher
 
 client.add_command(reject_deal)
 client.add_command(get_deal_manifest)
@@ -24,3 +25,4 @@ client.add_command(init_accepted_deals)
 client.add_command(deposit_for_deals)
 client.add_command(make_allocations)
 client.add_command(complete_deal)
+client.add_command(sign_retrieval_voucher)

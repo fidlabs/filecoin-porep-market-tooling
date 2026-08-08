@@ -159,6 +159,53 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
     python3 ./porep_tooling_cli.py sp --help
     ```
 
+## Typical client workflow
+
+1. Set up the CLI as in [Installation](#installation), then put your client key in `.env`:
+   ```bash
+   # 32-byte raw private key (hex, 0x-prefixed)
+   CLIENT_PRIVATE_KEY=<your client wallet private key>
+   ```
+   Optionally set `CLIENT_ADDRESS` to the matching `0x` address. Secure the file:
+   ```bash
+   chmod 600 .env
+   ```
+
+2. Prepare your dataset with [Singularity](https://github.com/filecoin-project/singularity) (or equivalent) so you have a published **manifest URL** and piece CARs served for the SP to fetch.
+
+3. Propose a deal from that manifest. Deals can be **public** (open retrieval) or **private** (retrieval limited to the deal owner and any wallets you later authorize with a voucher):
+   ```bash
+   python3 ./porep_tooling_cli.py client propose-deal-from-manifest <MANIFEST_URL> \
+     --retrievability-bps <bps> \
+     --bandwidth-mbps <mbps> \
+     --price-per-sector-per-month <usdc-wei> \
+     --duration-months <months> \
+     --latency-ms <ms>
+   ```
+   Track status with `client get-deals`. After an SP accepts (`ACCEPTED`), initialize payment (validator, deposit, rail):
+   ```bash
+   python3 ./porep_tooling_cli.py client init-accepted-deals <DEAL_ID>
+   ```
+
+4. Make DataCap allocations, then complete the deal (allocations must finish before completion). `make-allocations` posts allocation batches and then marks the deal `COMPLETED` so the SP can onboard; use `complete-deal` only if you need to complete separately:
+   ```bash
+   python3 ./porep_tooling_cli.py client make-allocations <DEAL_ID>
+   # usually already done by make-allocations:
+   python3 ./porep_tooling_cli.py client complete-deal <DEAL_ID>
+   ```
+
+5. Optional — for a **private** deal, sign an EIP-712 retrieval voucher so a third-party wallet can retrieve the data (used with [large-paid-retrievals](https://github.com/fidlabs/large-paid-retrievals)):
+   ```bash
+   python3 ./porep_tooling_cli.py client sign-retrieval-voucher \
+     --grantee <0x-third-party-wallet> \
+     --deal-id <DEAL_ID>
+   ```
+
+6. Full client command list:
+   ```bash
+   python3 ./porep_tooling_cli.py client --help
+   ```
+
 ## Developing new CLI commands
 
 - See files in `cli/commands` for examples of how to implement new commands.
