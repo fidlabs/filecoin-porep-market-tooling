@@ -55,7 +55,7 @@ def get_deals(state: str | None = None):
     \b
     Use `client --address <client_address> get-deals` to get deals for a specific client.
     Use `sp --organization <organization> get-deals` to get deals for a specific organization.
-    Use `sp get-deals --provider-id <provider_id>` to get deals for a specific provider.
+    Use `sp get-deals --provider-id <provider_id>` to get deals for a specific Storage Provider.
 
     STATE - Optional deal state to filter by.
     """

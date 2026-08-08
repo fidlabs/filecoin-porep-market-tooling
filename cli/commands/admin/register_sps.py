@@ -13,43 +13,42 @@ from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import ActorId, Web3Service
 
 
-def __update_provider_params(provider: SPRegistryProviderInput,
-                             registered_info: SPRegistryProviderView,
-                             different_parameters: dict):
+def __update_provider_params(provider_info: SPRegistryProviderInput,
+                             registered_info: SPRegistryProviderView):
     #
-    if provider.organization_address != registered_info.organization_address:
-        if not utils.confirm(f"organization_address cannot be updated for Storage Provider {provider.provider_id}, continue with other parameters?",
+    if provider_info.organization_address != registered_info.organization_address:
+        if not utils.confirm(f"\norganization_address cannot be updated for Storage Provider {provider_info.provider_id}, continue with other parameters?",
                              default=True):
             #
-            click.echo("Skipped this provider")
+            click.echo("Skipped this SP")
             return
 
-    if provider.payee_address != registered_info.payee_address:
-        if utils.confirm(f"Updating payee_address for Storage Provider {provider.provider_id}: "
-                         f"{different_parameters['payee_address']}",
+    if provider_info.payee_address != registered_info.payee_address:
+        if utils.confirm(f"\nUpdating payee_address for Storage Provider {provider_info.provider_id}: "
+                         f"Current: {registered_info.payee_address} -> New: {provider_info.payee_address}",
                          default=True,
-                         session_id=f"update-{provider.provider_id}"):
+                         session_id=f"update-{provider_info.provider_id}"):
             #
-            tx_hash = SPRegistry().set_payee(provider.provider_id,
-                                             provider.payee_address,
+            tx_hash = SPRegistry().set_payee(provider_info.provider_id,
+                                             provider_info.payee_address,
                                              admin_signer())
 
-            click.echo(f"Updated payee_address for Storage Provider {provider.provider_id}: {tx_hash}")
+            click.echo(f"Updated payee_address for Storage Provider {provider_info.provider_id}: {tx_hash}")
 
         else:
             click.echo("Skipped this parameter\n")
 
-    if provider.available_bytes != registered_info.available_bytes:
-        if utils.confirm(f"Updating available_bytes for Storage Provider {provider.provider_id}: "
-                         f"{different_parameters['available_bytes']}",
+    if provider_info.available_bytes != registered_info.available_bytes:
+        if utils.confirm(f"\nUpdating available_bytes for Storage Provider {provider_info.provider_id}: "
+                         f"Current: {registered_info.available_bytes} -> New: {provider_info.available_bytes}",
                          default=True,
-                         session_id=f"update-{provider.provider_id}"):
+                         session_id=f"update-{provider_info.provider_id}"):
             #
-            tx_hash = SPRegistry().update_available_space(provider.provider_id,
-                                                          provider.available_bytes,
+            tx_hash = SPRegistry().update_available_space(provider_info.provider_id,
+                                                          provider_info.available_bytes,
                                                           admin_signer())
 
-            click.echo(f"Updated available_bytes for Storage Provider {provider.provider_id}: {tx_hash}")
+            click.echo(f"Updated available_bytes for Storage Provider {provider_info.provider_id}: {tx_hash}")
 
         else:
             click.echo("Skipped this parameter\n")
@@ -58,45 +57,48 @@ def __update_provider_params(provider: SPRegistryProviderInput,
 def _register_sps(providers: list[SPRegistryProviderInput]):
     Web3Service().wait_for_pending_transactions(admin_address())
 
-    for provider in providers:
-        is_registered = SPRegistry().is_provider_registered(provider.provider_id)
+    for provider_info in providers:
+        is_registered = SPRegistry().is_provider_registered(provider_info.provider_id)
 
         if is_registered:
             # update Storage Provider parameters if different from registered ones
+            registered_info = SPRegistry().get_provider_view(provider_info.provider_id)
 
-            registered_info = SPRegistry().get_provider_view(provider.provider_id)
-            different_parameters = {k: {"new": v, "old": getattr(registered_info, k)}
-                                    for k, v in provider.__dict__.items() if
-                                    getattr(registered_info, k) != getattr(provider, k)}
+            # print only different parameters
+            current_different_params = {k: getattr(registered_info, k) for k in provider_info.__dict__.keys() if
+                                        getattr(registered_info, k) != getattr(provider_info, k)}
+            new_different_params = {k: v for k, v in provider_info.__dict__.items() if getattr(registered_info, k) != v}
+            assert current_different_params.keys() == new_different_params.keys()
 
-            if not different_parameters:
-                click.echo(f"Storage Provider {provider.provider_id} already registered with same parameters")
+            if not current_different_params:
+                click.echo(f"Storage Provider {provider_info.provider_id} already registered with same parameters")
                 continue
 
-            if not utils.confirm(f"\nStorage Provider {provider.provider_id} already registered with different parameters\n"
-                                 f"Do you want to update SP {provider.provider_id} parameters?\n"
-                                 f"{utils.json_pretty(different_parameters)}", session_id="update-provider"):
+            if not utils.confirm(f"\nStorage Provider {provider_info.provider_id} already registered with different parameters. "
+                                 f"Do you want to update the parameters?\n"
+                                 f"Current: {utils.json_pretty(current_different_params)} -> New: {utils.json_pretty(new_different_params)}",
+                                 session_id="update-provider"):
                 #
-                click.echo("Skipped this provider")
+                click.echo("Skipped this SP")
                 continue
 
-            __update_provider_params(provider, registered_info, different_parameters)
+            __update_provider_params(provider_info, registered_info)
 
         else:
             # register Storage Provider with given parameters
 
-            if not utils.confirm(f"\nRegistering Storage Provider with parameters: {provider}", default=True, session_id="register-provider"):
-                click.echo("Skipped this provider")
+            if not utils.confirm(f"\nRegistering Storage Provider with parameters: {provider_info}", default=True, session_id="register-provider"):
+                click.echo("Skipped this SP")
                 continue
 
-            if not utils.confirm(f"\nThe organization_address {provider.organization_address} cannot be changed "
-                                 f"once registered for provider_id {provider.provider_id}. Are you sure this is correct?"):
+            if not utils.confirm(f"\nThe organization_address {provider_info.organization_address} cannot be changed "
+                                 f"once registered for provider_id {provider_info.provider_id}. Are you sure this is correct?"):
                 #
-                click.echo("Skipped this provider")
+                click.echo("Skipped this SP")
                 continue
 
-            tx_hash = SPRegistry().register_provider_for(provider, admin_signer())
-            click.echo(f"Provider {provider.provider_id} registered: {tx_hash}")
+            tx_hash = SPRegistry().register_provider_for(provider_info, admin_signer())
+            click.echo(f"Provider {provider_info.provider_id} registered: {tx_hash}")
 
 
 # def __update_offer_params(offer: SPRegistryOfferInput,
@@ -205,6 +207,10 @@ def register_db_sps(db_url: str,
 
     SelfUpdateService.check_and_prompt(manual=False)
 
+    if Web3Service().get_chain_id() != 314:
+        utils.confirm(f"Registering SPs and offers from production DB on {Web3Service().get_network_name()} probably won't work. Continue?",
+                      default=False, abort=True)
+
     _register_sps(admin_utils.get_db_sps(db_url,
                                          kyc_status="approved",
                                          organization_db_id=db_id,
@@ -223,6 +229,10 @@ def register_db_sps(db_url: str,
 @click.command(hidden=True)
 def register_mocked_sps():
     SelfUpdateService.check_and_prompt(manual=False)
+
+    if Web3Service().get_chain_id() == 314:
+        utils.confirm("You're about to register mocked SPs and offers on the production network. Continue?",
+                      default=False, abort=True)
 
     _register_sps(admin_utils.get_mocked_sps())
     click.echo()

@@ -141,11 +141,10 @@ def print_info(account_address: EthAddress | None = None, account_name: str = "A
         click.echo()
 
     try:
-        click.echo(f"Chain ID: {Web3Service().get_chain_id()}")
+        click.echo(f"Chain ID: {Web3Service().get_chain_id()} ({Web3Service().get_network_name()})")
     except Exception as e:
         click.echo(f"Error fetching chain ID: {e}")
 
-    click.echo()
     click.echo(f"RPC_URL={utils.get_env('RPC_URL', required=False)}")
     click.echo()
     click.echo(f"POREP_MARKET_VIEW_HELPER={utils.get_env('POREP_MARKET_VIEW_HELPER', required=False)}")
