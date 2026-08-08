@@ -12,15 +12,20 @@ from cli.services.contracts.sp_registry import (
 )
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.sp_registry_db import SPRegistryDB
-from cli.services.web3_service import ActorId, EthAddress, FilAddress
+from cli.services.web3_service import ActorId, EthAddress, FilAddress, Web3Service
 
 
 def get_db_offers(db_url: str,
                   kyc_status: str | None = None,
                   organization_db_id: int | None = None,
-                  miner_id: ActorId | None = None,
+                  provider_id: ActorId | None = None,
                   organization_address: str | None = None) -> list[SPRegistryOfferInput]:
     #
+    if Web3Service().get_chain_id() != 314:
+        utils.confirm(f"WARNING: Listing offers from production DB on {Web3Service().get_network_name()} probably won't work. Continue?",
+                      default=False, abort=True)
+        click.echo()
+
     EPOCHS_IN_MONTH = PoRepMarket().get_epochs_in_month()
     EPOCHS_IN_DAY = EPOCHS_IN_MONTH // 30  # PoRep Market smart contracts assumes month == 30 days
     assert EPOCHS_IN_DAY * 30 == EPOCHS_IN_MONTH
@@ -116,7 +121,7 @@ def get_db_offers(db_url: str,
     result: list[SPRegistryOfferInput] = []
     offers = SPRegistryDB(db_url).get_sla_classes(kyc_status=kyc_status,
                                                   organization_id=organization_db_id,
-                                                  miner_id=miner_id,
+                                                  miner_id=provider_id,
                                                   organization_address=organization_address)
 
     offers_by_org_id = {}
@@ -198,8 +203,8 @@ def get_db_offers(db_url: str,
                     payments=payments
                 ))
 
-    if miner_id is not None and result:
-        result = [offer for offer in result if offer.provider_id == miner_id]
+    if provider_id is not None and result:
+        result = [offer for offer in result if offer.provider_id == provider_id]
 
     return result
 
@@ -207,15 +212,20 @@ def get_db_offers(db_url: str,
 def get_db_sps(db_url: str,
                kyc_status: str | None = None,
                organization_db_id: int | None = None,
-               miner_id: ActorId | None = None,
+               provider_id: ActorId | None = None,
                organization_address: str | None = None) -> list[SPRegistryProviderInput]:
     #
+
+    if Web3Service().get_chain_id() != 314:
+        utils.confirm(f"WARNING: Listing SPs from production DB on {Web3Service().get_network_name()} probably won't work. Continue?",
+                      default=False, abort=True)
+        click.echo()
 
     result: list[SPRegistryProviderInput] = []
     organizations = SPRegistryDB(db_url).get_organizations(
         kyc_status=kyc_status,
         organization_db_id=organization_db_id,
-        miner_id=miner_id,
+        miner_id=provider_id,
         organization_address=organization_address)
 
     for org in organizations:
@@ -257,8 +267,8 @@ def get_db_sps(db_url: str,
                 payee_address=org.payment_address_evm
             ))
 
-    if miner_id is not None and result:
-        result = [provider for provider in result if provider.provider_id == miner_id]
+    if provider_id is not None and result:
+        result = [provider for provider in result if provider.provider_id == provider_id]
 
     provider_ids = [sp.provider_id for sp in result]
     if len(provider_ids) != len(set(provider_ids)):

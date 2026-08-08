@@ -9,16 +9,16 @@ from cli.services.web3_service import ActorId, Web3Service
 
 
 @click.command()
-@click.argument("db_id", type=click.IntRange(min=0), required=False)
+@click.argument("provider_id", required=False)
 @click.option("--db-url", envvar="SP_REGISTRY_DATABASE_URL", show_envvar=True, required=True,
               help="SPRegistry database connection string.")
-@click.option("--miner-id",
-              help="SPRegistry database miner_id (PoRep Market SP ID) to register.")
+@click.option("--db-id", type=click.IntRange(min=0),
+              help="Optional SPRegistry database organization ID to register SPs from.")
 @click.option("--organization-address",
-              help="SPRegistry database organization_address to register.")
+              help="Optional SPRegistry database organization_address to register SPs from.")
 def register_db_sps(db_url: str,
                     db_id: int | None = None,
-                    miner_id: str | None = None,
+                    provider_id: str | None = None,
                     organization_address: str | None = None):
     """
     Interactively register SPs and offers from SPRegistry database.
@@ -28,34 +28,38 @@ def register_db_sps(db_url: str,
     2. register them one by one on-chain via SPRegistry contract,
     3. register each offer on-chain via SPRegistry contract.
 
-    DB_ID - SPRegistry database organization ID to register SPs from.
+    \b
+    PROVIDER_ID - Optional SPRegistry database miner_id (PoRep Market SP ID) to register.
     """
 
     SelfUpdateService.check_and_prompt(manual=False)
     Web3Service().wait_for_pending_transactions(admin_address())
 
-    if Web3Service().get_chain_id() != 314:
-        utils.confirm(f"WARNING: Registering SPs and offers from production DB on {Web3Service().get_network_name()} probably won't work. Continue?",
-                      default=False, abort=True)
-        click.echo()
+    sps = admin_utils.get_db_sps(db_url,
+                                 kyc_status="approved",
+                                 organization_db_id=db_id,
+                                 provider_id=ActorId(provider_id) if provider_id else None,
+                                 organization_address=organization_address)
 
-    commands_utils.register_or_update_sps(
-        admin_utils.get_db_sps(db_url,
-                               kyc_status="approved",
-                               organization_db_id=db_id,
-                               miner_id=ActorId(miner_id) if miner_id else None,
-                               organization_address=organization_address),
-        admin_signer())
+    if not sps:
+        click.echo("No SPs found to register.")
+        return
+
+    commands_utils.register_or_update_sps(sps, admin_signer())
 
     click.echo()
 
-    commands_utils.register_offers(
-        admin_utils.get_db_offers(db_url,
-                                  kyc_status="approved",
-                                  organization_db_id=db_id,
-                                  miner_id=ActorId(miner_id) if miner_id else None,
-                                  organization_address=organization_address),
-        admin_signer())
+    offers = admin_utils.get_db_offers(db_url,
+                                       kyc_status="approved",
+                                       organization_db_id=db_id,
+                                       provider_id=ActorId(provider_id) if provider_id else None,
+                                       organization_address=organization_address)
+
+    if not offers:
+        click.echo("No offers found to register.")
+        return
+
+    commands_utils.register_offers(offers, admin_signer())
 
 
 @click.command(hidden=True)

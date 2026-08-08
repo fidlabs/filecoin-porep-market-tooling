@@ -24,8 +24,6 @@ def hash_manifest(raw_manifest: bytes) -> HexBytes:
     return Web3.keccak(text=raw_manifest)
 
 
-# TODO LATER propose for multiple manifests + state, retry ??
-# TODO LATER validate params here?
 def _propose_deal(manifest_url: str,
                   retrievability_bps: int,
                   bandwidth_mbps: int,
@@ -75,13 +73,13 @@ def _propose_deal(manifest_url: str,
         existing_deal_view = PoRepMarketViewHelper().get_deal_view(existing_deal.deal_id)
 
         if deal_request.requested_size_bytes == existing_deal_view.terms.requested_size_bytes:
-            utils.confirm(f"\nWarning: Client deal with the same deal size "
+            utils.confirm(f"\nWARNING: Client deal with the same deal size "
                           f"already exists in PoRep Market: {utils.json_pretty(existing_deal)} "
                           "Continue?", default=not is_active, abort=True)
 
         if deal_request.manifest_location == existing_deal_view.data.manifest_location:
             utils.confirm(
-                f"\nWarning: Client deal with the same manifest location "
+                f"\nWARNING: Client deal with the same manifest location "
                 f"already exists in PoRep Market: {utils.json_pretty(existing_deal)} "
                 "Continue?", default=not is_active, abort=True)
 
@@ -110,19 +108,26 @@ def _propose_deal(manifest_url: str,
 @click.command()
 @click.argument("manifest_url")
 @click.option("--retrievability-bps", type=click.IntRange(0, 10000), required=True,
+              prompt="Enter retrievability guarantee in bps (basis points, e.g. 7550 = 75.50%); 0 means \"don't care\"",
               help="Retrievability guarantee in bps (basis points, e.g. 7550 = 75.50%); 0 means \"don't care\".")
 @click.option("--bandwidth-mbps", type=click.IntRange(0, 64000), required=True,
-              help="Bandwidth guarantee in Mbps. Capped at ~64 Gbps.")
-# TODO LATER make this price-per-tib-per-month?
-@click.option("--price-per-sector-per-month", help="Maximum monthly price per 32 GiB sector in payment token smallest units (wei-equivalent).",
-              type=click.IntRange(min=0), required=True)
+              prompt="Enter bandwidth guarantee in Mbps; 0 means \"don't care\"",
+              help="Bandwidth guarantee in Mbps; 0 means \"don't care\".")
+# TODO ASAP make this price-per-tib-per-month? and decimal units instead of wei?
+@click.option("--price-per-sector-per-month", type=click.IntRange(min=0), required=True,
+              prompt="Enter maximum monthly price per 32 GiB sector in payment token smallest units (wei-equivalent)",
+              help="Maximum monthly price per 32 GiB sector in payment token smallest units (wei-equivalent).")
 @click.option("--duration-months", type=click.IntRange(min=6), required=True,
+              prompt="Enter deal duration in months (minimum 6 months)",
               help="Deal duration in months. Minimum supported is 6 months.")
 @click.option("--latency-ms", type=click.IntRange(min=0), required=True,
-              help="Latency guarantee in milliseconds.")
-@click.option("--indexing-pct", type=click.IntRange(0, 100), default=0, show_default=True,
+              prompt="Enter latency guarantee in milliseconds; 0 means \"don't care\"",
+              help="Latency guarantee in milliseconds; 0 means \"don't care\".")
+@click.option("--indexing-pct", type=click.IntRange(0, 100), required=True,
+              prompt="Enter IPNI indexing guarantee in percentage; 0 means \"don't care\"",
               help="IPNI indexing guarantee in percentage; 0 means \"don't care\".")
 @click.option("--payment-token", envvar="USDC_TOKEN", required=True,
+              prompt="Enter address of the ERC20 token to pay with",
               help="Address of the ERC20 token to pay with.  [default: USDC_TOKEN env var]")
 def propose_deal(manifest_url: str,
                  retrievability_bps: int,

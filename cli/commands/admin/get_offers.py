@@ -2,22 +2,28 @@ import click
 
 from cli import utils
 from cli.services.contracts.sp_registry import SPRegistry
-from cli.services.web3_service import ActorId
+from cli.services.web3_service import ActorId, EthAddress
 
 
 @click.command()
 @click.argument("provider_id", required=False)
-def get_offers(provider_id: str | None = None):
+@click.option("--organization", help="Optional SP Organization to list offers for.")
+def get_offers(provider_id: str | None = None, organization: str | None = None):
     """
     Get PoRep Market offers for a given Storage Provider.
 
-    PROVIDER_ID - Optional Storage Provider ID to list offers for.  [default: all registered SPs]
+    PROVIDER_ID - Optional Storage Provider ID to list offers for.
     """
 
     if provider_id is not None:
         offer_ids = SPRegistry().get_offers_by_provider(ActorId(provider_id))
     else:
-        provider_ids = SPRegistry().get_providers()
+        if organization:
+            providers = SPRegistry().get_provider_views_by_organization(EthAddress.from_any(organization))
+            provider_ids = [provider.provider_id for provider in providers]
+        else:
+            provider_ids = SPRegistry().get_providers()
+
         offer_ids = []
 
         for _provider_id in provider_ids:
