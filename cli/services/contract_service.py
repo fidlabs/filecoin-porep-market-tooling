@@ -198,7 +198,7 @@ class ContractService:
             _dry_run = is_dry_run()
 
             if not utils.confirm(f"\n== DRY RUN: {_dry_run}\n"
-                                 f"== Chain ID: {tx_params['chainId']}\n"
+                                 f"== Chain ID: {tx_params['chainId']} ({Web3Service().get_network_name(tx_params['chainId'])})\n"
                                  f"== Transaction:\n"
                                  f"==   from: {tx_params['from']}\n"
                                  f"==   to: {tx_params['to']}\n"

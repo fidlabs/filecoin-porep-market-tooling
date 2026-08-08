@@ -54,7 +54,7 @@ def get_deal(deal_id: int):
               help="Provider ID to filter deals by.  [default: all SPs under current SP_ORGANIZATION address]")
 def get_deals(state: str | None = None, provider_id: str | None = None):
     """
-    Get SP's deals by state and optionally by provider ID.
+    Get SP's deals by state and optionally by Storage Provider ID.
 
     STATE - Optional deal state to filter by.
     """

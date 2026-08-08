@@ -292,6 +292,13 @@ class Web3Service:
     def get_chain_id(self) -> int:
         return self._w3.eth.chain_id
 
+    def get_network_name(self, chain_id: int | None = None) -> str:
+        return {
+            314: "Filecoin Mainnet",
+            314159: "Filecoin Calibration Testnet",
+            31415926: "Lotus devnet",
+        }.get(chain_id if chain_id is not None else self.get_chain_id(), "unknown network")
+
     def get_block_number(self) -> int:
         return self._w3.eth.block_number
 

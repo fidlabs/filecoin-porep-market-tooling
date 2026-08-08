@@ -10,7 +10,7 @@ from cli.services.web3_service import ActorId, Web3Service
 
 @click.command()
 @click.argument("action", required=False, type=click.Choice(["accept", "reject"], case_sensitive=False))
-@click.option("--provider-id", required=False, help="Provider ID to filter deals by.")
+@click.option("--provider-id", required=False, help="Storage Provider ID to filter deals by.")
 def manage_proposed_deals(action: str | None = None, provider_id: str | None = None):
     """
     Interactively manage proposed deals. Either accept or reject each proposed deal manually or based on provided ACTION argument.
