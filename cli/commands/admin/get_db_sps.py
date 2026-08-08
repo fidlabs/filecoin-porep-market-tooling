@@ -11,9 +11,9 @@ from cli.services.web3_service import ActorId
               help="SPRegistry database connection string.")
 @click.option("--show-all", is_flag=True, default=False,
               help="Whether to return SPs from all organizations or only from those eligible for registration.  [default: false]")
-@click.option("--miner-id", required=False,
+@click.option("--miner-id",
               help="SPRegistry database miner_id (PoRep Market SP ID) to return.")
-@click.option("--organization-address", required=False,
+@click.option("--organization-address",
               help="SPRegistry database organization_address to return.")
 def get_db_sps(db_url: str,
                show_all: bool = False,

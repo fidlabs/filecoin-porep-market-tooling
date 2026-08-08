@@ -50,7 +50,7 @@ def get_deal(deal_id: int):
 
 @click.command()
 @click.argument("state", required=False, type=click.Choice(PoRepMarketDealState.to_string_list(), case_sensitive=False))
-@click.option("--provider-id", required=False,
+@click.option("--provider-id",
               help="Provider ID to filter deals by.  [default: all SPs under current SP_ORGANIZATION address]")
 def get_deals(state: str | None = None, provider_id: str | None = None):
     """

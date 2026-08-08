@@ -9,7 +9,7 @@ from cli.services.web3_service import EthAddress
 
 @click.command()
 @click.argument("token_address", envvar="USDC_TOKEN")
-@click.option("--owner", required=False,
+@click.option("--owner",
               help="Address / actor ID of the FileCoinPay account owner.  [default: all payee addresses under current SP_ORGANIZATION address]")
 def get_filecoinpay_account(token_address: str, owner: str | None = None):
     """

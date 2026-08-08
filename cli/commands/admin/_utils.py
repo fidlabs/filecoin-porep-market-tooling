@@ -212,10 +212,11 @@ def get_db_sps(db_url: str,
     #
 
     result: list[SPRegistryProviderInput] = []
-    organizations = SPRegistryDB(db_url).get_organizations(kyc_status=kyc_status,
-                                                           organization_db_id=organization_db_id,
-                                                           miner_id=miner_id,
-                                                           organization_address=organization_address)
+    organizations = SPRegistryDB(db_url).get_organizations(
+        kyc_status=kyc_status,
+        organization_db_id=organization_db_id,
+        miner_id=miner_id,
+        organization_address=organization_address)
 
     for org in organizations:
         if org.kyc_status.strip().lower() != "approved":
