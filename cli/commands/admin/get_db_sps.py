@@ -6,24 +6,25 @@ from cli.services.web3_service import ActorId
 
 
 @click.command()
-@click.argument("db_id", type=click.IntRange(min=0), required=False)
+@click.argument("provider_id", required=False)
 @click.option("--db-url", envvar="SP_REGISTRY_DATABASE_URL", show_envvar=True, required=True,
               help="SPRegistry database connection string.")
+@click.option("--db-id", type=click.IntRange(min=0),
+              help="Optional SPRegistry database organization ID to return SPs from.")
 @click.option("--show-all", is_flag=True, default=False,
               help="Whether to return SPs from all organizations or only from those eligible for registration.  [default: false]")
-@click.option("--miner-id",
-              help="SPRegistry database miner_id (PoRep Market SP ID) to return.")
 @click.option("--organization-address",
-              help="SPRegistry database organization_address to return.")
+              help="Optional SPRegistry database organization_address to return SPs from.")
 def get_db_sps(db_url: str,
                show_all: bool = False,
                db_id: int | None = None,
-               miner_id: str | None = None,
+               provider_id: str | None = None,
                organization_address: str | None = None):
     """
     Get SPs from SPRegistry database.
 
-    DB_ID - SPRegistry database organization ID to fetch SPs from. [default: SPs from all organizations eligible for registration]
+    \b
+    PROVIDER_ID - Optional SPRegistry database miner_id (PoRep Market SP ID) to return.
     """
 
     click.echo(utils.json_pretty(
@@ -31,7 +32,7 @@ def get_db_sps(db_url: str,
             db_url,
             kyc_status="approved" if (not show_all and not db_id) else None,
             organization_db_id=db_id,
-            miner_id=ActorId(miner_id) if miner_id else None,
+            provider_id=ActorId(provider_id) if provider_id else None,
             organization_address=organization_address,
         )
     ))

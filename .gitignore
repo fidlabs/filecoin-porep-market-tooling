@@ -20,3 +20,5 @@ curio.bat
 aria2-*/
 
 # others
+
+.env.backup
