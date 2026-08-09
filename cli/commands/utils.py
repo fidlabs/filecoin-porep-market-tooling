@@ -304,7 +304,7 @@ def _validate_manifest(manifest: object, quiet=False) -> list[dict]:
         dag_pieces = [piece for piece in pieces if piece["pieceType"] == "dag"]
 
         if not quiet:
-            click.echo(f"Found {len(data_pieces)} data piece(s) and {len(dag_pieces)} dag piece(s), {len(pieces)} total")
+            click.echo(f"Found {len(data_pieces)} data piece(s) and {len(dag_pieces)} dag piece(s), {len(pieces)} total pieces")
 
         if len(pieces) <= 1 or len(data_pieces) != len(pieces) - 1 or len(dag_pieces) != 1:
             raise click.ClickException("Invalid manifest pieces: must contain exactly one dag piece and at least one data piece")
@@ -623,3 +623,15 @@ def register_offers(offers: list[SPRegistryOfferInput], signer: TxSigner):
 
             tx_hash = SPRegistry().create_offer(offer, signer)
             click.echo(f"Offer for provider {offer.provider_id} registered: {tx_hash}")
+
+
+# noinspection PyPep8Naming,PyShadowingNames
+# pylint: disable=invalid-name
+def price_per_TiB_tokens_to_per_32_GiB_wei(price_per_TiB_tokens: float, payment_token_decimals: int) -> int:
+    price_per_TiB = utils.to_wei(price_per_TiB_tokens, payment_token_decimals)
+    price_per_32_GiB = price_per_TiB / (1024 / 32)
+
+    if price_per_32_GiB != int(price_per_32_GiB):
+        raise ValueError(f"Precision lost: {price_per_32_GiB:.10f} != {int(price_per_32_GiB)}")
+
+    return int(price_per_32_GiB)

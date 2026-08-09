@@ -34,12 +34,6 @@ class PoRepMarketDealType(enum.Enum):
     PUBLIC = 10
     PRIVATE = 20
 
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return self.name
-
     @staticmethod
     def from_web3(s: str | int | None) -> "PoRepMarketDealType":
         if s is None or s == "":
@@ -55,6 +49,16 @@ class PoRepMarketDealType(enum.Enum):
             return PoRepMarketDealType.PRIVATE
         else:
             raise ValueError(f"Invalid deal type: {s}")
+
+    @staticmethod
+    def to_string_list():
+        return [v.name for v in PoRepMarketDealType]
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
 
 
 # @notice DealRequest struct represents the client's request for a storage deal
@@ -209,6 +213,10 @@ class PoRepMarketSettlementReason(enum.Enum):
         return self.name
 
     @staticmethod
+    def to_string_list():
+        return [v.name for v in PoRepMarketSettlementReason]
+
+    @staticmethod
     def from_web3(s: str | int | None) -> "PoRepMarketSettlementReason":
         if s is None or s == "":
             raise ValueError(f"Invalid settlement reason: {s}")
@@ -246,6 +254,10 @@ class PoRepMarketSettlementResult(enum.Enum):
 
     def __repr__(self):
         return self.name
+
+    @staticmethod
+    def to_string_list():
+        return [v.name for v in PoRepMarketSettlementResult]
 
     @staticmethod
     def from_web3(s: str | int | None) -> "PoRepMarketSettlementResult":
@@ -316,7 +328,7 @@ class PoRepMarket(ContractService):
                 request.manifest_location,
                 request.payment_token_address,
                 request.duration_days,
-                request.deal_type,
+                request.deal_type.value,
                 (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
             )),
             signer
@@ -337,7 +349,7 @@ class PoRepMarket(ContractService):
                 request.manifest_location,
                 request.payment_token_address,
                 request.duration_days,
-                request.deal_type,
+                request.deal_type.value,
                 (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
             )),
             signer

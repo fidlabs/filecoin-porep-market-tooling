@@ -2,6 +2,7 @@ import click
 import humanfriendly
 
 from cli import utils
+from cli.commands import utils as commands_utils
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketSLIThresholds
 from cli.services.contracts.sp_registry import (
@@ -86,7 +87,7 @@ def get_db_offers(db_url: str,
 
     # noinspection PyPep8Naming
     # pylint: disable=invalid-name
-    def payment_type_to_payment_input(payment_type: str, price_per_TiB_usd_tokens: float) -> SPRegistryOfferPaymentInput:
+    def payment_type_to_payment_input(payment_type: str, price_per_TiB_tokens: float) -> SPRegistryOfferPaymentInput:
         # noinspection PyShadowingNames
         def payment_type_to_token(payment_type: str) -> ERC20Contract:
             if payment_type == USDCToken().symbol():
@@ -94,24 +95,13 @@ def get_db_offers(db_url: str,
             else:
                 raise ValueError(f"Unsupported payment type: {payment_type}")
 
-        # noinspection PyPep8Naming,PyShadowingNames
-        # pylint: disable=invalid-name
-        def price_per_TiB_usd_to_per_32_GiB(price_per_TiB_usd_tokens: float, payment_token: ERC20Contract) -> int:
-            price_per_TiB = utils.to_wei(price_per_TiB_usd_tokens, payment_token.decimals())
-            price_per_32_GiB = price_per_TiB / (1024 / 32)
-
-            if price_per_32_GiB != int(price_per_32_GiB):
-                raise ValueError(f"Precision lost: {price_per_32_GiB:.10f} != {int(price_per_32_GiB)}")
-
-            return int(price_per_32_GiB)
-
         token = payment_type_to_token(payment_type)
 
         # noinspection PyArgumentList
         return SPRegistryOfferPaymentInput(
             token=token.address(),
             active=True,
-            price_per_32_gib_per_month=price_per_TiB_usd_to_per_32_GiB(price_per_TiB_usd_tokens, token)
+            price_per_32_gib_per_month=commands_utils.price_per_TiB_tokens_to_per_32_GiB_wei(price_per_TiB_tokens, token.decimals())
         )
 
     #
@@ -194,8 +184,8 @@ def get_db_offers(db_url: str,
                 result.append(SPRegistryOfferInput(
                     provider_id=offer_miner_id,
                     terms=SPRegistryOfferTerms(
-                        min_size_bytes=0,  # TODO
-                        max_size_bytes=0,  # TODO
+                        min_size_bytes=0,  # TODO ASAP
+                        max_size_bytes=0,  # TODO ASAP
                         min_duration_epochs=min_deal_duration_epochs,
                         max_duration_epochs=max_deal_duration_epochs
                     ),
