@@ -14,23 +14,23 @@ from cli import utils
 
 
 class ActorId(int):
-    VALID_PREFIX_PER_CHAIN_ID = {
-        314: "f0",  # Filecoin Mainnet
-        314159: "t0",  # Filecoin Calibration Testnet
-        31415926: "f0",  # Lotus devnet
-    }
-
     def __new__(cls, actor_id: int | str) -> "ActorId":
+        VALID_PREFIX_PER_CHAIN_ID = {
+            314: "f0",  # Filecoin Mainnet
+            314159: "t0",  # Filecoin Calibration Testnet
+            31415926: "f0",  # Lotus devnet
+        }
+
         chain_id = Web3Service().get_chain_id()
 
         try:
-            expected_prefix = cls.VALID_PREFIX_PER_CHAIN_ID[chain_id]
+            expected_prefix = VALID_PREFIX_PER_CHAIN_ID[chain_id]
         except KeyError as e:
             raise ValueError(f"Unknown network prefix for chain ID {chain_id} ({Web3Service().get_network_name()})") from e
 
         if isinstance(actor_id, str):
             # case: string "f1000" or "t1000"
-            if actor_id.startswith(tuple(cls.VALID_PREFIX_PER_CHAIN_ID.values())):
+            if actor_id.startswith(tuple(VALID_PREFIX_PER_CHAIN_ID.values())):
                 prefix = actor_id[:2]
                 actor_id = actor_id[2:]
 
@@ -60,6 +60,9 @@ class ActorId(int):
 
     def __repr__(self) -> str:
         return f"ActorId({str(self)!r})"
+
+    def __json__(self) -> str:
+        return str(self)
 
     @classmethod
     def try_parse(cls, actor_id: str | int) -> "ActorId | None":

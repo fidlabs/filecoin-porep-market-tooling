@@ -30,7 +30,16 @@ def register_sp(provider_id: str,
     Web3Service().wait_for_pending_transactions(sp_address())
 
     _provider_id = ActorId(provider_id)
-    registered_info = SPRegistry().get_provider_view(_provider_id)
+
+    try:
+        registered_info = SPRegistry().get_provider_view(_provider_id)
+    except RuntimeError as e:
+        registered_info = None
+
+        if not organization or not available_capacity or not payee_address:
+            raise click.UsageError(
+                "SP is not registered yet. Please provide all required parameters: --organization, --available-capacity, --payee-address"
+            ) from e
 
     # noinspection PyArgumentList
     provider = SPRegistryProviderInput(

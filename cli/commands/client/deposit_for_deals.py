@@ -118,11 +118,11 @@ def __deposit_for_deals(deals: list[PoRepMarketDealView], months: int, token_add
     filecoinpay_available_funds = filecoinpay_account.funds - filecoinpay_account.lockup_current
     filecoinpay_available_funds_str = utils.str_from_wei(filecoinpay_available_funds, token_decimals)
 
-    sector_size_bytes = PoRepMarket().get_sector_size_bytes()
+    SECTOR_SIZE_BYTES = PoRepMarket().get_sector_size_bytes()
     total_required_amount = sum(client_utils.calculate_deposit_amount(deal.terms.requested_size_bytes,
                                                                       deal.payment.price_per_32_gib_per_month,
-                                                                      months,
-                                                                      sector_size_bytes) for deal in deals)
+                                                                      SECTOR_SIZE_BYTES,
+                                                                      months) for deal in deals)
     total_required_amount_str = utils.str_from_wei(total_required_amount, token_decimals)
 
     deposit_amount = total_required_amount - filecoinpay_available_funds

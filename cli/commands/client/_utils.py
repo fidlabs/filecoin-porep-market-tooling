@@ -19,17 +19,14 @@ from cli.services.web3_service import Web3Service
 
 
 def calculate_deposit_amount(size_bytes: int,
-                             price_per_32_gib_per_month: int,
-                             deposit_for_months: int = 1,
-                             sector_size_bytes: int | None = None) -> int:
+                             price_per_sector_per_month: int,
+                             sector_size_bytes: int,
+                             deposit_for_months: int = 1) -> int:
     #
     assert deposit_for_months > 0
 
-    if not sector_size_bytes:
-        sector_size_bytes = PoRepMarket().get_sector_size_bytes()
-
     deal_size_sectors = utils.bytes_to_sectors(size_bytes, sector_size_bytes)
-    result = deal_size_sectors * price_per_32_gib_per_month * deposit_for_months
+    result = deal_size_sectors * price_per_sector_per_month * deposit_for_months
 
     if result != ceil(result):
         utils.confirm(f"Calculated deposit amount {result} != {ceil(result)}. Continue?", default=True, abort=True, session_id="calculated-deposit-amount")
