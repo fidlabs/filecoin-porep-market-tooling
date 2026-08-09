@@ -54,6 +54,10 @@ class PoRepMarketDealType(enum.Enum):
     def to_string_list():
         return [v.name for v in PoRepMarketDealType]
 
+    @staticmethod
+    def to_selectable_string_list():
+        return [v.name for v in PoRepMarketDealType if v != PoRepMarketDealType.NONE]
+
     def __str__(self):
         return self.name
 
@@ -455,7 +459,12 @@ class PoRepMarket(ContractService):
 
     # @notice Size of a single Filecoin sector in bytes (32 GiB)
     def get_sector_size_bytes(self) -> int:
-        return self.call_contract(self.contract.functions.SECTOR_SIZE())
+        result = self.call_contract(self.contract.functions.SECTOR_SIZE())
+
+        if result != 32 * 1024 * 1024 * 1024:
+            raise RuntimeError(f"Unexpected sector size: {result} bytes. Expected 32 GiB.")
+
+        return result
 
     # @notice Gets the deal activation padding (in percent)
     def get_deal_activation_padding(self) -> int:

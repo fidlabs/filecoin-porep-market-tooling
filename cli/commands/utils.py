@@ -508,7 +508,7 @@ def register_or_update_sps(providers: list[SPRegistryProviderInput], signer: TxS
             registered_info = SPRegistry().get_provider_view(provider_info.provider_id)
 
             # print only different parameters
-            current_different_params = {k: getattr(registered_info, k) for k in provider_info.__dict__.keys() if
+            current_different_params = {k: getattr(registered_info, k) for k in provider_info.__dict__ if
                                         getattr(registered_info, k) != getattr(provider_info, k)}
             new_different_params = {k: v for k, v in provider_info.__dict__.items() if getattr(registered_info, k) != v}
             assert current_different_params.keys() == new_different_params.keys()
@@ -604,7 +604,7 @@ def register_offers(offers: list[SPRegistryOfferInput], signer: TxSigner):
     # TODO ASAP support offer update
     utils.confirm_ok("Current version of CLI / Smart Contracts does not support updating existing offers. "
                      "Each offer in the SP Registry DB will be considered new. "
-                     "Please double-check each offer before sumitting it on-chain.")
+                     "Please double-check each offer before submitting it on-chain.")
 
     for offer in offers:
         is_registered = False
@@ -627,11 +627,25 @@ def register_offers(offers: list[SPRegistryOfferInput], signer: TxSigner):
 
 # noinspection PyPep8Naming,PyShadowingNames
 # pylint: disable=invalid-name
-def price_per_TiB_tokens_to_per_32_GiB_wei(price_per_TiB_tokens: float, payment_token_decimals: int) -> int:
-    price_per_TiB = utils.to_wei(price_per_TiB_tokens, payment_token_decimals)
-    price_per_32_GiB = price_per_TiB / (1024 / 32)
+def price_per_TiB_tokens_to_per_sector_wei(
+        price_per_TiB_tokens: float,
+        payment_token_decimals: int,
+        sector_size_bytes: int,
+) -> int:
+    TIB_BYTES = 1024 ** 4  # 1 TiB in bytes
 
-    if price_per_32_GiB != int(price_per_32_GiB):
-        raise ValueError(f"Precision lost: {price_per_32_GiB:.10f} != {int(price_per_32_GiB)}")
+    if sector_size_bytes <= 0:
+        raise ValueError(f"Invalid sector size: {sector_size_bytes}")
 
-    return int(price_per_32_GiB)
+    sectors_per_TiB, size_remainder = divmod(TIB_BYTES, sector_size_bytes)
+
+    if size_remainder != 0:
+        raise ValueError(f"Sector size {sector_size_bytes} does not divide 1 TiB exactly")
+
+    price_per_TiB_wei = utils.to_wei(price_per_TiB_tokens, payment_token_decimals)
+    price_per_sector_wei, price_remainder = divmod(price_per_TiB_wei, sectors_per_TiB)
+
+    if price_remainder != 0:
+        raise ValueError(f"Precision lost: {price_per_TiB_wei} / {sectors_per_TiB} has remainder {price_remainder}")
+
+    return price_per_sector_wei

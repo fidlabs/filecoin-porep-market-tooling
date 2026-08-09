@@ -10,11 +10,11 @@ from cli.services.web3_service import ActorId
 @click.option("--db-url", envvar="SP_REGISTRY_DATABASE_URL", show_envvar=True, required=True,
               help="SPRegistry database connection string.")
 @click.option("--organization-db-id", type=click.IntRange(min=0),
-              help="Optional SPRegistry database organization ID to return SPs from.")
+              help="Optional SPRegistry database organization ID to return offers from.")
 @click.option("--show-all", is_flag=True, default=False,
-              help="Whether to return SPs from all organizations or only from those eligible for registration.  [default: false]")
+              help="Whether to return offers from all organizations or only from those eligible for registration.  [default: false]")
 @click.option("--organization-address",
-              help="Optional SPRegistry database organization_address to return SPs from.")
+              help="Optional SPRegistry database organization_address to return offers from.")
 def get_db_offers(db_url: str,
                   show_all: bool = False,
                   organization_db_id: int | None = None,

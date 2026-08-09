@@ -41,6 +41,7 @@ def _propose_deal(manifest_url: str,
         raise click.BadParameter("Price per TiB per month is too high. Please use decimal format (e.g., 1.5 for 1.5 USDC).")
 
     MBPS_TO_BYTES_PER_SECOND = 125_000  # 1 Mbps = 10^6 bits/s / 8 = 125 000 bytes/s
+    SECTOR_SIZE_BYTES = PoRepMarket().get_sector_size_bytes()
     manifest, raw_manifest = commands_utils.fetch_manifest(manifest_url)
 
     pieces = manifest[0]["pieces"]
@@ -51,12 +52,16 @@ def _propose_deal(manifest_url: str,
 
     click.echo(f"\nFound {len(pieces)} total pieces with total pieceSize "
                f"{humanfriendly.format_size(pieces_size_bytes)} = {humanfriendly.format_size(pieces_size_bytes, binary=True)} = "
-               f"{utils.bytes_to_sectors(pieces_size_bytes, PoRepMarket().get_sector_size_bytes())} sectors "
+               f"{utils.bytes_to_sectors(pieces_size_bytes, SECTOR_SIZE_BYTES)} sectors "
                f"(including dag piece)")
 
     payment_token = ERC20Contract(payment_token_address)
     payment_token_decimals = payment_token.decimals()
-    price_per_sector_per_month_wei = commands_utils.price_per_TiB_tokens_to_per_32_GiB_wei(price_per_tib_per_month, payment_token_decimals)
+    price_per_sector_per_month_wei = commands_utils.price_per_TiB_tokens_to_per_sector_wei(
+        price_per_tib_per_month,
+        payment_token_decimals,
+        SECTOR_SIZE_BYTES
+    )
 
     # noinspection PyArgumentList
     deal_request = PoRepMarketDealRequest(
@@ -99,6 +104,7 @@ def _propose_deal(manifest_url: str,
 
     max_cost_per_month = client_utils.calculate_deposit_amount(deal_request.requested_size_bytes,
                                                                deal_request.max_price_per_32_gib_per_month,
+                                                               SECTOR_SIZE_BYTES,
                                                                deposit_for_months=1)
     max_cost_per_month_str = utils.str_from_wei(max_cost_per_month, payment_token_decimals)
 
@@ -126,7 +132,8 @@ def _propose_deal(manifest_url: str,
 @click.option("--payment-token", envvar="USDC_TOKEN", required=True,
               prompt="Enter address of the ERC20 token to pay with",
               help="Address of the ERC20 token to pay with.  [default: USDC_TOKEN env var]")
-@click.option("--deal-type", type=click.Choice(PoRepMarketDealType.to_string_list(), case_sensitive=False), required=True,
+@click.option("--deal-type", required=True,
+              type=click.Choice(PoRepMarketDealType.to_selectable_string_list(), case_sensitive=False),
               prompt="Enter type of the deal to propose",
               help="Type of the deal to propose.")
 @click.option("--retrievability-bps", type=click.IntRange(0, 10000), required=True,

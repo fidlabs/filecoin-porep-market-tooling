@@ -87,7 +87,10 @@ def get_db_offers(db_url: str,
 
     # noinspection PyPep8Naming
     # pylint: disable=invalid-name
-    def payment_type_to_payment_input(payment_type: str, price_per_TiB_tokens: float) -> SPRegistryOfferPaymentInput:
+    def payment_type_to_payment_input(payment_type: str,
+                                      price_per_TiB_tokens: float,
+                                      sector_size_bytes: int) -> SPRegistryOfferPaymentInput:
+        #
         # noinspection PyShadowingNames
         def payment_type_to_token(payment_type: str) -> ERC20Contract:
             if payment_type == USDCToken().symbol():
@@ -101,11 +104,16 @@ def get_db_offers(db_url: str,
         return SPRegistryOfferPaymentInput(
             token=token.address(),
             active=True,
-            price_per_32_gib_per_month=commands_utils.price_per_TiB_tokens_to_per_32_GiB_wei(price_per_TiB_tokens, token.decimals())
+            price_per_32_gib_per_month=commands_utils.price_per_TiB_tokens_to_per_sector_wei(
+                price_per_TiB_tokens,
+                token.decimals(),
+                sector_size_bytes
+            )
         )
 
     #
 
+    SECTOR_SIZE_BYTES = PoRepMarket().get_sector_size_bytes()
     MAX_DEAL_DURATION_DAYS_LIMIT = PoRepMarket().get_max_deal_duration_days()
     MIN_DEAL_DURATION_DAYS_LIMIT = PoRepMarket().get_min_deal_duration_days()
     result: list[SPRegistryOfferInput] = []
@@ -129,7 +137,7 @@ def get_db_offers(db_url: str,
                 break
 
             try:
-                payments = [payment_type_to_payment_input(payment_type, offer.price_per_tib_usd) for payment_type in offer.payment_types]
+                payments = [payment_type_to_payment_input(payment_type, offer.price_per_tib_usd, SECTOR_SIZE_BYTES) for payment_type in offer.payment_types]
             except ValueError as e:
                 utils.confirm_ok(
                     f"Organization {offer.organization_address} [db_id {offer.org_id}] "
