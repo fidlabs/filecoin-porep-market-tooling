@@ -1,4 +1,5 @@
 import click
+import humanfriendly
 
 from cli.commands import utils as commands_utils
 from cli.commands.sp._sp import sp_address, sp_signer
@@ -11,13 +12,13 @@ from cli.services.web3_service import Web3Service, ActorId, EthAddress
 @click.argument("provider_id")
 @click.option("--organization",
               help="Organization that runs the SP.  [default: SP_ORGANIZATION env var]")
-@click.option("--available-bytes",
-              type=click.IntRange(min=0), help="Total SP capacity available for deals.")
+@click.option("--available-capacity",
+              help="Total SP disk capacity available for deals in human readable size format (e.g., 1TiB, 500GiB).")
 @click.option("--payee-address",
               help="Address receiving SP payments for deals.")
 def register_sp(provider_id: str,
                 organization: str | None = None,
-                available_bytes: int | None = None,
+                available_capacity: str | None = None,
                 payee_address: str | None = None):
     """
     Interactively register or update a single Storage Provider on-chain via SPRegistry contract.
@@ -35,7 +36,7 @@ def register_sp(provider_id: str,
     provider = SPRegistryProviderInput(
         provider_id=_provider_id,
         organization_address=EthAddress.from_any(organization) if organization else registered_info.organization_address,
-        available_bytes=available_bytes if available_bytes is not None else registered_info.available_bytes,
+        available_bytes=humanfriendly.parse_size(available_capacity) if available_capacity is not None else registered_info.available_bytes,
         payee_address=EthAddress.from_any(payee_address) if payee_address else registered_info.payee_address
     )
 

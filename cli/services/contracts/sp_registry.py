@@ -422,7 +422,7 @@ class SPRegistry(ContractService):
                         request.manifest_location,
                         request.payment_token_address,
                         request.duration_days,
-                        request.deal_type,
+                        request.deal_type.value,
                         (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
                     )
                 )
@@ -443,7 +443,7 @@ class SPRegistry(ContractService):
                     request.manifest_location,
                     request.payment_token_address,
                     request.duration_days,
-                    request.deal_type,
+                    request.deal_type.value,
                     (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
                 )
             ),
@@ -468,7 +468,7 @@ class SPRegistry(ContractService):
                     request.manifest_location,
                     request.payment_token_address,
                     request.duration_days,
-                    request.deal_type,
+                    request.deal_type.value,
                     (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
                 )
             )
@@ -493,7 +493,7 @@ class SPRegistry(ContractService):
                     request.manifest_location,
                     request.payment_token_address,
                     request.duration_days,
-                    request.deal_type,
+                    request.deal_type.value,
                     (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
                 )
             ),
