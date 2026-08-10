@@ -162,7 +162,7 @@ def json_pretty(json_data, sort_keys: bool = False):
             return data.name
         if isinstance(data, (bytes, bytearray)):
             return "0x" + data.hex()
-        if hasattr(data, "__json__") and callable(getattr(data, "__json__")):
+        if hasattr(data, "__json__") and callable(data.__json__):
             return data.__json__()
         if hasattr(data, "__dict__") and data.__dict__:
             return _json_pretty(data.__dict__)

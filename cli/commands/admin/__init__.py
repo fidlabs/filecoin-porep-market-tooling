@@ -6,6 +6,7 @@ from .get_offers import get_offers, get_offer
 from .get_payment_tokens import get_payment_tokens
 from .get_sps import get_sps
 from .pause_block_sp import pause_sp, unpause_sp, block_sp, unblock_sp
+from .propose_deal_for_offer import propose_deal_for_offer
 from .register_sps import register_db_sps, register_mocked_sps
 from .set_completion_padding import set_completion_padding
 from .set_offer_active import set_offer_active
@@ -13,6 +14,7 @@ from .set_payment_token import set_payment_token
 from .set_role import set_role, has_role
 from .terminate_deal import terminate_deal
 
+admin.add_command(propose_deal_for_offer)
 admin.add_command(get_payment_tokens)
 admin.add_command(set_payment_token)
 admin.add_command(has_role)
