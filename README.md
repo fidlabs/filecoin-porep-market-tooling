@@ -74,22 +74,26 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
    [https://github.com/fidlabs/filecoin-porep-market-tooling](https://github.com/fidlabs/filecoin-porep-market-tooling) \
    NOTE: this repo is still heavily developed and continuously improved so please make sure to do `git pull` from inside the folder with the code
    to ensure you have the latest version of the code.
+
    ```bash
    git clone https://github.com/fidlabs/filecoin-porep-market-tooling
    ```
 
 4. Go into your local copy of the tool and install dependencies:
+
    ```bash
    python3 -m pip install -r requirements.txt
    ```
 
 5. Then copy the config file:
+
    ```bash
    cp .env.mainnet .env
    ```
 
 6. Edit the `.env` file:
     - put in the secret key of the controller wallet from step 2:
+
       ```bash
       # Private key used in SP operations
       # Set this if you want to interact with the system as a storage provider (organization)
@@ -101,6 +105,7 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
       ```
 
     - add your SP organization address:
+
       ```bash
       # Organization address to manage SPs from
       # You must have the SP_PRIVATE_KEY of an organization controlling address set to perform SP management operations
@@ -110,6 +115,7 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
 
 7. Ensure the file permissions on `.env` prevent the reading of this value by any user other than the one that runs the tooling.
    Assuming you are already logged in as the correct user, that would be:
+
    ```bash
    chmod 600 .env 
    ```
@@ -121,6 +127,7 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
 
 9. Now you should be ready to run the tools.
     - to find deals allocated to you:
+
       ```bash
       python3 ./porep_tooling_cli.py sp get-deals
       ```
@@ -133,77 +140,100 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
       All the `.car` files referenced are then available for pulling from the standard location of `<manifest_ip>:7777/piece/<CID>`.
 
     - deals in `PROPOSED` state need to be accepted. Assuming you are happy to accept the deal on the terms offered, run:
+
       ```bash   
         python3 ./porep_tooling_cli.py sp accept-deal <dealID you want to accept>
       ```
+
       then check back a few minutes later.
 
     - to download the deal that is allocated to you and in `COMPLETED` state run:
+
       ```bash
       python3 ./porep_tooling_cli.py sp get-deals completed
       python3 ./porep_tooling_cli.py sp onboard-data <DEAL ID> --output-dir <your dir>
       ``` 
 
     - get the allocation IDs:
+
       ```bash
       python3 ./porep_tooling_cli.py sp get-allocations <DEAL ID>
       ``` 
 
     - and claim deals:
+
       ```bash
       python3 ./porep_tooling_cli.py sp claim-allocations curio <DEAL ID> 
       ```
 
 10. To get full list of commands for the tooling:
+
     ```bash
     python3 ./porep_tooling_cli.py sp --help
     ```
 
-## Typical client workflow
+## Typical Client workflow
 
-1. Set up the CLI as in [Installation](#installation), then put your client key in `.env`:
+1. Set up the CLI as in [Installation](#installation), then put your client keys in `.env`:
+
+   ```bash
+   # Use `lotus wallet list` to see your wallets and their addresses and `lotus wallet new delegated` to create new delegated wallet
+   # Must be delegated f410 address or standard EVM address
+   CLIENT_LOTUS_WALLET=<lotus wallet>
+   
+   # Generate this by running `lotus auth create-token --perm sign`
+   CLIENT_LOTUS_TOKEN=<lotus token>
+   ```
+
+   or
+
    ```bash
    # 32-byte raw private key (hex, 0x-prefixed)
-   CLIENT_PRIVATE_KEY=<your client wallet private key>
+   CLIENT_PRIVATE_KEY=<private key>
    ```
+
    Optionally set `CLIENT_ADDRESS` to the matching `0x` address. Secure the file:
+
    ```bash
    chmod 600 .env
    ```
 
-2. Prepare your dataset with [Singularity](https://github.com/filecoin-project/singularity) (or equivalent) so you have a published **manifest URL** and piece CARs served for the SP to fetch.
+2. Prepare your dataset with [Singularity](https://github.com/filecoin-project/singularity) (or equivalent) so you have a published **manifest URL** and piece
+   CARs served for the SP to fetch.
 
-3. Propose a deal from that manifest. Deals can be **public** (open retrieval) or **private** (retrieval limited to the deal owner and any wallets you later authorize with a voucher):
+3. Propose a deal from that manifest. Deals can be **public** (open retrieval) or **private** (retrieval limited to the deal owner and any wallets you later
+   authorize with a voucher):
+
    ```bash
-   python3 ./porep_tooling_cli.py client propose-deal-from-manifest <MANIFEST_URL> \
+   python3 ./porep_tooling_cli.py client propose-deal <MANIFEST_URL> \
+     --price-per-tib-per-month <usdc in decimal format> \
+     --duration-months <months> \
      --retrievability-bps <bps> \
      --bandwidth-mbps <mbps> \
-     --price-per-sector-per-month <usdc-wei> \
-     --duration-months <months> \
-     --latency-ms <ms>
+     --latency-ms <ms> \
+     --indexing-pct <pct> \
+     --deal-type <public|private>
    ```
-   Track status with `client get-deals`. After an SP accepts (`ACCEPTED`), initialize payment (validator, deposit, rail):
+
+4. Initialize payment (validator, deposit, rail):
+
    ```bash
    python3 ./porep_tooling_cli.py client init-accepted-deals <DEAL_ID>
    ```
 
-4. Make DataCap allocations, then complete the deal (allocations must finish before completion). `make-allocations` posts allocation batches and then marks the deal `COMPLETED` so the SP can onboard; use `complete-deal` only if you need to complete separately:
+5. Make DataCap allocations:
+
    ```bash
    python3 ./porep_tooling_cli.py client make-allocations <DEAL_ID>
-   # usually already done by make-allocations:
-   python3 ./porep_tooling_cli.py client complete-deal <DEAL_ID>
    ```
 
-5. Optional — for a **private** deal, sign an EIP-712 retrieval voucher so a third-party wallet can retrieve the data (used with [large-paid-retrievals](https://github.com/fidlabs/large-paid-retrievals)):
+6. Optional - for a **private** deal, sign an EIP-712 retrieval voucher so a third-party wallet can retrieve the data (used
+   with [large-paid-retrievals](https://github.com/fidlabs/large-paid-retrievals)):
+
    ```bash
    python3 ./porep_tooling_cli.py client sign-retrieval-voucher \
      --grantee <0x-third-party-wallet> \
      --deal-id <DEAL_ID>
-   ```
-
-6. Full client command list:
-   ```bash
-   python3 ./porep_tooling_cli.py client --help
    ```
 
 ## Developing new CLI commands
