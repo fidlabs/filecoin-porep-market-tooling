@@ -117,7 +117,7 @@ class PoRepMarketDealState(enum.Enum):
     FINALIZED = 40
     REJECTED = 50
     EXPIRED = 60
-    TERMINATED = 70
+    EARLY_TERMINATED = 70
 
     def __str__(self):
         return self.name
@@ -150,8 +150,8 @@ class PoRepMarketDealState(enum.Enum):
             return PoRepMarketDealState.REJECTED
         elif s in ("60", "expired"):
             return PoRepMarketDealState.EXPIRED
-        elif s in ("70", "terminated"):
-            return PoRepMarketDealState.TERMINATED
+        elif s in ("70", "early_terminated"):
+            return PoRepMarketDealState.EARLY_TERMINATED
         else:
             raise ValueError(f"Invalid deal state: {s}")
 
@@ -419,22 +419,11 @@ class PoRepMarket(ContractService):
     def terminate_deal(self, deal_id: int, state: PoRepMarketDealState, signer: TxSigner) -> str:
         return self.sign_and_send_tx(self.contract.functions.terminateDeal(deal_id, state.value), signer)
 
-    # @notice Rejects a deal
-    # @param dealId The id of the deal proposal
-    def reject_deal(self, deal_id: int, signer: TxSigner) -> str:
-        return self.sign_and_send_tx(self.contract.functions.rejectDeal(deal_id), signer)
-
     # @notice Rejects a deal in Accepted state before rail is set
     # @dev Only callable by the admin
     # @param dealId The id of the deal proposal
     def reject_accepted_deal(self, deal_id: int, signer: TxSigner) -> str:
         return self.sign_and_send_tx(self.contract.functions.rejectAcceptedDeal(deal_id), signer)
-
-    # @notice Rejects expired deal
-    # @param dealId The id of the deal
-    # @dev A deal is considered expired if it has been in the proposed state past the configured expiration
-    def reject_expired_deal(self, deal_id: int, signer: TxSigner) -> str:
-        return self.sign_and_send_tx(self.contract.functions.rejectExpiredDeal(deal_id), signer)
 
     # @notice Updates the rail id for a deal proposal
     # @dev Updates the rail id for a deal proposal

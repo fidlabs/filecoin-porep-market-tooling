@@ -385,28 +385,6 @@ def withdraw_from_filecoinpay(to_address: str, amount: float, token_address: Eth
     return tx_hash
 
 
-def reject_deal(deal: PoRepMarketDeal, signer: TxSigner, confirm_session_id: str | None = None) -> str:
-    # deals are created directly in ACCEPTED state (offer match == acceptance);
-    # they can be rejected while no FileCoinPay rail is set yet. PROPOSED is kept
-    # for deals predating the auto-accept contract.
-
-    if deal.state not in (PoRepMarketDealState.PROPOSED, PoRepMarketDealState.ACCEPTED):
-        raise click.ClickException(f"Deal ID {deal.deal_id} is in state {deal.state} != PROPOSED/ACCEPTED")
-
-    if deal.state == PoRepMarketDealState.ACCEPTED and deal.rail_id:
-        raise click.ClickException(f"Deal ID {deal.deal_id} already has FileCoinPay rail {deal.rail_id} set and cannot be rejected")
-
-    utils.confirm(f"Rejecting deal ID {deal.deal_id}: {deal}", default=True, abort=True, session_id=confirm_session_id)
-
-    if deal.state == PoRepMarketDealState.ACCEPTED:
-        tx_hash = PoRepMarket().reject_accepted_deal(deal.deal_id, signer)
-    else:
-        tx_hash = PoRepMarket().reject_deal(deal.deal_id, signer)
-
-    click.echo(f"Deal ID {deal.deal_id} rejected: {tx_hash}")
-    return tx_hash
-
-
 def pause_sp(provider_id: ActorId, signer: TxSigner) -> str:
     provider = SPRegistry().get_provider_view(provider_id)
 
