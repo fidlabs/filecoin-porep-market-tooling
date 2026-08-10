@@ -39,20 +39,21 @@ def terminate_deal(deal_id: int):
     - `PoRepMarket.rejectAcceptedDeal` for ACCEPTED deals without initialized FileCoinPay rail,
     - `PoRepMarket.terminateDeal` for ACCEPTED/ACTIVE deals with initialized FileCoinPay rail.
 
+    \b
     DEAL_ID - The ID of the deal to terminate.
     """
 
     SelfUpdateService.check_and_prompt(manual=False)
     Web3Service().wait_for_pending_transactions(admin_address())
 
-    deal = PoRepMarketViewHelper().get_deal_view(deal_id).deal
-    utils.confirm(f"Terminating deal ID {deal.deal_id}: {deal}", abort=True)
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
+    utils.confirm(f"Terminating deal ID {deal.deal.deal_id}: {deal}", abort=True)
 
-    if deal.state == PoRepMarketDealState.ACTIVE:
-        tx_hash = _terminate_active_deal(deal)
-    elif deal.state == PoRepMarketDealState.ACCEPTED:
-        tx_hash = _terminate_accepted_deal(deal)
+    if deal.deal.state == PoRepMarketDealState.ACTIVE:
+        tx_hash = _terminate_active_deal(deal.deal)
+    elif deal.deal.state == PoRepMarketDealState.ACCEPTED:
+        tx_hash = _terminate_accepted_deal(deal.deal)
     else:
         raise click.ClickException(f"Deal ID {deal_id} is not in a state that can be terminated")
 
-    click.echo(f"Deal ID {deal.deal_id} terminated: {tx_hash}")
+    click.echo(f"Deal ID {deal.deal.deal_id} terminated: {tx_hash}")

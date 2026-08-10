@@ -12,7 +12,7 @@ from cli.services.web3_service import Web3Service
 @click.argument("deal_id", type=click.IntRange(min=1))
 def finalize_deal(deal_id: int):
     """
-    Finalize an active deal after its service window has ended.
+    Finalize an ACTIVE deal after its service window has ended.
 
     DEAL_ID - The ID of the deal to finalize.
     """
@@ -20,11 +20,11 @@ def finalize_deal(deal_id: int):
     SelfUpdateService.check_and_prompt(manual=False)
     Web3Service().wait_for_pending_transactions(admin_address())
 
-    deal = PoRepMarketViewHelper().get_deal_view(deal_id).deal
-    if deal.state != PoRepMarketDealState.ACTIVE:
-        raise click.ClickException(f"Deal ID {deal_id} is in state {deal.state} != ACTIVE")
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
+    if deal.deal.state != PoRepMarketDealState.ACTIVE:
+        raise click.ClickException(f"Deal ID {deal_id} is in state {deal.deal.state} != ACTIVE")
 
-    utils.confirm(f"Finalizing deal ID {deal.deal_id}: {deal}", abort=True)
+    utils.confirm(f"Finalizing deal ID {deal.deal.deal_id}: {deal}", abort=True)
 
-    tx_hash = PoRepMarket().finalize_deal(deal.deal_id, admin_signer())
-    click.echo(f"Deal ID {deal.deal_id} finalized: {tx_hash}")
+    tx_hash = PoRepMarket().finalize_deal(deal.deal.deal_id, admin_signer())
+    click.echo(f"Deal ID {deal.deal.deal_id} finalized: {tx_hash}")

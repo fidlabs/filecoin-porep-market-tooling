@@ -114,14 +114,14 @@ def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = N
     SelfUpdateService.check_and_prompt(manual=False)
 
     click.echo("Fetching deal details...")
-    deal = PoRepMarketViewHelper().get_deal_view(deal_id).deal
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
 
-    if deal.state not in (PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE):
-        raise click.ClickException(f"Deal ID {deal_id} is in state {deal.state}, expected ACCEPTED or ACTIVE")
+    if deal.deal.state not in (PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE):
+        raise click.ClickException(f"Deal ID {deal_id} is in state {deal.deal.state}, expected ACCEPTED or ACTIVE")
 
     if software.lower() == "curio":
         curio_path = _get_curio_path()
-        evidence_adapter_filecoin_address = deal.evidence_adapter_address.to_filecoin_address()
+        evidence_adapter_filecoin_address = deal.deal.evidence_adapter_address.to_filecoin_address()
 
         def build_allocation_command(allocation_id: int, deal: PoRepMarketDeal, **_) -> list[str]:
             return _build_allocation_command_curio(curio_path, evidence_adapter_filecoin_address, allocation_id, deal)
@@ -138,8 +138,8 @@ def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = N
     else:
         raise click.ClickException(f"Unsupported software: {software}")
 
-    deal_allocations = commands_utils.get_deal_allocations(deal)
-    deal_claims = commands_utils.get_deal_claims(deal)
+    deal_allocations = commands_utils.get_deal_allocations(deal.deal)
+    deal_claims = commands_utils.get_deal_claims(deal.deal)
     allocations_not_claimed = {allocation_id: alloc for allocation_id, alloc in deal_allocations.items() if str(allocation_id) not in deal_claims}
 
     if not cid:
@@ -166,7 +166,7 @@ def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = N
 
     for allocation_id, allocation in allocations_not_claimed.items():
         command = build_allocation_command(allocation_id=int(allocation_id),
-                                           deal=deal,
+                                           deal=deal.deal,
                                            cid=allocation.get("Data", {}).get("/")
                                            ) + ctx.args
 
