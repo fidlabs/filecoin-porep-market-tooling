@@ -1,6 +1,7 @@
 from ._admin import admin, info, wait
 from .get_db_offers import get_db_offers, get_mocked_offers
 from .get_db_sps import get_db_sps, get_mocked_sps
+from .finalize_deal import finalize_deal
 from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals
 from .get_offers import get_offers, get_offer
 from .get_payment_tokens import get_payment_tokens
@@ -25,6 +26,7 @@ admin.add_command(get_deal_rail)
 admin.add_command(get_deal_manifest)
 admin.add_command(get_deal)
 admin.add_command(terminate_deal)
+admin.add_command(finalize_deal)
 admin.add_command(block_sp)
 admin.add_command(unblock_sp)
 admin.add_command(pause_sp)
