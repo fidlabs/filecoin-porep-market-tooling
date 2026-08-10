@@ -23,21 +23,20 @@ RETRIEVAL_VOUCHER_TYPES = {
 }
 
 
-@click.command("sign-retrieval-voucher")
+@click.command()
 @click.option("--grantee", required=True,
               help="Third-party wallet address allowed to retrieve the deal data.")
-@click.option("--deal-id", type=click.IntRange(min=0), required=True,
+@click.option("--deal-id", type=click.IntRange(min=1), required=True,
               help="Monotonically increasing deal ID to grant retrieval access for.")
-@click.option("--deadline", type=click.IntRange(min=1), default=None,
+@click.option("--deadline", type=click.IntRange(min=1),
               help="Absolute Unix-second deadline for the voucher.")
-@click.option("--expires-in", type=click.IntRange(min=1), default=None,
-              help="Seconds until the voucher expires. Ignored if --deadline is set.  "
-                   f"[default: {DEFAULT_EXPIRES_IN_SECONDS} (1 year)]")
+@click.option("--expires-in", type=click.IntRange(min=1),
+              help="Seconds until the voucher expires.  [default: 1 year]")
 def sign_retrieval_voucher(grantee: str, deal_id: int, deadline: int | None, expires_in: int | None):
     """
     Sign an EIP-712 retrieval voucher granting a third-party wallet access to a deal.
 
-    Prints the raw voucher token: base64url-nopad(compact JSON of typed-data + signature).
+    Prints the raw voucher token: base64url-nopad (compact JSON of typed-data + signature).
     """
 
     if deadline is not None and expires_in is not None:
@@ -97,6 +96,7 @@ def sign_retrieval_voucher(grantee: str, deal_id: int, deadline: int | None, exp
         "message": message_data,
         "signature": signature_hex,
     }
+
     # Compact JSON + base64url (no pad) voucher token
     token_bytes = json.dumps(token, separators=(",", ":"), sort_keys=True).encode()
     voucher_token = base64.urlsafe_b64encode(token_bytes).rstrip(b"=").decode()
