@@ -1,12 +1,16 @@
 import ipaddress
 import json
 import socket
+from math import ceil
 from pathlib import Path
 from urllib.parse import ParseResult, urlparse
 
 import click
+import humanfriendly
 import requests
+from hexbytes import HexBytes
 from requests import RequestException
+from web3 import Web3
 
 from cli import utils
 from cli._cli import is_dry_run
@@ -16,8 +20,9 @@ from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import (
     PoRepMarket,
     PoRepMarketDeal,
-    PoRepMarketDealState,
+    PoRepMarketDealState, PoRepMarketDealType, PoRepMarketDealRequest, PoRepMarketSLIThresholds,
 )
+from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.contracts.sp_registry import SPRegistry, SPRegistryProviderInput, SPRegistryProviderView, SPRegistryOfferInput
 from cli.services.contracts.validator_factory import ValidatorFactory
 from cli.services.txsigner import TxSigner
@@ -649,3 +654,127 @@ def price_per_TiB_tokens_to_per_sector_wei(
         raise ValueError(f"Precision lost: {price_per_TiB_wei} / {sectors_per_TiB} has remainder {price_remainder}")
 
     return price_per_sector_wei
+
+
+def hash_manifest(raw_manifest: bytes) -> HexBytes:
+    return Web3.keccak(text=raw_manifest.decode("utf-8"))
+
+
+def calculate_deposit_amount(size_bytes: int,
+                             price_per_sector_per_month: int,
+                             sector_size_bytes: int,
+                             deposit_for_months: int = 1) -> int:
+    #
+    assert deposit_for_months > 0
+
+    deal_size_sectors = utils.bytes_to_sectors(size_bytes, sector_size_bytes)
+    result = deal_size_sectors * price_per_sector_per_month * deposit_for_months
+
+    if result != ceil(result):
+        utils.confirm(f"Calculated deposit amount {result} != {ceil(result)}. Continue?", default=True, abort=True, session_id="calculated-deposit-amount")
+
+    return ceil(result)
+
+
+def propose_deal(signer: TxSigner,
+                 manifest_url: str,
+                 retrievability_bps: int,
+                 bandwidth_mbps: int,
+                 price_per_tib_per_month: float,
+                 duration_months: int,
+                 latency_ms: int,
+                 indexing_pct: int,
+                 payment_token_address: EthAddress,
+                 deal_type: PoRepMarketDealType,
+                 offer_id: int | None = None) -> str:
+    #
+    if price_per_tib_per_month > 100:
+        raise click.BadParameter("Price per TiB per month is too high. Please use decimal format (e.g., 1.5 for 1.5 USDC).")
+
+    MBPS_TO_BYTES_PER_SECOND = 125_000  # 1 Mbps = 10^6 bits/s / 8 = 125 000 bytes/s
+    SECTOR_SIZE_BYTES = PoRepMarket().get_sector_size_bytes()
+    manifest, raw_manifest = fetch_manifest(manifest_url)
+
+    pieces = manifest[0]["pieces"]
+    pieces_size_bytes = sum(piece.get("pieceSize", 0) for piece in pieces)
+
+    if pieces_size_bytes <= 0:
+        raise ValueError("Invalid deal size")
+
+    click.echo(f"\nFound {len(pieces)} total pieces with total pieceSize "
+               f"{humanfriendly.format_size(pieces_size_bytes)} = {humanfriendly.format_size(pieces_size_bytes, binary=True)} = "
+               f"{utils.bytes_to_sectors(pieces_size_bytes, SECTOR_SIZE_BYTES)} sectors "
+               f"(including dag piece)")
+
+    payment_token = ERC20Contract(payment_token_address)
+    payment_token_decimals = payment_token.decimals()
+    price_per_sector_per_month_wei = price_per_TiB_tokens_to_per_sector_wei(
+        price_per_tib_per_month,
+        payment_token_decimals,
+        SECTOR_SIZE_BYTES
+    )
+
+    # noinspection PyArgumentList
+    deal_request = PoRepMarketDealRequest(
+        manifest_hash=hash_manifest(raw_manifest),
+        requested_size_bytes=pieces_size_bytes,
+        max_price_per_32_gib_per_month=price_per_sector_per_month_wei,
+        manifest_location=manifest_url,
+        payment_token_address=payment_token_address,
+        duration_days=duration_months * 30,  # PoRep Market smart contracts assumes month == 30 days
+        deal_type=deal_type,
+        required_slis=PoRepMarketSLIThresholds(
+            retrievability_bps=retrievability_bps,
+            bandwidth_bytes_per_second=bandwidth_mbps * MBPS_TO_BYTES_PER_SECOND,
+            latency_ms=latency_ms,
+            indexing_pct=indexing_pct,
+        )
+    )
+
+    Web3Service().wait_for_pending_transactions(signer.address())
+    existing_deals = get_client_deals(signer.address())
+
+    # warn if any of existing client deals looks similar to the new deal proposal
+    for existing_deal in existing_deals:
+        is_active = existing_deal.state in [PoRepMarketDealState.PROPOSED, PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE]
+        existing_deal_view = PoRepMarketViewHelper().get_deal_view(existing_deal.deal_id)
+
+        if deal_request.requested_size_bytes == existing_deal_view.terms.requested_size_bytes:
+            utils.confirm(f"\nWARNING: Client deal with the same deal size "
+                          f"already exists in PoRep Market: {utils.json_pretty(existing_deal)} "
+                          "Continue?", default=not is_active, abort=True)
+
+        if deal_request.manifest_location == existing_deal_view.data.manifest_location:
+            utils.confirm(
+                f"\nWARNING: Client deal with the same manifest location "
+                f"already exists in PoRep Market: {utils.json_pretty(existing_deal)} "
+                "Continue?", default=not is_active, abort=True)
+
+    payment_token_symbol = payment_token.symbol()
+    deal_duration_months = deal_request.duration_days // 30  # PoRep Market smart contracts assumes month == 30 days
+
+    max_cost_per_month = calculate_deposit_amount(deal_request.requested_size_bytes,
+                                                  deal_request.max_price_per_32_gib_per_month,
+                                                  SECTOR_SIZE_BYTES,
+                                                  deposit_for_months=1)
+    max_cost_per_month_str = utils.str_from_wei(max_cost_per_month, payment_token_decimals)
+
+    total_max_cost = max_cost_per_month * deal_duration_months
+    total_max_cost_str = utils.str_from_wei(total_max_cost, payment_token_decimals)
+    against_offer_str = f" against offer {offer_id}" if offer_id else ""
+    against_offer_warn = "The admin account becomes the client of the resulting deal. " if offer_id else ""
+
+    utils.confirm(f"\nProposing deal{against_offer_str}: {utils.json_pretty(deal_request)}\n\n"
+                  f"This will cost you maximum of {max_cost_per_month_str} {payment_token_symbol} per month. "
+                  f"This is a total of {total_max_cost_str} {payment_token_symbol} for {duration_months} months. "
+                  f"{against_offer_warn}"
+                  f"Continue?", abort=True)
+
+    if offer_id:
+        tx_hash = PoRepMarket().propose_deal_with_specific_offer(offer_id, deal_request, signer)
+        click.echo(f"Created deal proposal from manifest {manifest_url} against offer {offer_id}: {tx_hash}")
+    else:
+        tx_hash = PoRepMarket().propose_deal(deal_request, signer)
+        click.echo(f"Created deal proposal from manifest {manifest_url}: {tx_hash}")
+
+    return tx_hash

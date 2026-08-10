@@ -1,14 +1,16 @@
 import click
 
+from cli import utils
 from cli.commands import utils as commands_utils
-from cli.commands.client._client import client_signer
+from cli.commands.admin._admin import admin_signer
 from cli.services.contracts.porep_market import PoRepMarketDealType
-from cli.services.contracts.usdc_token import USDCToken
+from cli.services.contracts.sp_registry import SPRegistry
 from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import EthAddress
 
 
 @click.command()
+@click.argument("offer_id", type=click.IntRange(min=1))
 @click.argument("manifest_url")
 @click.option("--price-per-tib-per-month", type=click.FloatRange(min=0, min_open=True), required=True,
               prompt="Enter maximum monthly price per 1 TiB in decimal format in given --payment-token tokens (e.g., 1.5 for 1.5 USDC)",
@@ -35,29 +37,40 @@ from cli.services.web3_service import EthAddress
 @click.option("--indexing-pct", type=click.IntRange(0, 100), required=True,
               prompt="Enter IPNI indexing guarantee in percentage; 0 means \"don't care\"",
               help="IPNI indexing guarantee in percentage; 0 means \"don't care\".")
-def propose_deal(manifest_url: str,
-                 retrievability_bps: int,
-                 bandwidth_mbps: int,
-                 price_per_tib_per_month: float,
-                 duration_months: int,
-                 latency_ms: int,
-                 indexing_pct: int,
-                 payment_token: str,
-                 deal_type: str):
+def propose_deal_for_offer(offer_id: int,
+                           manifest_url: str,
+                           retrievability_bps: int,
+                           bandwidth_mbps: int,
+                           price_per_tib_per_month: float,
+                           duration_months: int,
+                           latency_ms: int,
+                           indexing_pct: int,
+                           payment_token: str,
+                           deal_type: str):
     """
-    Interactively propose a deal from MANIFEST_URL with the specified parameters.
+    Interactively propose a deal from MANIFEST_URL against a specific OFFER_ID,
+    bypassing automatic Storage Provider matching.
 
     \b
     1. Fetch and validate manifest from a given MANIFEST_URL,
-    2. prepare and confirm deal proposal details,
-    3. propose deal on-chain via PoRep Market contract.
+    2. fetch and display the reserved offer,
+    3. prepare and confirm deal proposal details,
+    4. propose deal on-chain via PoRep Market contract, reserving OFFER_ID.
 
+    Note: the admin account becomes the client of the resulting deal.
+
+    \b
+    OFFER_ID - The ID of the Storage Provider offer to reserve for the deal.
     MANIFEST_URL - URL of the deal manifest file to use.
     """
 
     SelfUpdateService.check_and_prompt(manual=False)
 
-    commands_utils.propose_deal(client_signer(),
+    offer = SPRegistry().get_offer_view(offer_id)
+    utils.confirm(f"\nReserving offer for deal: {utils.json_pretty(offer)} "
+                  "This bypasses automatic Storage Provider matching. Continue?", abort=True)
+
+    commands_utils.propose_deal(admin_signer(),
                                 manifest_url,
                                 retrievability_bps,
                                 bandwidth_mbps,
@@ -66,26 +79,5 @@ def propose_deal(manifest_url: str,
                                 latency_ms,
                                 indexing_pct,
                                 EthAddress.from_any(payment_token),
-                                PoRepMarketDealType.from_web3(deal_type))
-
-
-@click.command(hidden=True)
-@click.argument("manifest_url")
-def propose_deal_mocked(manifest_url: str):
-    retrievability_bps = 10
-    bandwidth_mbps = 1
-    price_per_tib_per_month = 1  # 1 USDC per TiB per month
-    duration_months = 6
-    latency_ms = 999
-    indexing_pct = 1
-
-    commands_utils.propose_deal(client_signer(),
-                                manifest_url,
-                                retrievability_bps,
-                                bandwidth_mbps,
-                                price_per_tib_per_month,
-                                duration_months,
-                                latency_ms,
-                                indexing_pct,
-                                USDCToken().address(),
-                                PoRepMarketDealType.PUBLIC)
+                                PoRepMarketDealType.from_web3(deal_type),
+                                offer_id=offer_id)
