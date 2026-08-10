@@ -1,7 +1,6 @@
 from ._client import client, info, wait
 from .deposit_amount import deposit_amount
 from .deposit_for_deals import deposit_for_deals, deposit_for_whole_deal
-from .finalize_deal import finalize_deal
 from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals
 from .get_filecoinpay_account import get_filecoinpay_account
 from .init_accepted_deals import init_accepted_deals
@@ -23,5 +22,4 @@ client.add_command(init_accepted_deals)
 client.add_command(deposit_for_deals)
 client.add_command(deposit_for_whole_deal)
 client.add_command(make_allocations)
-client.add_command(finalize_deal)
 client.add_command(withdraw_from_filecoinpay)

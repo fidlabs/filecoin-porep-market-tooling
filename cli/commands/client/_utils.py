@@ -56,18 +56,6 @@ def sign_filecoinpay_permit(amount: int, permit_deadline: int, token: USDCToken)
     return signed_msg
 
 
-def finalize_deal(deal: PoRepMarketDeal) -> str:
-    if deal.state != PoRepMarketDealState.ACTIVE:
-        raise click.ClickException(f"Deal id {deal.deal_id} is not in ACTIVE state, current state: {deal.state}")
-
-    utils.confirm(f"Finalizing deal id {deal.deal_id}: {deal}", default=True, abort=True)
-
-    tx_hash = PoRepMarket().finalize_deal(deal.deal_id, client_signer())
-    click.echo(f"Deal id {deal.deal_id} finalized: {tx_hash}")
-
-    return tx_hash
-
-
 def finish_datacap_posting(deal: PoRepMarketDeal) -> str:
     if deal.state != PoRepMarketDealState.ACCEPTED:
         raise click.ClickException(f"Deal id {deal.deal_id} is not in ACCEPTED state, current state: {deal.state}")
