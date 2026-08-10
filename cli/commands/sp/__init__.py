@@ -1,5 +1,4 @@
 from ._sp import info, sp, wait
-from .accept_deal import accept_deal
 from .claim_allocations import claim_allocations
 from .get_allocations import get_allocations
 from .get_claims import get_claims
@@ -32,7 +31,6 @@ sp.add_command(info)
 sp.add_command(wait)
 sp.add_command(onboard_data)
 sp.add_command(get_deals)
-sp.add_command(accept_deal)
 sp.add_command(get_sps)
 sp.add_command(get_allocations)
 sp.add_command(withdraw_from_filecoinpay)

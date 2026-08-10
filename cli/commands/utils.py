@@ -714,7 +714,7 @@ def propose_deal(signer: TxSigner,
 
     # warn if any of existing client deals looks similar to the new deal proposal
     for existing_deal in existing_deals:
-        is_active = existing_deal.state in [PoRepMarketDealState.PROPOSED, PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE]
+        is_active = existing_deal.state in [PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE]
         existing_deal_view = PoRepMarketViewHelper().get_deal_view(existing_deal.deal_id)
 
         if deal_request.requested_size_bytes == existing_deal_view.terms.requested_size_bytes:

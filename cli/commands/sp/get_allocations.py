@@ -16,11 +16,11 @@ def get_allocations(deal_id: int, not_claimed: bool = False):
     DEAL_ID - The ID of the deal to get DDO allocations for.
     """
 
-    deal = PoRepMarketViewHelper().get_deal_view(deal_id).deal
-    allocations = commands_utils.get_deal_allocations(deal)
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
+    allocations = commands_utils.get_deal_allocations(deal.deal)
 
     if not_claimed:
-        claims = commands_utils.get_deal_claims(deal)
+        claims = commands_utils.get_deal_claims(deal.deal)
         allocations = {allocation_id: alloc for allocation_id, alloc in allocations.items() if allocation_id not in claims}
 
     click.echo(utils.json_pretty(allocations))
