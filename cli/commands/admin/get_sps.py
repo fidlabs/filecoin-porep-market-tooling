@@ -6,7 +6,7 @@ from cli.services.web3_service import ActorId, EthAddress
 
 
 @click.command()
-@click.argument('provider_id', required=False)
+@click.argument("provider_id", required=False)
 @click.option("--organization", help="Optional SP Organization to list SPs from.")
 def get_sps(provider_id: str | None = None, organization: str | None = None):
     """
