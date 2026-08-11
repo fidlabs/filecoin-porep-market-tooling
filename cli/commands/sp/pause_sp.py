@@ -34,33 +34,3 @@ def unpause_sp(provider_id: str):
     Web3Service().wait_for_pending_transactions(sp_address())
 
     commands_utils.unpause_sp(ActorId(provider_id), sp_signer())
-
-
-@click.command()
-@click.argument("provider_id")
-def block_sp(provider_id: str):
-    """
-    Block a Storage Provider in the SPRegistry Smart Contract.
-
-    PROVIDER_ID - Storage Provider ID to block.
-    """
-
-    SelfUpdateService.check_and_prompt(manual=False)
-    Web3Service().wait_for_pending_transactions(sp_address())
-
-    commands_utils.block_sp(ActorId(provider_id), sp_signer())
-
-
-@click.command()
-@click.argument("provider_id")
-def unblock_sp(provider_id: str):
-    """
-    Unblock a Storage Provider in the SPRegistry Smart Contract.
-
-    PROVIDER_ID - Storage Provider ID to unblock.
-    """
-
-    SelfUpdateService.check_and_prompt(manual=False)
-    Web3Service().wait_for_pending_transactions(sp_address())
-
-    commands_utils.unblock_sp(ActorId(provider_id), sp_signer())

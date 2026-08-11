@@ -8,7 +8,7 @@ from .get_offers import get_offers, get_offer
 from .get_sps import get_sps
 from .is_authorized import is_authorized
 from .onboard_data import onboard_data
-from .pause_block_sp import pause_sp, unpause_sp, block_sp, unblock_sp
+from .pause_sp import pause_sp, unpause_sp
 from .register_offer import register_offer, update_offer
 from .register_sp import register_sp
 from .set_offer_active import set_offer_active
@@ -22,8 +22,6 @@ sp.add_command(get_offer)
 sp.add_command(set_offer_active)
 sp.add_command(pause_sp)
 sp.add_command(unpause_sp)
-sp.add_command(block_sp)
-sp.add_command(unblock_sp)
 sp.add_command(get_deal_manifest)
 sp.add_command(get_deal_rail)
 sp.add_command(get_claims)
