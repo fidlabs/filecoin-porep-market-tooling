@@ -9,10 +9,13 @@ from .get_sps import get_sps
 from .is_authorized import is_authorized
 from .onboard_data import onboard_data
 from .pause_block_sp import pause_sp, unpause_sp, block_sp, unblock_sp
+from .register_offer import register_offer, update_offer
 from .register_sp import register_sp
 from .set_offer_active import set_offer_active
 from .withdraw_from_filecoinpay import withdraw_from_filecoinpay
 
+sp.add_command(register_offer)
+sp.add_command(update_offer)
 sp.add_command(register_sp)
 sp.add_command(get_offers)
 sp.add_command(get_offer)

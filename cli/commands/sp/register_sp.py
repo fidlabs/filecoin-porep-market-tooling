@@ -13,7 +13,7 @@ from cli.services.web3_service import Web3Service, ActorId, EthAddress
 @click.option("--organization",
               help="Organization that runs the SP.  [default: SP_ORGANIZATION env var]")
 @click.option("--available-capacity",
-              help="Total SP disk capacity available for deals in human readable size format (e.g., 1TiB, 500GiB).")
+              help="Total SP disk capacity available for deals in human readable size format (e.g., '1 TiB', 500GiB).")
 @click.option("--payee-address",
               help="Address receiving SP payments for deals.")
 def register_sp(provider_id: str,
