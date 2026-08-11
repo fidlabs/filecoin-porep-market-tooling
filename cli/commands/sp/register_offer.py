@@ -7,7 +7,7 @@ from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.porep_market import PoRepMarketSLIThresholds, PoRepMarket
 from cli.services.contracts.sp_registry import SPRegistryOfferInput, SPRegistry, SPRegistryOfferTerms, SPRegistryOfferPaymentInput
 from cli.services.self_update import SelfUpdateService
-from cli.services.web3_service import Web3Service, EthAddress
+from cli.services.web3_service import Web3Service, EthAddress, ActorId
 
 
 @click.command()
@@ -73,7 +73,7 @@ def register_offer(provider_id: str,
     )
 
     # noinspection PyArgumentList
-    offer = SPRegistryOfferInput(provider_id=provider_id,
+    offer = SPRegistryOfferInput(provider_id=ActorId(provider_id),
                                  terms=SPRegistryOfferTerms(
                                      min_size_bytes=humanfriendly.parse_size(min_size),
                                      max_size_bytes=humanfriendly.parse_size(max_size),
@@ -102,10 +102,10 @@ def register_offer(provider_id: str,
 
 @click.command()
 @click.argument("offer_id", type=click.IntRange(min=1))
-@click.option("--min-size", type=click.IntRange(min=0), required=True,
+@click.option("--min-size", required=True,
               prompt="Enter minimum size of the deal in human readable size format (e.g., '1 TiB', 500GiB)",
               help="Minimum size of the deal you want to accept in human readable size format (e.g., '1 TiB', 500GiB).")
-@click.option("--max-size", type=click.IntRange(min=0), required=True,
+@click.option("--max-size", required=True,
               prompt="Enter maximum size of the deal in human readable size format (e.g., '1 TiB', 500GiB)",
               help="Maximum size of the deal you want to accept in human readable size format (e.g., '1 TiB', 500GiB).")
 @click.option("--min-duration-months", type=click.IntRange(min=6), required=True,
@@ -142,5 +142,4 @@ def update_offer(offer_id: int):
     SelfUpdateService.check_and_prompt(manual=False)
     Web3Service().wait_for_pending_transactions(sp_address())
 
-    SPRegistryOfferInput
     click.echo("This command is not yet implemented.")
