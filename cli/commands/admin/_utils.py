@@ -2,7 +2,6 @@ import click
 import humanfriendly
 
 from cli import utils
-from cli.commands import utils as commands_utils
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketSLIThresholds
 from cli.services.contracts.sp_registry import (
@@ -30,9 +29,6 @@ def get_db_offers(db_url: str,
     EPOCHS_IN_MONTH = PoRepMarket().get_epochs_in_month()
     EPOCHS_IN_DAY = EPOCHS_IN_MONTH // 30  # PoRep Market smart contracts assumes month == 30 days
     assert EPOCHS_IN_DAY * 30 == EPOCHS_IN_MONTH
-
-    def months_to_epochs(months: int) -> int:
-        return months * EPOCHS_IN_MONTH
 
     def months_to_days(months: int) -> int:
         # PoRep Market smart contracts assumes month == 30 days
@@ -104,7 +100,7 @@ def get_db_offers(db_url: str,
         return SPRegistryOfferPaymentInput(
             token=token.address(),
             active=True,
-            price_per_32_gib_per_month=commands_utils.price_per_TiB_tokens_to_per_sector_wei(
+            price_per_32_gib_per_month=utils.price_per_TiB_tokens_to_per_sector_wei(
                 price_per_TiB_tokens,
                 token.decimals(),
                 sector_size_bytes
@@ -164,7 +160,7 @@ def get_db_offers(db_url: str,
                         session_id="get-db-offers"):
                     break
             else:
-                min_deal_duration_epochs = months_to_epochs(offer.deal_duration_min_months)
+                min_deal_duration_epochs = utils.months_to_epochs(offer.deal_duration_min_months, EPOCHS_IN_MONTH)
 
             if months_to_days(offer.deal_duration_max_months) > MAX_DEAL_DURATION_DAYS_LIMIT:
                 max_deal_duration_epochs = days_to_epochs(MAX_DEAL_DURATION_DAYS_LIMIT)
@@ -178,7 +174,7 @@ def get_db_offers(db_url: str,
                         session_id="get-db-offers"):
                     break
             else:
-                max_deal_duration_epochs = months_to_epochs(offer.deal_duration_max_months)
+                max_deal_duration_epochs = utils.months_to_epochs(offer.deal_duration_max_months, EPOCHS_IN_MONTH)
 
             if min_deal_duration_epochs > max_deal_duration_epochs:
                 utils.confirm_ok(
@@ -281,13 +277,13 @@ def get_mocked_sps() -> list[SPRegistryProviderInput]:
     return [
         SPRegistryProviderInput(provider_id=1000,
                                 organization_address="0x99A1b7CE10b02b490F14B1921feCc53625c1952D",
-                                available_bytes=94359739998368,
-                                payee_address="0x99A1b7CE10b02b490F14B1921feCc53625c1952D"),
+                                available_bytes=94359739998367,
+                                payee_address="0x087Ea8b72CBf4B435023356776834eB10dd07f2a"),
         SPRegistryProviderInput(provider_id=1001,
                                 organization_address="0x087Ea8b72CBf4B435023356776834eB10dd07f2a",
                                 available_bytes=94359739998368,
                                 payee_address="0x087Ea8b72CBf4B435023356776834eB10dd07f2a"),
-        SPRegistryProviderInput(provider_id=1002,
+        SPRegistryProviderInput(provider_id="t01002",
                                 organization_address="0x25d4D2EC6814f9FD405a9c3e32E9b7c38358b9ED",
                                 available_bytes=10 * 1024 * 1024 * 1024,
                                 payee_address="0x1efBbe336C7763fB63f57d2490269A577fAbD841"),
@@ -295,5 +291,26 @@ def get_mocked_sps() -> list[SPRegistryProviderInput]:
 
 
 def get_mocked_offers() -> list[SPRegistryOfferInput]:
-    # TODO ASAP
-    return []
+    # noinspection PyArgumentList
+    return [
+        SPRegistryOfferInput(provider_id=1000,
+                             terms=SPRegistryOfferTerms(
+                                 min_size_bytes=0,
+                                 max_size_bytes=0,
+                                 min_duration_epochs=518400,
+                                 max_duration_epochs=3680640
+                             ),
+                             slis=PoRepMarketSLIThresholds(
+                                 retrievability_bps=8000,
+                                 bandwidth_bytes_per_second=322122547,
+                                 latency_ms=0,
+                                 indexing_pct=100
+                             ),
+                             payments=[
+                                 SPRegistryOfferPaymentInput(
+                                     token="0xb3042734b608a1B16e9e86B374A3f3e389B4cDf0",
+                                     active=True,
+                                     price_per_32_gib_per_month=62500000000000000
+                                 )
+                             ])
+    ]

@@ -248,6 +248,43 @@ def bytes_to_sectors(bytes_size: int, sector_size_bytes: int) -> float:
     return bytes_size / sector_size_bytes
 
 
+def months_to_epochs(months: int, epochs_in_month: int) -> int:
+    return months * epochs_in_month
+
+
+# noinspection PyPep8Naming,PyShadowingNames
+# pylint: disable=invalid-name
+def Mbps_to_bps(Mbps: int) -> int:
+    MBPS_TO_BYTES_PER_SECOND = 125_000  # 1 Mbps = 10^6 bits/s / 8 = 125 000 bytes/s
+    return Mbps * MBPS_TO_BYTES_PER_SECOND
+
+
+# noinspection PyPep8Naming,PyShadowingNames
+# pylint: disable=invalid-name
+def price_per_TiB_tokens_to_per_sector_wei(
+        price_per_TiB_tokens: float,
+        payment_token_decimals: int,
+        sector_size_bytes: int,
+) -> int:
+    TIB_BYTES = 1024 ** 4  # 1 TiB in bytes
+
+    if sector_size_bytes <= 0:
+        raise ValueError(f"Invalid sector size: {sector_size_bytes}")
+
+    sectors_per_TiB, size_remainder = divmod(TIB_BYTES, sector_size_bytes)
+
+    if size_remainder != 0:
+        raise ValueError(f"Sector size {sector_size_bytes} does not divide 1 TiB exactly")
+
+    price_per_TiB_wei = to_wei(price_per_TiB_tokens, payment_token_decimals)
+    price_per_sector_wei, price_remainder = divmod(price_per_TiB_wei, sectors_per_TiB)
+
+    if price_remainder != 0:
+        raise ValueError(f"Precision lost: {price_per_TiB_wei} / {sectors_per_TiB} has remainder {price_remainder}")
+
+    return price_per_sector_wei
+
+
 def _show(self, file=None):
     if file is None:
         file = sys.stderr

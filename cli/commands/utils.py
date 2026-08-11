@@ -593,45 +593,19 @@ def register_offers(offers: list[SPRegistryOfferInput], signer: TxSigner):
         is_registered = False
 
         if is_registered:
-            # update PoRep Market Offer parameters if different from registered ones
+            # update PoRep Market offer parameters if different from registered ones
             # __update_offer_params
             pass
         else:
-            # register PoRep Market Offer with given parameters
+            # register PoRep Market offer with given parameters
 
-            if not utils.confirm(f"\nRegistering PoRep Market Offer with parameters: {offer}",
+            if not utils.confirm(f"\nRegistering PoRep Market offer with parameters: {offer}",
                                  default=True, session_id="register-offer"):
                 click.echo("Skipped this offer")
                 continue
 
             tx_hash = SPRegistry().create_offer(offer, signer)
             click.echo(f"Offer for provider {offer.provider_id} registered: {tx_hash}")
-
-
-# noinspection PyPep8Naming,PyShadowingNames
-# pylint: disable=invalid-name
-def price_per_TiB_tokens_to_per_sector_wei(
-        price_per_TiB_tokens: float,
-        payment_token_decimals: int,
-        sector_size_bytes: int,
-) -> int:
-    TIB_BYTES = 1024 ** 4  # 1 TiB in bytes
-
-    if sector_size_bytes <= 0:
-        raise ValueError(f"Invalid sector size: {sector_size_bytes}")
-
-    sectors_per_TiB, size_remainder = divmod(TIB_BYTES, sector_size_bytes)
-
-    if size_remainder != 0:
-        raise ValueError(f"Sector size {sector_size_bytes} does not divide 1 TiB exactly")
-
-    price_per_TiB_wei = utils.to_wei(price_per_TiB_tokens, payment_token_decimals)
-    price_per_sector_wei, price_remainder = divmod(price_per_TiB_wei, sectors_per_TiB)
-
-    if price_remainder != 0:
-        raise ValueError(f"Precision lost: {price_per_TiB_wei} / {sectors_per_TiB} has remainder {price_remainder}")
-
-    return price_per_sector_wei
 
 
 def hash_manifest(raw_manifest: bytes) -> HexBytes:
@@ -669,7 +643,6 @@ def propose_deal(signer: TxSigner,
     if price_per_tib_per_month > 100:
         raise click.BadParameter("Price per TiB per month is too high. Please use decimal format (e.g., 1.5 for 1.5 USDC).")
 
-    MBPS_TO_BYTES_PER_SECOND = 125_000  # 1 Mbps = 10^6 bits/s / 8 = 125 000 bytes/s
     SECTOR_SIZE_BYTES = PoRepMarket().get_sector_size_bytes()
     manifest, raw_manifest = fetch_manifest(manifest_url)
 
@@ -686,7 +659,7 @@ def propose_deal(signer: TxSigner,
 
     payment_token = ERC20Contract(payment_token_address)
     payment_token_decimals = payment_token.decimals()
-    price_per_sector_per_month_wei = price_per_TiB_tokens_to_per_sector_wei(
+    price_per_sector_per_month_wei = utils.price_per_TiB_tokens_to_per_sector_wei(
         price_per_tib_per_month,
         payment_token_decimals,
         SECTOR_SIZE_BYTES
@@ -703,7 +676,7 @@ def propose_deal(signer: TxSigner,
         deal_type=deal_type,
         required_slis=PoRepMarketSLIThresholds(
             retrievability_bps=retrievability_bps,
-            bandwidth_bytes_per_second=bandwidth_mbps * MBPS_TO_BYTES_PER_SECOND,
+            bandwidth_bytes_per_second=utils.Mbps_to_bps(bandwidth_mbps),
             latency_ms=latency_ms,
             indexing_pct=indexing_pct,
         )
