@@ -43,7 +43,7 @@ set +a
   # client tests
   python3 "${CLI_PATH}" client get-deals rejected                >/dev/null &&
   python3 "${CLI_PATH}" client get-filecoinpay-account           >/dev/null &&
-  python3 "${CLI_PATH}" client init-accepted-deals --help        >/dev/null &&
+  python3 "${CLI_PATH}" client init-deals --help                 >/dev/null &&
   python3 "${CLI_PATH}" client deposit-for-deals --help          >/dev/null &&
   python3 "${CLI_PATH}" client propose-deal-from-manifest --help >/dev/null &&
   python3 "${CLI_PATH}" client deposit-amount --help             >/dev/null &&

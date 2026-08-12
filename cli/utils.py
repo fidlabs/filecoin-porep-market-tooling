@@ -254,7 +254,7 @@ def months_to_epochs(months: int, epochs_in_month: int) -> int:
 
 # noinspection PyPep8Naming,PyShadowingNames
 # pylint: disable=invalid-name
-def Mbps_to_bps(Mbps: int) -> int:
+def Mbps_to_Bps(Mbps: int) -> int:
     MBPS_TO_BYTES_PER_SECOND = 125_000  # 1 Mbps = 10^6 bits/s / 8 = 125 000 bytes/s
     return Mbps * MBPS_TO_BYTES_PER_SECOND
 
