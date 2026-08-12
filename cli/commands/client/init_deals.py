@@ -19,9 +19,9 @@ from cli.services.web3_service import Web3Service
 # TODO ASAP test this
 @click.command()
 @click.argument("deal_id", type=click.IntRange(min=1), required=False)
-def init_accepted_deals(deal_id: int | None = None):
+def init_deals(deal_id: int | None = None):
     """
-    Interactively initialize accepted deals.
+    Interactively initialize ACCEPTED deals.
 
     DEAL_ID - Optional deal ID to initialize. If not provided, will initialize all ACCEPTED deals for the client address.
 
@@ -70,7 +70,7 @@ def init_accepted_deals(deal_id: int | None = None):
             continue
 
     click.echo("\n\nAll done!")
-    click.echo(f"\nRun {sys.argv[0]} client deposit-for-deals to make sure you have enough FileCoinPay funds deposited for all your deals.")
+    click.echo(f"\nRun `{sys.argv[0]} client deposit-for-deals` to make sure you have enough FileCoinPay funds deposited for all your deals.")
 
 
 def _deploy_and_set_validator(deal_id: int):

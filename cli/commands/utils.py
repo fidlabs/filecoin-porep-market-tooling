@@ -527,85 +527,16 @@ def register_or_update_sps(providers: list[SPRegistryProviderInput], signer: TxS
             click.echo(f"Provider {provider_info.provider_id} registered: {tx_hash}")
 
 
-# def _update_offer_params(offer: SPRegistryOfferInput,
-#                          registered_info: SPRegistryOfferView,
-#                          different_parameters: dict,
-#                          signer: TxSigner):
-#
-#     assert offer.provider_id == registered_info.provider_id
-#
-# if (provider.max_deal_duration_days, provider.min_deal_duration_days) != (registered_info.max_deal_duration_days, registered_info.min_deal_duration_days):
-#     _different_parameters = {k: v for k, v in different_parameters.items() if k in ["max_deal_duration_days", "min_deal_duration_days"]}
-#
-#     if utils.confirm(f"Updating (max_deal_duration_days, min_deal_duration_days) for Storage Provider {provider.provider_id}: "
-#                      f"{_different_parameters}",
-#                      default=True,
-#                      session_id=f"update-{provider.provider_id}"):
-#         #
-#         tx_hash = SPRegistry().set_deal_duration_limits(provider.provider_id,
-#                                                         provider.min_deal_duration_days,
-#                                                         provider.max_deal_duration_days,
-#                                                         admin_signer())
-#
-#         click.echo(f"Updated (max_deal_duration_days, min_deal_duration_days) for Storage Provider {provider.provider_id}: {tx_hash}")
-#
-#     else:
-#         click.echo("Skipped this parameter\n")
-#
-# if provider.price_per_sector_per_month != registered_info.price_per_sector_per_month:
-#     if utils.confirm(f"Updating price_per_sector_per_month for Storage Provider {provider.provider_id}: "
-#                      f"{different_parameters['price_per_sector_per_month']}",
-#                      default=True,
-#                      session_id=f"update-{provider.provider_id}"):
-#         #
-#         tx_hash = SPRegistry().set_price(provider.provider_id,
-#                                          provider.price_per_sector_per_month,
-#                                          admin_signer())
-#
-#         click.echo(f"Updated price_per_sector_per_month for Storage Provider {provider.provider_id}: {tx_hash}")
-#
-#     else:
-#         click.echo("Skipped this parameter\n")
-#
-# if provider.capabilities != registered_info.capabilities:
-#     if utils.confirm(f"\nUpdating capabilities for Storage Provider {provider.provider_id}: "
-#                      f"{utils.json_pretty(different_parameters['capabilities'])}",
-#                      default=True,
-#                      session_id=f"update-{provider.provider_id}"):
-#         #
-#         tx_hash = SPRegistry().set_capabilities(provider.provider_id,
-#                                                 provider.capabilities,
-#                                                 admin_signer())
-#
-#         click.echo(f"Updated capabilities for Storage Provider {provider.provider_id}: {tx_hash}")
-#
-#     else:
-#         click.echo("Skipped this parameter\n")
-
-
 def register_offers(offers: list[SPRegistryOfferInput], signer: TxSigner):
-    # TODO ASAP support offer update
-    utils.confirm_ok("Current version of CLI / Smart Contracts does not support updating existing offers. "
-                     "Each offer in the SP Registry DB will be considered new. "
-                     "Please double-check each offer before submitting it on-chain.")
-
     for offer in offers:
-        is_registered = False
+        if not utils.confirm(f"Registering PoRep Market offer for provider {offer.provider_id} with parameters: {offer}\n"
+                             f"The parameters cannot be changed once registered. The easiest way to update them is to "
+                             f"set existing offer as not active and create a new one. Continue?", default=True, session_id="register-offer"):
+            click.echo("Skipped this offer")
+            continue
 
-        if is_registered:
-            # update PoRep Market offer parameters if different from registered ones
-            # __update_offer_params
-            pass
-        else:
-            # register PoRep Market offer with given parameters
-
-            if not utils.confirm(f"\nRegistering PoRep Market offer with parameters: {offer}",
-                                 default=True, session_id="register-offer"):
-                click.echo("Skipped this offer")
-                continue
-
-            tx_hash = SPRegistry().create_offer(offer, signer)
-            click.echo(f"Offer for provider {offer.provider_id} registered: {tx_hash}")
+        tx_hash = SPRegistry().create_offer(offer, signer)
+        click.echo(f"Offer for provider {offer.provider_id} registered: {tx_hash}")
 
 
 def hash_manifest(raw_manifest: bytes) -> HexBytes:
@@ -676,7 +607,7 @@ def propose_deal(signer: TxSigner,
         deal_type=deal_type,
         required_slis=PoRepMarketSLIThresholds(
             retrievability_bps=retrievability_bps,
-            bandwidth_bytes_per_second=utils.Mbps_to_bps(bandwidth_mbps),
+            bandwidth_bytes_per_second=utils.Mbps_to_Bps(bandwidth_mbps),
             latency_ms=latency_ms,
             indexing_pct=indexing_pct,
         )
