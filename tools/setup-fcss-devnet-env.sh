@@ -191,6 +191,7 @@ jq_addr() {
 }
 
 POREP_MARKET="$(jq_addr '.contracts.PoRepMarket.proxy')"
+POREP_MARKET_VIEW_HELPER="$(jq_addr '.contracts.PoRepMarketViewHelper.address // .contracts.PoRepMarketViewHelper.proxy')"
 FILECOIN_PAY="$(jq_addr '.externalDependencies.FilecoinPay // .contracts.FilecoinPay.proxy // .contracts.FilecoinPay.address')"
 USDC_TOKEN="$(jq -r '.contracts.usdfc // empty' "$CONTRACT_ADDRESSES_JSON" | tr -d '[:space:]')"
 ADMIN_PRIVATE_KEY="$(tr -d '[:space:]' <"$DEPLOYER_KEY_FILE")"
@@ -198,6 +199,7 @@ CLIENT_PRIVATE_KEY="$(jq -r '.info.users[0].private_key_hex // empty' "$DEVNET_I
 CLIENT_ADDRESS="$(jq -r '.info.users[0].evm_addr // empty' "$DEVNET_INFO_JSON" | tr -d '[:space:]')"
 
 is_addr "$POREP_MARKET" || die "invalid/missing PoRepMarket.proxy in ${DEPLOYMENT_JSON}"
+is_addr "$POREP_MARKET_VIEW_HELPER" || die "invalid/missing PoRepMarketViewHelper in ${DEPLOYMENT_JSON}"
 is_addr "$FILECOIN_PAY" || die "invalid/missing FilecoinPay in ${DEPLOYMENT_JSON}"
 is_addr "$USDC_TOKEN" || die "invalid/missing contracts.usdfc in ${CONTRACT_ADDRESSES_JSON}"
 is_key "$ADMIN_PRIVATE_KEY" || die "invalid deployer private key in ${DEPLOYER_KEY_FILE}"
@@ -287,6 +289,7 @@ SP_ORGANIZATION=${SP_ORGANIZATION}
 
 # From porep-market/deployments/devnet (ACTIVE/latest.json)
 POREP_MARKET=${POREP_MARKET}
+POREP_MARKET_VIEW_HELPER=${POREP_MARKET_VIEW_HELPER}
 FILECOIN_PAY=${FILECOIN_PAY}
 
 # USDFC from curio/docker/data/contracts/contract_addresses.json
@@ -304,6 +307,7 @@ log "  FCSS_DIR=${FCSS_DIR}"
 log "  deployment=${DEPLOYMENT_JSON}"
 log "  RPC_URL=${RPC_URL}"
 log "  POREP_MARKET=${POREP_MARKET}"
+log "  POREP_MARKET_VIEW_HELPER=${POREP_MARKET_VIEW_HELPER}"
 log "  FILECOIN_PAY=${FILECOIN_PAY}"
 log "  USDC_TOKEN=${USDC_TOKEN}"
 log "  CLIENT_ADDRESS=${CLIENT_ADDRESS}"
