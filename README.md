@@ -233,8 +233,13 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
    ```bash
    python3 ./porep_tooling_cli.py client sign-retrieval-voucher \
      --grantee <0x-third-party-wallet> \
-     --deal-id <DEAL_ID>
+     --scope <DEAL_ID>
    ```
+   Prints a long-lived standalone `RetrievalVoucher` token (`grantee`, `scope`, `issuedAt`,
+   `deadline`, embedded `signature`) for `Authorization: RetrievalVoucher`. Clients mint a
+   per-piece `RetrievalProof` and send it as `Authorization: RetrievalProof` — see
+   [access-vouchers-eip712](https://github.com/fidlabs/large-paid-retrievals/blob/main/docs/access-vouchers-eip712.md).
+   `--deal-id` is accepted as an alias for `--scope`.
 
 ## Developing new CLI commands
 
