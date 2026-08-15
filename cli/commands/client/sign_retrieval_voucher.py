@@ -6,7 +6,8 @@ import click
 
 from cli import utils
 from cli.commands.client._client import client_signer
-from cli.services.contracts.porep_market import PoRepMarket
+from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealType
+from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.web3_service import EthAddress, Web3Service
 
 DOMAIN_NAME = "PoRepPieceAccess"
@@ -53,6 +54,22 @@ def sign_retrieval_voucher(grantee: str, deal_id: int, deadline: int | None, exp
     if resolved_deadline <= now:
         raise click.ClickException(f"Deadline {resolved_deadline} is not in the future (now={now})")
 
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id).deal
+    signer = client_signer()
+    signer_address = signer.address()
+
+    if deal.deal_type != PoRepMarketDealType.PRIVATE:
+        raise click.ClickException(
+            f"Deal ID {deal_id} is {deal.deal_type}, not PRIVATE; "
+            f"retrieval vouchers are only valid for private deals"
+        )
+
+    if deal.client_address != signer_address:
+        raise click.ClickException(
+            f"Deal ID {deal_id} client address {deal.client_address} "
+            f"does not match signing wallet {signer_address}"
+        )
+
     domain_data = {
         "name": DOMAIN_NAME,
         "version": DOMAIN_VERSION,
@@ -76,7 +93,7 @@ def sign_retrieval_voucher(grantee: str, deal_id: int, deadline: int | None, exp
         abort=True,
     )
 
-    signed_msg = client_signer().sign_typed_data(
+    signed_msg = signer.sign_typed_data(
         domain_data=domain_data,
         message_types=RETRIEVAL_VOUCHER_TYPES,
         message_data=message_data,
