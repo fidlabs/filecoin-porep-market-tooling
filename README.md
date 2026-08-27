@@ -136,17 +136,19 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
     python3 ./porep_tooling_cli.py sp --help
     ```
 
-## Typical Client workflow
+## Typical PoRep Market Client workflow
 
-1. Set up the CLI as in [Installation](#installation), then put your client keys in `.env`:
+1. Follow the [Installation](#installation) steps.
+
+2. Put your client keys in the `.env` file:
 
    ```bash
    # Use `lotus wallet list` to see your wallets and their addresses and `lotus wallet new delegated` to create new delegated wallet
    # Must be delegated f410 address or standard EVM address
-   CLIENT_LOTUS_WALLET=<lotus wallet>
+   CLIENT_LOTUS_WALLET=<lotus-wallet>
    
    # Generate this by running `lotus auth create-token --perm sign`
-   CLIENT_LOTUS_TOKEN=<lotus token>
+   CLIENT_LOTUS_TOKEN=<lotus-token>
    ```
 
    or
@@ -156,21 +158,15 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
    CLIENT_PRIVATE_KEY=<private key>
    ```
 
-   Optionally set `CLIENT_ADDRESS` to the matching `0x` address. Secure the file:
-
-   ```bash
-   chmod 600 .env
-   ```
-
-2. Prepare your dataset with [Singularity](https://github.com/filecoin-project/singularity) (or equivalent) so you have a published **manifest URL** and piece
+3. Prepare your dataset with [Singularity](https://github.com/filecoin-project/singularity) (or equivalent) so you have a published **manifest URL** and piece
    CARs served for the SP to fetch.
 
-3. Propose a deal from that manifest. Deals can be **public** (open retrieval) or **private** (retrieval limited to the deal owner and any wallets you later
+4. Propose a deal from that manifest. Deals can be **public** (open retrieval) or **private** (retrieval limited to the deal owner and any wallets you later
    authorize with a voucher):
 
    ```bash
-   python3 ./porep_tooling_cli.py client propose-deal <MANIFEST_URL> \
-     --price-per-tib-per-month <usdc in decimal format> \
+   python3 ./porep_tooling_cli.py client propose-deal <manifest-url> \
+     --price-per-tib-per-month <usdc-in-decimal-format> \
      --duration-months <months> \
      --retrievability-bps <bps> \
      --bandwidth-mbps <mbps> \
@@ -179,19 +175,19 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
      --deal-type <public|private>
    ```
 
-4. Initialize payment (validator, deposit, rail):
+5. Initialize payment (validator, deposit, rail):
 
    ```bash
-   python3 ./porep_tooling_cli.py client init-accepted-deals <DEAL_ID>
+   python3 ./porep_tooling_cli.py client init-deals
    ```
 
-5. Make DataCap allocations:
+6. Make DataCap allocations:
 
    ```bash
-   python3 ./porep_tooling_cli.py client make-allocations <DEAL_ID>
+   python3 ./porep_tooling_cli.py client make-allocations <deal-id>
    ```
 
-6. Optional - for a **private** deal, sign an EIP-712 retrieval voucher so a third-party wallet can retrieve the data (used
+7. Optional - for a **private** deal, sign an EIP-712 retrieval voucher so a third-party wallet can retrieve the data (used
    with [large-paid-retrievals](https://github.com/fidlabs/large-paid-retrievals)):
 
    ```bash
@@ -199,10 +195,11 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
      --grantee <0x-third-party-wallet> \
      --scope <DEAL_ID>
    ```
+
    Prints a long-lived standalone `RetrievalVoucher` token (`grantee`, `scope`, `issuedAt`,
-   `deadline`, embedded `signature`) for `Authorization: RetrievalVoucher`. Clients mint a
-   per-piece `RetrievalProof` and send it as `Authorization: RetrievalProof` — see
-   [access-vouchers-eip712](https://github.com/fidlabs/large-paid-retrievals/blob/main/docs/access-vouchers-eip712.md).
+   `deadline`, embedded `signature`) for `Authorization: RetrievalVoucher`. \
+   Clients mint a per-piece `RetrievalProof` and send it as `Authorization: RetrievalProof` —
+   see [access-vouchers-eip712](https://github.com/fidlabs/large-paid-retrievals/blob/main/docs/access-vouchers-eip712.md). \
    `--deal-id` is accepted as an alias for `--scope`.
 
 ## Developing new CLI commands
