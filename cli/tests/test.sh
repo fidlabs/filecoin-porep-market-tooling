@@ -29,11 +29,9 @@ set +a
 
   # admin tests
   python3 "${CLI_PATH}" admin get-deals proposed         >/dev/null   &&
-  python3 "${CLI_PATH}" admin get-devnet-sps             >/dev/null   &&
-  python3 "${CLI_PATH}" admin get-registered-sps         >/dev/null   &&
+  python3 "${CLI_PATH}" admin get-sps                    >/dev/null   &&
   python3 "${CLI_PATH}" admin get-db-sps --help          >/dev/null   &&
   python3 "${CLI_PATH}" admin register-db-sps --help     >/dev/null   &&
-  python3 "${CLI_PATH}" admin register-devnet-sps --help >/dev/null   &&
   python3 "${CLI_PATH}" admin terminate-deal --help      >/dev/null   &&
   python3 "${CLI_PATH}" admin finalize-deal --help       >/dev/null   &&
   ! (python3 "${CLI_PATH}" admin get-deal        4242 >/dev/null 2>&1) &&
@@ -45,7 +43,7 @@ set +a
   python3 "${CLI_PATH}" client get-filecoinpay-account           >/dev/null &&
   python3 "${CLI_PATH}" client init-deals --help                 >/dev/null &&
   python3 "${CLI_PATH}" client deposit-for-deals --help          >/dev/null &&
-  python3 "${CLI_PATH}" client propose-deal-from-manifest --help >/dev/null &&
+  python3 "${CLI_PATH}" client propose-deal --help               >/dev/null &&
   python3 "${CLI_PATH}" client deposit-amount --help             >/dev/null &&
   ! (python3 "${CLI_PATH}" client get-deal    4242 >/dev/null 2>&1)         &&
 
