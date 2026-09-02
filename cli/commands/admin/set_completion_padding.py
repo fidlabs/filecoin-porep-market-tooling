@@ -22,5 +22,5 @@ def set_completion_padding(padding: int):
     current_padding = PoRepMarket().get_deal_activation_padding()
     utils.confirm(f"Setting new deal activation padding. Current: {current_padding} -> New: {padding}", abort=True)
 
-    tx_hash = PoRepMarket().set_deal_activation_padding(padding, admin_signer())
+    tx_hash = PoRepMarket().set_deal_activation_padding(padding, admin_signer()).tx_hash
     click.echo(f"New activation padding set: {tx_hash}")

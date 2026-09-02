@@ -1,6 +1,6 @@
 import enum
 
-from cli.services.contract_service import ContractService
+from cli.services.contract_service import ContractService, TxInfo
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress, FilAddress
 
@@ -49,16 +49,16 @@ class FileCoinPayValidator(ContractService):
     # @notice Creates the FilecoinPay rail for this validator and sets the initial lockup period.
     # @dev Only callable by the client.
     # @dev Sets railID in contract state and updates the PoRepMarket with the created rail ID.
-    def create_rail(self, signer: TxSigner) -> str:
+    def create_rail(self, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.createRail(), signer)
 
     # @notice Terminates a payment rail early and terminates its deal
     # @dev Only callable by POREP_SERVICE bot
-    def early_rail_termination(self, signer: TxSigner) -> str:
+    def early_rail_termination(self, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.earlyRailTermination(), signer)
 
     # @notice Finalizes the deal after the service window has ended, terminating the rail
-    def finalize_deal(self, signer: TxSigner) -> str:
+    def finalize_deal(self, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.finalizeDeal(), signer)
 
     # @notice Retrieves the current status of the payment rail
@@ -69,5 +69,5 @@ class FileCoinPayValidator(ContractService):
     # @notice Modifies the payment rate
     # @dev Only callable by the PoRepMarket contract
     # @param newRate The new payment rate per epoch
-    def modify_rail_payment(self, new_rate: int, signer: TxSigner) -> str:
+    def modify_rail_payment(self, new_rate: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.modifyRailPayment(new_rate), signer)

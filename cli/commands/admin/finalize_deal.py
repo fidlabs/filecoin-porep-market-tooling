@@ -26,5 +26,5 @@ def finalize_deal(deal_id: int):
 
     utils.confirm(f"Finalizing deal ID {deal.deal.deal_id}: {deal}", abort=True)
 
-    tx_hash = PoRepMarket().finalize_deal(deal.deal.deal_id, admin_signer())
+    tx_hash = PoRepMarket().finalize_deal(deal.deal.deal_id, admin_signer()).tx_hash
     click.echo(f"Deal ID {deal.deal.deal_id} finalized: {tx_hash}")

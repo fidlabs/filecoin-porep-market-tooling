@@ -88,7 +88,7 @@ def _deploy_and_set_validator(deal_id: int):
 
     utils.confirm(f"\nDeploy and set validator for deal ID {deal.deal.deal_id}?", default=True, abort=True)
 
-    tx_hash = ValidatorFactory().create(deal.deal.deal_id, client_signer())
+    tx_hash = ValidatorFactory().create(deal.deal.deal_id, client_signer()).tx_hash
     click.echo(f"Validator deployed for deal ID {deal.deal.deal_id}: {tx_hash}")
 
 
@@ -159,7 +159,7 @@ def _deposit_and_approve_operator(deal_id: int):
                                                                      rate_allowance,
                                                                      lockup_allowance,
                                                                      max_lockup_period,
-                                                                     client_signer())
+                                                                     client_signer()).tx_hash
 
     click.echo(f"Deposited {deposit_amount_str} {token_symbol} and operator approved for deal ID {deal.deal.deal_id}: {tx_hash}")
 
@@ -183,7 +183,7 @@ def _initialize_rail(deal_id: int):
 
     utils.confirm(f"\nInitialize FileCoinPay rail for deal ID {deal.deal.deal_id}?", default=True, abort=True)
 
-    tx_hash = FileCoinPayValidator(deal.deal.validator_address).create_rail(client_signer())
+    tx_hash = FileCoinPayValidator(deal.deal.validator_address).create_rail(client_signer()).tx_hash
 
     click.echo(f"FileCoinPay rail initialized for deal ID {deal.deal.deal_id}: {tx_hash}")
 

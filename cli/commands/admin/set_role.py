@@ -43,7 +43,7 @@ def set_role(contract_address: str, role: str, account: str):
     utils.confirm(f"Setting role {role} ({role_bytes.hex()}) for address {account_str} on contract {contract_address_str}",
                   abort=True)
 
-    tx_hash = contract.grant_role(role_bytes, _account, admin_signer())
+    tx_hash = contract.grant_role(role_bytes, _account, admin_signer()).tx_hash
     click.echo(f"Role set: {tx_hash}")
 
 

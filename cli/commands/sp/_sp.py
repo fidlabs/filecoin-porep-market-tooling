@@ -89,6 +89,7 @@ def sp_signer() -> TxSigner:
 def _info():
     try:
         _sp_address = sp_address() if SP_PRIVATE_KEY or SP_LOTUS_WALLET else None
+
     # pylint: disable=broad-exception-caught
     except Exception as e:
         _sp_address = None

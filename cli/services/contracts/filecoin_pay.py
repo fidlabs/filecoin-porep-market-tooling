@@ -1,12 +1,12 @@
 from cli import utils
-from cli.services.contract_service import ContractService
+from cli.services.contract_service import ContractService, TxInfo
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress, FilAddress
 
 
 # https://github.com/FilOzone/filecoin-pay
 
-@utils.json_dataclass()  # noqa: E302  silencing flake8
+@utils.json_dataclass()  # noqa: E302
 class FileCoinPayAccount:
     funds: int
     lockup_current: int
@@ -115,7 +115,7 @@ class FileCoinPay(ContractService):
                                                  rate_allowance: int,
                                                  lockup_allowance: int,
                                                  max_lockup_period: int,
-                                                 signer: TxSigner) -> str:
+                                                 signer: TxSigner) -> TxInfo:
         #
         return self.sign_and_send_tx(
             self.contract.functions.depositWithPermitAndApproveOperator(
@@ -144,7 +144,7 @@ class FileCoinPay(ContractService):
                                                            operator: EthAddress,
                                                            rate_allowance_increase: int,
                                                            lockup_allowance_increase: int,
-                                                           signer: TxSigner) -> str:
+                                                           signer: TxSigner) -> TxInfo:
         #
         return self.sign_and_send_tx(
             self.contract.functions.depositWithPermitAndIncreaseOperatorApproval(
@@ -165,7 +165,7 @@ class FileCoinPay(ContractService):
                             amount: int,
                             deadline: int,
                             v: int, r: bytes, s: bytes,
-                            signer: TxSigner) -> str:
+                            signer: TxSigner) -> TxInfo:
         #
         return self.sign_and_send_tx(
             self.contract.functions.depositWithPermit(token, to, amount, deadline, v, r, s),
@@ -190,7 +190,7 @@ class FileCoinPay(ContractService):
     #     (the tokens not currently locked in rails).
     # @param token The ERC20 token address to withdraw.
     # @param amount The amount of tokens to withdraw.
-    def withdraw(self, token: EthAddress, amount: int, signer: TxSigner) -> str:
+    def withdraw(self, token: EthAddress, amount: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.withdraw(token, amount), signer)
 
     # @notice Withdraws tokens (`token`) from the caller's account to `to`, up to the amount of currently available tokens
@@ -198,5 +198,5 @@ class FileCoinPay(ContractService):
     # @param token The ERC20 token address to withdraw.
     # @param to The address to receive the withdrawn tokens.
     # @param amount The amount of tokens to withdraw.
-    def withdraw_to(self, token: EthAddress, to: EthAddress, amount: int, signer: TxSigner) -> str:
+    def withdraw_to(self, token: EthAddress, to: EthAddress, amount: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.withdrawTo(token, to, amount), signer)

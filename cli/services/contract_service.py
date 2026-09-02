@@ -8,7 +8,10 @@ import eth_abi
 from eth_account.datastructures import SignedTransaction
 from eth_typing import ABIElement
 from hexbytes import HexBytes
+# noinspection PyProtectedMember
+from web3._utils.events import get_event_data
 from web3.exceptions import ContractCustomError, Web3RPCError
+from web3.types import EventData
 
 from cli import utils
 from cli._cli import is_dry_run
@@ -16,6 +19,15 @@ from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress, Web3Service, FilAddress
 
 T = TypeVar("T")
+
+
+@utils.json_dataclass()
+class TxInfo:
+    tx_hash: str
+    transaction: object
+    tx_receipt: dict
+    tx_params: dict
+    events: list[EventData]
 
 
 def _tx_to_log_string(operation, tx_params: dict | None) -> str:
@@ -63,6 +75,45 @@ class ContractService:
     def address(self) -> EthAddress:
         return EthAddress(self.contract.address)
 
+    def __decode_receipt_events(self, tx_receipt) -> list[EventData]:
+        def find_event_in_abi(selector: bytes) -> ABIElement | None:
+            for item in (i for i in ContractService.__get_known_abis() if i.get("type") == "event"):
+                sig = item["name"] + "(" + ",".join(i["type"] for i in item["inputs"]) + ")"
+
+                if self.web3.keccak(text=sig) == selector:
+                    return item
+
+            return None
+
+        decoded_events = []
+
+        for log in tx_receipt["logs"]:
+            if not log["topics"]:
+                continue
+
+            abi_event = find_event_in_abi(bytes(log["topics"][0]))
+
+            if abi_event is None:
+                continue
+
+            # noinspection PyBroadException
+            try:
+                # noinspection PyTypeChecker
+                decoded_events.append(
+                    get_event_data(
+                        self.web3.w3().codec,
+                        abi_event,
+                        log,
+                    ))
+
+            # pylint: disable=broad-exception-caught
+            except Exception:
+                # nop
+                # ruff: noqa: S112
+                continue
+
+        return decoded_events
+
     @staticmethod
     def __get_known_abis() -> list[ABIElement]:
         if ContractService._KNOWN_ABIS:
@@ -79,7 +130,7 @@ class ContractService:
 
         return ContractService._KNOWN_ABIS
 
-    def __decode_contract_error_name(self, err: ContractCustomError) -> str:
+    def __decode_contract_error(self, err: ContractCustomError) -> str:
         def find_error_in_abi(selector: bytes) -> ABIElement | None:
             for item in [i for i in ContractService.__get_known_abis() if i.get("type") == "error"]:
                 sig = item["name"] + "(" + ",".join(i["type"] for i in item["inputs"]) + ")"
@@ -133,14 +184,22 @@ class ContractService:
 
         return self.web3.send_raw_transaction(signed_tx)
 
-    def _sign_and_send_tx(self, transaction, tx_params: dict, signer: TxSigner, dry_run: bool = False) -> str:
+    def _sign_and_send_tx(self, transaction, tx_params: dict, signer: TxSigner, dry_run: bool = False) -> TxInfo:
         # transaction.args is sensitive info, should never be logged
         # tx_params.data is sensitive info, should never be logged
 
+        # signed_tx is sensitive info, should never be logged
         signed_tx = signer.sign_transaction(tx_params)
 
         if dry_run:
-            return Web3Service.ZERO_TX_HASH
+            # noinspection PyArgumentList
+            return TxInfo(
+                tx_hash=Web3Service.ZERO_TX_HASH,
+                transaction=transaction,
+                tx_params=tx_params,
+                tx_receipt={},
+                events=[]
+            )
 
         # NOT DRY RUN, SENDING TRANSACTION
 
@@ -148,25 +207,42 @@ class ContractService:
         self.logger.warning(f"Transaction sent: {tx_hash.to_0x_hex()}: {_tx_to_log_string(transaction, tx_params)}")
 
         click.echo(f"Waiting for transaction {tx_hash.to_0x_hex()}...")
-        receipt = self.web3.wait_for_transaction_receipt(tx_hash, timeout=60 * 15, poll_latency=5)  # 15 minutes timeout, 5 seconds polling interval
+        tx_receipt = self.web3.wait_for_transaction_receipt(tx_hash, timeout=60 * 15, poll_latency=5)  # 15 minutes timeout, 5 seconds polling interval
 
-        if receipt["status"] == 0:
+        if tx_receipt["status"] == 0:
             # tx failed
             tx = self.web3.get_transaction(tx_hash)
 
             # this call should revert with the same error as the transaction
-            reason = self.web3.call({"to": tx["to"], "from": tx["from"], "data": tx["input"]}, receipt["blockNumber"])
+            reason = self.web3.call({"to": tx["to"], "from": tx["from"], "data": tx["input"]}, tx_receipt["blockNumber"])
             raise click.ClickException(f"Transaction reverted (reason unknown, call returned: {reason or 'empty'})")
 
         # tx succeeded
         self.logger.warning(f"Transaction succeeded: {tx_hash.to_0x_hex()}: {_tx_to_log_string(transaction, tx_params)}")
-        return tx_hash.to_0x_hex()
+
+        # noinspection PyBroadException
+        try:
+            events = self.__decode_receipt_events(tx_receipt)
+
+        # pylint: disable=broad-exception-caught
+        except Exception as e:
+            click.echo(f"Warning: Failed to decode events from transaction receipt: {e}")
+            events = []
+
+        # noinspection PyArgumentList
+        return TxInfo(
+            tx_hash=tx_hash.to_0x_hex(),
+            transaction=transaction,
+            tx_params=tx_params,
+            tx_receipt=tx_receipt,
+            events=events
+        )
 
     def _handle_contract_error(self, err: Exception, operation, tx_params: dict | None):
         # tx_params.data is sensitive info, should never be logged
 
         if isinstance(err, ContractCustomError):
-            reason = self.__decode_contract_error_name(err)
+            reason = self.__decode_contract_error(err)
             self.logger.error(f"Contract operation reverted with error: {reason}: {_tx_to_log_string(operation, tx_params)}")
             raise click.ClickException(f"Contract operation reverted with error: {reason}: {_tx_to_log_string(operation, tx_params)}") from err
 
@@ -184,7 +260,7 @@ class ContractService:
             self.logger.error(f"Contract operation failed: {reason}: {_tx_to_log_string(operation, tx_params)}")
             raise click.ClickException(f"Contract operation failed: {reason}: {_tx_to_log_string(operation, tx_params)}") from err
 
-    def sign_and_send_tx(self, transaction, signer: TxSigner) -> str:
+    def sign_and_send_tx(self, transaction, signer: TxSigner) -> TxInfo:
         # transaction.args is sensitive info, should never be logged
 
         from_address = signer.address()
@@ -216,8 +292,8 @@ class ContractService:
             return self._sign_and_send_tx(transaction, tx_params, signer, _dry_run)
 
         # pylint: disable=broad-exception-caught
-        except Exception as err:
-            self._handle_contract_error(err, transaction, tx_params)
+        except Exception as e:
+            self._handle_contract_error(e, transaction, tx_params)
             assert False  # unreachable
 
     def call_contract(self, call) -> T:
@@ -226,6 +302,6 @@ class ContractService:
             return call.call()
 
         # pylint: disable=broad-exception-caught
-        except Exception as err:
-            self._handle_contract_error(err, call, None)
+        except Exception as e:
+            self._handle_contract_error(e, call, None)
             assert False  # unreachable

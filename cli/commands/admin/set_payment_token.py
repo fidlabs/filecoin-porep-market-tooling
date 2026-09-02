@@ -36,5 +36,5 @@ def set_payment_token(token_address: str, allowed: str, min_price_per_32_gib_per
 
     utils.confirm(f"Setting new payment token config for {_token_address}. Current: {current_config} -> New: {new_config}", abort=True)
 
-    tx_hash = SPRegistry().set_payment_token(_token_address, new_config, admin_signer())
+    tx_hash = SPRegistry().set_payment_token(_token_address, new_config, admin_signer()).tx_hash
     click.echo(f"New payment token set: {tx_hash}")

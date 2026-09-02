@@ -378,10 +378,11 @@ def withdraw_from_filecoinpay(to_address: str, amount: float, token_address: Eth
     tx_hash = FileCoinPay().withdraw_to(token_address,
                                         _to_address,
                                         _amount,
-                                        signer)
+                                        signer).tx_hash
 
     click.echo(f"Withdraw transaction sent: {tx_hash}")
     print_token_balance(_to_address)
+
     return tx_hash
 
 
@@ -394,8 +395,9 @@ def pause_sp(provider_id: ActorId, signer: TxSigner) -> str:
     utils.confirm(f"Pausing Storage Provider {provider.provider_id}: "
                   f"{utils.json_pretty(provider)}", abort=True)
 
-    tx_hash = SPRegistry().pause_provider(provider.provider_id, signer)
+    tx_hash = SPRegistry().pause_provider(provider.provider_id, signer).tx_hash
     click.echo(f"Storage Provider {provider.provider_id} paused: {tx_hash}")
+
     return tx_hash
 
 
@@ -408,8 +410,9 @@ def unpause_sp(provider_id: ActorId, signer: TxSigner) -> str:
     utils.confirm(f"Unpausing Storage Provider {provider.provider_id}: "
                   f"{utils.json_pretty(provider)}", abort=True)
 
-    tx_hash = SPRegistry().unpause_provider(provider.provider_id, signer)
+    tx_hash = SPRegistry().unpause_provider(provider.provider_id, signer).tx_hash
     click.echo(f"Storage Provider {provider.provider_id} unpaused: {tx_hash}")
+
     return tx_hash
 
 
@@ -422,8 +425,9 @@ def block_sp(provider_id: ActorId, signer: TxSigner) -> str:
     utils.confirm(f"Blocking Storage Provider {provider.provider_id}: "
                   f"{utils.json_pretty(provider)}", abort=True)
 
-    tx_hash = SPRegistry().block_provider(provider.provider_id, signer)
+    tx_hash = SPRegistry().block_provider(provider.provider_id, signer).tx_hash
     click.echo(f"Storage Provider {provider.provider_id} blocked: {tx_hash}")
+
     return tx_hash
 
 
@@ -436,8 +440,9 @@ def unblock_sp(provider_id: ActorId, signer: TxSigner) -> str:
     utils.confirm(f"Unblocking Storage Provider {provider.provider_id}: "
                   f"{utils.json_pretty(provider)}", abort=True)
 
-    tx_hash = SPRegistry().unblock_provider(provider.provider_id, signer)
+    tx_hash = SPRegistry().unblock_provider(provider.provider_id, signer).tx_hash
     click.echo(f"Storage Provider {provider.provider_id} unblocked: {tx_hash}")
+
     return tx_hash
 
 
@@ -461,7 +466,7 @@ def _update_sp_params(provider_info: SPRegistryProviderInput,
             #
             tx_hash = SPRegistry().set_payee(provider_info.provider_id,
                                              provider_info.payee_address,
-                                             signer)
+                                             signer).tx_hash
 
             click.echo(f"Updated payee_address for Storage Provider {provider_info.provider_id}: {tx_hash}")
 
@@ -476,7 +481,7 @@ def _update_sp_params(provider_info: SPRegistryProviderInput,
             #
             tx_hash = SPRegistry().update_available_space(provider_info.provider_id,
                                                           provider_info.available_bytes,
-                                                          signer)
+                                                          signer).tx_hash
 
             click.echo(f"Updated available_bytes for Storage Provider {provider_info.provider_id}: {tx_hash}")
 
@@ -523,7 +528,7 @@ def register_or_update_sps(providers: list[SPRegistryProviderInput], signer: TxS
                 click.echo("Skipped this SP")
                 continue
 
-            tx_hash = SPRegistry().register_provider_for(provider_info, signer)
+            tx_hash = SPRegistry().register_provider_for(provider_info, signer).tx_hash
             click.echo(f"Provider {provider_info.provider_id} registered: {tx_hash}")
 
 
@@ -535,7 +540,7 @@ def register_offers(offers: list[SPRegistryOfferInput], signer: TxSigner):
             click.echo("Skipped this offer")
             continue
 
-        tx_hash = SPRegistry().create_offer(offer, signer)
+        tx_hash = SPRegistry().create_offer(offer, signer).tx_hash
         click.echo(f"Offer for provider {offer.provider_id} registered: {tx_hash}")
 
 
@@ -653,10 +658,10 @@ def propose_deal(signer: TxSigner,
                   f"Continue?", abort=True)
 
     if offer_id:
-        tx_hash = PoRepMarket().propose_deal_with_specific_offer(offer_id, deal_request, signer)
+        tx_hash = PoRepMarket().propose_deal_with_specific_offer(offer_id, deal_request, signer).tx_hash
         click.echo(f"Created deal proposal from manifest {manifest_url} against offer {offer_id}: {tx_hash}")
     else:
-        tx_hash = PoRepMarket().propose_deal(deal_request, signer)
+        tx_hash = PoRepMarket().propose_deal(deal_request, signer).tx_hash
         click.echo(f"Created deal proposal from manifest {manifest_url}: {tx_hash}")
 
     return tx_hash

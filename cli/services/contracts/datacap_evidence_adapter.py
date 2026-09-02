@@ -1,7 +1,7 @@
 import enum
 
 from cli import utils
-from cli.services.contract_service import ContractService
+from cli.services.contract_service import ContractService, TxInfo
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress, FilAddress
 
@@ -176,7 +176,7 @@ class DataCapEvidenceAdapter(ContractService):
     # @dev This function can only be called by the client
     # @param params The parameters for the transfer
     # @param dealId The id of the deal
-    def submit_datacap_batch(self, transfer_params: DataCapTransferParams, deal_id: int, signer: TxSigner) -> str:
+    def submit_datacap_batch(self, transfer_params: DataCapTransferParams, deal_id: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(
             self.contract.functions.submitDataCapBatch(
                 (transfer_params.to, transfer_params.amount, transfer_params.operator_data),
@@ -189,7 +189,7 @@ class DataCapEvidenceAdapter(ContractService):
     # @dev Only callable by RESCUE_ROLE.
     # @param dealId The id of the deal to rescue.
     # @param params The DataCap transfer parameters that create replacement allocations.
-    def rescue_deal_allocations(self, deal_id: int, transfer_params: DataCapTransferParams, signer: TxSigner) -> str:
+    def rescue_deal_allocations(self, deal_id: int, transfer_params: DataCapTransferParams, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(
             self.contract.functions.rescueDealAllocations(
                 deal_id,
@@ -216,7 +216,7 @@ class DataCapEvidenceAdapter(ContractService):
     # @notice Closes DataCap posting for a deal in a separate transaction
     # @dev Only callable by the deal client while the deal is Accepted and posting is open
     # @param dealId The id of the deal
-    def finish_datacap_posting(self, deal_id: int, signer: TxSigner) -> str:
+    def finish_datacap_posting(self, deal_id: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.finishDataCapPosting(deal_id), signer)
 
     # @notice Returns whether DataCap posting has been finished for a deal
