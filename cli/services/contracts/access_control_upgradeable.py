@@ -1,4 +1,4 @@
-from cli.services.contract_service import ContractService
+from cli.services.contract_service import ContractService, TxInfo
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress, FilAddress
 
@@ -12,7 +12,7 @@ class AccessControlUpgradeable(ContractService):
     # Requirements:
     # - the caller must have ``role``'s admin role.
     # May emit a {RoleGranted} event.
-    def grant_role(self, role: bytes, account: EthAddress, signer: TxSigner) -> str:
+    def grant_role(self, role: bytes, account: EthAddress, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(
             self.contract.functions.grantRole(role, account),
             signer

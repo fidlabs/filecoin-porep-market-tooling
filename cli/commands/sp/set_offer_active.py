@@ -32,5 +32,5 @@ def set_offer_active(offer_id: int, active: str):
 
     utils.confirm(f"Setting offer {offer_id} active={_active}: {offer}", abort=True)
 
-    tx_hash = SPRegistry().set_offer_active(offer_id, _active, sp_signer())
+    tx_hash = SPRegistry().set_offer_active(offer_id, _active, sp_signer()).tx_hash
     click.echo(f"Offer {offer_id} active set to {_active}: {tx_hash}")

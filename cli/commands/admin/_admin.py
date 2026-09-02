@@ -62,6 +62,7 @@ def admin_signer() -> TxSigner:
 def _info():
     try:
         _admin_address = admin_address() if ADMIN_PRIVATE_KEY or ADMIN_LOTUS_WALLET else None
+
     # pylint: disable=broad-exception-caught
     except Exception as e:
         _admin_address = None

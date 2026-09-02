@@ -126,7 +126,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
         if print_only:
             click.echo(f"to={params.to[0].hex()}  amount={params.amount[0].hex()}  operator_data={params.operator_data.hex()}")
         else:
-            tx_hash = evidence_adapter.submit_datacap_batch(params, deal_id, client_signer())
+            tx_hash = evidence_adapter.submit_datacap_batch(params, deal_id, client_signer()).tx_hash
             click.echo(f"params: {params!r}, tx={tx_hash}")
 
             if tx_hash == Web3Service.ZERO_TX_HASH:

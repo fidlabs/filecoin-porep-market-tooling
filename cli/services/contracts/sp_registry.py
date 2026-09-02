@@ -1,5 +1,5 @@
 from cli import utils
-from cli.services.contract_service import ContractService
+from cli.services.contract_service import ContractService, TxInfo
 from cli.services.contracts.porep_market import (
     PoRepMarketDealRequest,
     PoRepMarketSLIThresholds,
@@ -239,10 +239,7 @@ class SPRegistry(ContractService):
     # @param organization Organization address that controls the provider.
     # @param availableBytes Initial available capacity in bytes.
     # @param payee Payout recipient; defaults to organization when zero.
-    def register_provider_for(self,
-                              provider: SPRegistryProviderInput,
-                              signer: TxSigner) -> str:
-        #
+    def register_provider_for(self, provider: SPRegistryProviderInput, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(
             self.contract.functions.registerProviderFor(
                 provider.provider_id,
@@ -288,7 +285,7 @@ class SPRegistry(ContractService):
 
     # @notice Block a provider (admin only, excluded from matching)
     # @param provider The provider to block
-    def block_provider(self, provider_id: ActorId, signer: TxSigner) -> str:
+    def block_provider(self, provider_id: ActorId, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(
             self.contract.functions.blockProvider(provider_id),
             signer
@@ -296,7 +293,7 @@ class SPRegistry(ContractService):
 
     # @notice Unblock a provider (admin only)
     # @param provider The provider to unblock
-    def unblock_provider(self, provider_id: ActorId, signer: TxSigner) -> str:
+    def unblock_provider(self, provider_id: ActorId, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(
             self.contract.functions.unblockProvider(provider_id),
             signer
@@ -304,7 +301,7 @@ class SPRegistry(ContractService):
 
     # @notice Pause a provider (excluded from matching)
     # @param provider The provider to pause
-    def pause_provider(self, provider_id: ActorId, signer: TxSigner) -> str:
+    def pause_provider(self, provider_id: ActorId, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(
             self.contract.functions.pauseProvider(provider_id),
             signer
@@ -312,7 +309,7 @@ class SPRegistry(ContractService):
 
     # @notice Unpause a provider (available for matching)
     # @param provider The provider to unpause
-    def unpause_provider(self, provider_id: ActorId, signer: TxSigner) -> str:
+    def unpause_provider(self, provider_id: ActorId, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(
             self.contract.functions.unpauseProvider(provider_id),
             signer
@@ -321,7 +318,7 @@ class SPRegistry(ContractService):
     # @notice Updates provider available capacity.
     # @param provider Provider actor ID.
     # @param availableBytes New available capacity in bytes.
-    def update_available_space(self, provider_id: ActorId, available_bytes: int, signer: TxSigner) -> str:
+    def update_available_space(self, provider_id: ActorId, available_bytes: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(
             self.contract.functions.updateAvailableSpace(provider_id, available_bytes),
             signer
@@ -330,7 +327,7 @@ class SPRegistry(ContractService):
     # @notice Updates provider payment recipient.
     # @param provider Provider actor ID.
     # @param payee New payment recipient.
-    def set_payee(self, provider_id: ActorId, payee_address: EthAddress, signer: TxSigner) -> str:
+    def set_payee(self, provider_id: ActorId, payee_address: EthAddress, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(
             self.contract.functions.setPayee(provider_id, payee_address),
             signer
@@ -340,7 +337,7 @@ class SPRegistry(ContractService):
     # @param token ERC20 token address.
     # @param allowed True to allow the token, false to remove it from matching.
     # @param minPricePer32GiBPerMonth Minimum monthly price per 32 GiB in token smallest units.
-    def set_payment_token(self, token: EthAddress, token_config: SPRegistryTokenConfig, signer: TxSigner) -> str:
+    def set_payment_token(self, token: EthAddress, token_config: SPRegistryTokenConfig, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(
             self.contract.functions.setPaymentToken(token, token_config.allowed, token_config.min_price_per_32_gib_per_month),
             signer
@@ -363,7 +360,7 @@ class SPRegistry(ContractService):
     # @param slis Immutable promised SLIs.
     # @param payments Initial payment rows.
     # @return offerId Created offer ID.
-    def create_offer(self, offer: SPRegistryOfferInput, signer: TxSigner) -> str:
+    def create_offer(self, offer: SPRegistryOfferInput, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(
             self.contract.functions.createOffer(
                 offer.provider_id,
@@ -377,7 +374,7 @@ class SPRegistry(ContractService):
     # @notice Enables or disables an offer for matching.
     # @param offerId Offer ID.
     # @param active True to enable the offer, false to disable it.
-    def set_offer_active(self, offer_id: int, active: bool, signer: TxSigner) -> str:
+    def set_offer_active(self, offer_id: int, active: bool, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(
             self.contract.functions.setOfferActive(offer_id, active),
             signer
@@ -388,7 +385,7 @@ class SPRegistry(ContractService):
     # @param token ERC20 token address.
     # @param active True when the token row can be selected.
     # @param pricePer32GiBPerMonth Monthly price per 32 GiB in token smallest units.
-    def set_offer_payment(self, offer_id: int, payment: SPRegistryOfferPaymentInput, signer: TxSigner) -> str:
+    def set_offer_payment(self, offer_id: int, payment: SPRegistryOfferPaymentInput, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(
             self.contract.functions.setOfferPayment(offer_id, payment.token, payment.active, payment.price_per_32_gib_per_month),
             signer
@@ -431,7 +428,7 @@ class SPRegistry(ContractService):
     # @notice Selects an offer automatically and reserves pending provider capacity.
     # @param request Client deal request.
     # @return selection Selected offer snapshot.
-    def reserve_provider_for_deal(self, request: PoRepMarketDealRequest, signer: TxSigner) -> str:
+    def reserve_provider_for_deal(self, request: PoRepMarketDealRequest, signer: TxSigner) -> TxInfo:
         slis = request.required_slis
 
         return self.sign_and_send_tx(
@@ -480,7 +477,7 @@ class SPRegistry(ContractService):
     # @param offerId Offer ID to validate.
     # @param request Client deal request.
     # @return selection Selected offer snapshot.
-    def reserve_offer_for_deal(self, offer_id: int, request: PoRepMarketDealRequest, signer: TxSigner) -> str:
+    def reserve_offer_for_deal(self, offer_id: int, request: PoRepMarketDealRequest, signer: TxSigner) -> TxInfo:
         slis = request.required_slis
 
         return self.sign_and_send_tx(
@@ -511,7 +508,7 @@ class SPRegistry(ContractService):
     # @param provider Provider actor ID.
     # @param sizeBytes Capacity to release.
     # @param manifestHash Manifest hash whose provider assignment should be cleared.
-    def release_capacity(self, provider_id: ActorId, size_bytes: int, manifest_hash: bytes, signer: TxSigner) -> str:
+    def release_capacity(self, provider_id: ActorId, size_bytes: int, manifest_hash: bytes, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(
             self.contract.functions.releaseCapacity(provider_id, size_bytes, manifest_hash),
             signer
@@ -521,7 +518,7 @@ class SPRegistry(ContractService):
     # @param provider Provider actor ID.
     # @param sizeBytes Pending capacity to release.
     # @param manifestHash Manifest hash whose provider assignment should be cleared.
-    def release_pending_capacity(self, provider_id: ActorId, size_bytes: int, manifest_hash: bytes, signer: TxSigner) -> str:
+    def release_pending_capacity(self, provider_id: ActorId, size_bytes: int, manifest_hash: bytes, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(
             self.contract.functions.releasePendingCapacity(provider_id, size_bytes, manifest_hash),
             signer
@@ -531,7 +528,7 @@ class SPRegistry(ContractService):
     # @param provider Provider actor ID.
     # @param estimatedSizeBytes Pending bytes reserved by the deal request.
     # @param actualSizeBytes Actual activated bytes.
-    def commit_capacity(self, provider_id: ActorId, estimated_size_bytes: int, actual_size_bytes: int, signer: TxSigner) -> str:
+    def commit_capacity(self, provider_id: ActorId, estimated_size_bytes: int, actual_size_bytes: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(
             self.contract.functions.commitCapacity(provider_id, estimated_size_bytes, actual_size_bytes),
             signer

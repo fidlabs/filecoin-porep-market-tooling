@@ -63,7 +63,7 @@ def finish_datacap_posting(deal: PoRepMarketDeal) -> str:
     check_allocations_size(deal.deal_id)
     utils.confirm(f"Finishing DataCap posting for deal id {deal.deal_id} (blocks further allocation batches)", default=True, abort=True)
 
-    tx_hash = DataCapEvidenceAdapter(deal.evidence_adapter_address).finish_datacap_posting(deal.deal_id, client_signer())
+    tx_hash = DataCapEvidenceAdapter(deal.evidence_adapter_address).finish_datacap_posting(deal.deal_id, client_signer()).tx_hash
     click.echo(f"DataCap posting for deal id {deal.deal_id} finished: {tx_hash}")
 
     return tx_hash
@@ -94,7 +94,7 @@ def deposit_to_filecoinpay(deposit_amount: int, token: USDCToken):
                                                 deposit_amount,
                                                 permit_deadline,
                                                 signed_msg.v, utils.uint_to_bytes(signed_msg.r), utils.uint_to_bytes(signed_msg.s),
-                                                client_signer())
+                                                client_signer()).tx_hash
 
     click.echo(f"Deposited {deposit_amount_str} {token_symbol}: {tx_hash}")
 

@@ -2,7 +2,7 @@ import enum
 import re
 
 from cli import utils
-from cli.services.contract_service import ContractService
+from cli.services.contract_service import ContractService, TxInfo
 from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceStatus
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import ActorId, EthAddress, FilAddress
@@ -321,7 +321,7 @@ class PoRepMarket(ContractService):
 
     # @notice Proposes a deal
     # @param request The client deal request
-    def propose_deal(self, request: PoRepMarketDealRequest, signer: TxSigner) -> str:
+    def propose_deal(self, request: PoRepMarketDealRequest, signer: TxSigner) -> TxInfo:
         slis = request.required_slis
 
         return self.sign_and_send_tx(
@@ -342,7 +342,7 @@ class PoRepMarket(ContractService):
     # @dev Only admins can bypass automatic matching and reserve a specific offer
     # @param offerId The provider offer to reserve for the deal
     # @param request The client deal request
-    def propose_deal_with_specific_offer(self, offer_id: int, request: PoRepMarketDealRequest, signer: TxSigner) -> str:
+    def propose_deal_with_specific_offer(self, offer_id: int, request: PoRepMarketDealRequest, signer: TxSigner) -> TxInfo:
         slis = request.required_slis
 
         return self.sign_and_send_tx(
@@ -405,31 +405,31 @@ class PoRepMarket(ContractService):
 
     # @notice Accepts a deal
     # @param dealId The id of the deal proposal
-    def accept_deal(self, deal_id: int, signer: TxSigner) -> str:
+    def accept_deal(self, deal_id: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.acceptDeal(deal_id), signer)
 
     # @notice Finalizes an active deal after service has finished
     # @param dealId The id of the deal
-    def finalize_deal(self, deal_id: int, signer: TxSigner) -> str:
+    def finalize_deal(self, deal_id: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.finalizeDeal(deal_id), signer)
 
     # @notice Terminates a deal with the requested terminal state
     # @param dealId The id of the deal
     # @param state The terminal state to assign to the deal
-    def terminate_deal(self, deal_id: int, state: PoRepMarketDealState, signer: TxSigner) -> str:
+    def terminate_deal(self, deal_id: int, state: PoRepMarketDealState, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.terminateDeal(deal_id, state.value), signer)
 
     # @notice Rejects a deal in Accepted state before rail is set
     # @dev Only callable by the admin
     # @param dealId The id of the deal proposal
-    def reject_accepted_deal(self, deal_id: int, signer: TxSigner) -> str:
+    def reject_accepted_deal(self, deal_id: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.rejectAcceptedDeal(deal_id), signer)
 
     # @notice Updates the rail id for a deal proposal
     # @dev Updates the rail id for a deal proposal
     # @param dealId The id of the deal proposal
     # @param railId The id of the rail
-    def update_rail_id(self, deal_id: int, rail_id: int, signer: TxSigner) -> str:
+    def update_rail_id(self, deal_id: int, rail_id: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.updateRailId(deal_id, rail_id), signer)
 
     # @notice Maximum deal duration in days. See PoRepTypes.MAX_DEAL_DURATION_DAYS.
@@ -461,14 +461,14 @@ class PoRepMarket(ContractService):
 
     # @notice Sets the deal activation padding (in percent)
     # @dev Only callable by the admin
-    def set_deal_activation_padding(self, padding: int, signer: TxSigner) -> str:
+    def set_deal_activation_padding(self, padding: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.setDealActivationPadding(padding), signer)
 
     # @notice Sets the minimum time between settlements for a deal
     # @dev Only the admin may update the settlement cadence.
     # @param dealId The deal being configured
     # @param minEpochs Minimum time between settlements in epochs
-    def set_min_epochs_between_settlements(self, deal_id: int, min_epochs: int, signer: TxSigner) -> str:
+    def set_min_epochs_between_settlements(self, deal_id: int, min_epochs: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.setMinEpochsBetweenSettlements(deal_id, min_epochs), signer)
 
     # @notice Validates the settlement amount for a deal's service window
@@ -507,28 +507,28 @@ class PoRepMarket(ContractService):
     # @notice Activates an accepted deal and starts payment
     # @dev Verifies evidence, commits capacity, initializes the service window, and asks the validator to update the rail.
     # @param dealId The id of the deal
-    def activate_payment(self, deal_id: int, signer: TxSigner) -> str:
+    def activate_payment(self, deal_id: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.activatePayment(deal_id), signer)
 
     # @notice Submit evidence to the adapter assigned to a deal
     # @param dealId The id of the deal
     # @param evidenceData Adapter-specific evidence payload
     # @return decision Adapter activation decision for the submitted batch
-    def submit_evidence_batch(self, deal_id: int, evidence_data: bytes, signer: TxSigner) -> str:
+    def submit_evidence_batch(self, deal_id: int, evidence_data: bytes, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.submitEvidenceBatch(deal_id, evidence_data), signer)
 
     # @notice Activate evidence for a deal through its assigned adapter
     # @param dealId The id of the deal
     # @param evidenceData Adapter-specific evidence payload
     # @return decision Adapter activation decision
-    def activate_evidence(self, deal_id: int, evidence_data: bytes, signer: TxSigner) -> str:
+    def activate_evidence(self, deal_id: int, evidence_data: bytes, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.activateEvidence(deal_id, evidence_data), signer)
 
     # @notice Refresh evidence status for a deal through its assigned adapter
     # @param dealId The id of the deal
     # @param evidenceData Adapter-specific evidence payload
     # @return status Updated evidence status
-    def refresh_evidence_status(self, deal_id: int, evidence_data: bytes, signer: TxSigner) -> str:
+    def refresh_evidence_status(self, deal_id: int, evidence_data: bytes, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.refreshEvidenceStatus(deal_id, evidence_data), signer)
 
     # @notice Reads current evidence status for a deal through its assigned adapter
@@ -541,12 +541,12 @@ class PoRepMarket(ContractService):
     # @dev Only callable by the admin
     # @param dealId The unique identifier of the deal
     # @param newManifestLocation The new manifest location URL to be updated for the deal
-    def update_manifest_location(self, deal_id: int, new_manifest_location: str, signer: TxSigner) -> str:
+    def update_manifest_location(self, deal_id: int, new_manifest_location: str, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.updateManifestLocation(deal_id, new_manifest_location), signer)
 
     # @notice Updates the validator instance assigned to a deal
     # @param dealId The id of the deal
-    def update_validator(self, deal_id: int, signer: TxSigner) -> str:
+    def update_validator(self, deal_id: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.updateValidator(deal_id), signer)
 
     # @notice Gets the deal proposal expiration window (in epochs)
@@ -555,5 +555,5 @@ class PoRepMarket(ContractService):
 
     # @notice Sets a new deal proposal expiration window (in epochs)
     # @param newDealExpiration The new expiration value
-    def set_new_deal_expiration(self, new_deal_expiration: int, signer: TxSigner) -> str:
+    def set_new_deal_expiration(self, new_deal_expiration: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.setNewDealExpiration(new_deal_expiration), signer)

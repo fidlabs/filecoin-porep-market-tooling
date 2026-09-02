@@ -1,4 +1,4 @@
-from cli.services.contract_service import ContractService
+from cli.services.contract_service import ContractService, TxInfo
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress, FilAddress
 
@@ -19,7 +19,7 @@ class ValidatorFactory(ContractService):
     # @dev Uses BeaconProxy to create a new proxy instance, pointing to the Beacon for the logic contract.
     # @dev Reverts if an instance for the given dealId already exists.
     # @param dealId The dealId for which the proxy was created.
-    def create(self, deal_id: int, signer: TxSigner) -> str:
+    def create(self, deal_id: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.create(deal_id), signer)
 
     # @notice Gets the instance for a given deal
