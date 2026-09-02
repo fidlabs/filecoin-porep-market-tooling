@@ -6,9 +6,11 @@ from .get_filecoinpay_account import get_filecoinpay_account
 from .init_deals import init_deals
 from .make_allocations import make_allocations
 from .propose_deal import propose_deal, propose_deal_mocked
-from .withdraw_from_filecoinpay import withdraw_from_filecoinpay
 from .sign_retrieval_voucher import sign_retrieval_voucher
+from .validate_manifest import validate_manifest
+from .withdraw_from_filecoinpay import withdraw_from_filecoinpay
 
+client.add_command(validate_manifest)
 client.add_command(get_deal_manifest)
 client.add_command(get_deal_rail)
 client.add_command(get_deal)

@@ -308,6 +308,10 @@ def _validate_manifest(manifest: object, quiet=False) -> list[dict]:
         data_pieces = [piece for piece in pieces if piece["pieceType"] == "data"]
         dag_pieces = [piece for piece in pieces if piece["pieceType"] == "dag"]
 
+        pieces_size_bytes = sum(piece.get("pieceSize", 0) for piece in pieces)
+        if pieces_size_bytes <= 0:
+            raise click.ClickException("Invalid pieceSize in manifest pieces: must be greater than 0")
+
         if not quiet:
             click.echo(f"Found {len(data_pieces)} data piece(s) and {len(dag_pieces)} dag piece(s), {len(pieces)} total pieces")
 
@@ -584,9 +588,6 @@ def propose_deal(signer: TxSigner,
 
     pieces = manifest[0]["pieces"]
     pieces_size_bytes = sum(piece.get("pieceSize", 0) for piece in pieces)
-
-    if pieces_size_bytes <= 0:
-        raise ValueError("Invalid deal size")
 
     click.echo(f"\nFound {len(pieces)} total pieces with total pieceSize "
                f"{humanfriendly.format_size(pieces_size_bytes)} = {humanfriendly.format_size(pieces_size_bytes, binary=True)} = "
