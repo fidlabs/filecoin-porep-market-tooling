@@ -310,9 +310,12 @@ class ContractService:
             result, total = self.call_contract(func(*args, offset, limit))
             return result
 
+        if (offset is not None and limit is None) or (offset is None and limit is not None):
+            raise ValueError("call_contract_paginated: both offset and limit must be provided together")
+
         all_results = []
-        offset = offset or 0
-        limit = limit or 100
+        offset = 0
+        limit = 100
 
         while True:
             result, total = self.call_contract(func(*args, offset, limit))

@@ -411,6 +411,7 @@ class SPRegistry(ContractService):
         return [int(offer_id) for offer_id in self.call_contract(self.contract.functions.getOffersByProvider(provider_id))]
 
     # @notice Previews automatic offer matching without reserving capacity.
+    # @param client Client the manifest assignment is scoped to.
     # @param request Client deal request.
     # @return selection Selected offer snapshot, or zero provider when no offer matches.
     def preview_provider_for_deal(self,
