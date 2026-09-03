@@ -579,8 +579,12 @@ def propose_deal(signer: TxSigner,
                  indexing_pct: int,
                  payment_token_address: EthAddress,
                  deal_type: PoRepMarketDealType,
-                 offer_id: int | None = None) -> str:
+                 offer_id: int | None = None,
+                 client_address: EthAddress | None = None) -> str:
     #
+    if client_address and not offer_id:
+        raise click.BadParameter("Client address can only be specified when proposing a deal against a specific offer.")
+
     if price_per_tib_per_month > 100:
         raise click.BadParameter("Price per TiB per month is too high. Please use decimal format (e.g., 1.5 for 1.5 USDC).")
 
@@ -620,8 +624,9 @@ def propose_deal(signer: TxSigner,
         )
     )
 
-    Web3Service().wait_for_pending_transactions(signer.address())
-    existing_deals = get_client_deals(signer.address())
+    client_address = client_address or signer.address()
+    Web3Service().wait_for_pending_transactions(client_address)
+    existing_deals = get_client_deals(client_address)
 
     # warn if any of existing client deals looks similar to the new deal proposal
     for existing_deal in existing_deals:
@@ -668,7 +673,7 @@ def propose_deal(signer: TxSigner,
             return None
 
     if offer_id:
-        tx = PoRepMarket().propose_deal_with_specific_offer(offer_id, deal_request, signer)
+        tx = PoRepMarket().propose_deal_with_specific_offer(offer_id, deal_request, client_address, signer)
         click.echo(f"Created deal from manifest {manifest_url} against offer {offer_id}: {tx.tx_hash}")
     else:
         tx = PoRepMarket().propose_deal(deal_request, signer)

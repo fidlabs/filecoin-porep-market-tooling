@@ -3,6 +3,8 @@ import click
 from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.admin._admin import admin_signer
+# noinspection PyProtectedMember
+from cli.commands.client._client import client_address
 from cli.services.contracts.porep_market import PoRepMarketDealType
 from cli.services.contracts.sp_registry import SPRegistry
 from cli.services.self_update import SelfUpdateService
@@ -25,9 +27,9 @@ from cli.services.web3_service import EthAddress
               type=click.Choice(PoRepMarketDealType.to_selectable_string_list(), case_sensitive=False),
               prompt="Enter type of the deal to propose",
               help="Type of the deal to propose.")
-@click.option("--retrievability-bps", type=click.IntRange(0, 10000), required=True,
-              prompt="Enter retrievability guarantee in bps (basis points, e.g. 7550 = 75.50%); 0 means \"don't care\"",
-              help="Retrievability guarantee in bps (basis points, e.g. 7550 = 75.50%); 0 means \"don't care\".")
+@click.option("--retrievability-pct", type=click.IntRange(0, 100), required=True,
+              prompt="Enter retrievability guarantee in percentage; 0 means \"don't care\"",
+              help="Retrievability guarantee in percentage; 0 means \"don't care\".")
 @click.option("--bandwidth-mbps", type=click.IntRange(0, 64000), required=True,
               prompt="Enter bandwidth guarantee in Mbps; 0 means \"don't care\"",
               help="Bandwidth guarantee in Mbps; 0 means \"don't care\".")
@@ -37,16 +39,19 @@ from cli.services.web3_service import EthAddress
 @click.option("--indexing-pct", type=click.IntRange(0, 100), required=True,
               prompt="Enter IPNI indexing guarantee in percentage; 0 means \"don't care\"",
               help="IPNI indexing guarantee in percentage; 0 means \"don't care\".")
+@click.option("--client", type=str,
+              help="The client address to use for the deal.  [default: current client address]")
 def propose_deal_for_offer(offer_id: int,
                            manifest_url: str,
-                           retrievability_bps: int,
+                           retrievability_pct: int,
                            bandwidth_mbps: int,
                            price_per_tib_per_month: float,
                            duration_months: int,
                            latency_ms: int,
                            indexing_pct: int,
                            payment_token: str,
-                           deal_type: str):
+                           deal_type: str,
+                           client: str | None = None):
     """
     Interactively propose a deal from MANIFEST_URL against a specific OFFER_ID,
     bypassing automatic Storage Provider matching.
@@ -72,7 +77,7 @@ def propose_deal_for_offer(offer_id: int,
 
     commands_utils.propose_deal(admin_signer(),
                                 manifest_url,
-                                retrievability_bps,
+                                retrievability_pct * 100,
                                 bandwidth_mbps,
                                 price_per_tib_per_month,
                                 duration_months,
@@ -80,4 +85,5 @@ def propose_deal_for_offer(offer_id: int,
                                 indexing_pct,
                                 EthAddress.from_any(payment_token),
                                 PoRepMarketDealType.from_web3(deal_type),
-                                offer_id=offer_id)
+                                offer_id=offer_id,
+                                client_address=EthAddress.from_any(client) if client else client_address())

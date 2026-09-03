@@ -342,20 +342,26 @@ class PoRepMarket(ContractService):
     # @dev Only admins can bypass automatic matching and reserve a specific offer
     # @param offerId The provider offer to reserve for the deal
     # @param request The client deal request
-    def propose_deal_with_specific_offer(self, offer_id: int, request: PoRepMarketDealRequest, signer: TxSigner) -> TxInfo:
+    # @param client The address of the client for which the deal is proposed
+    def propose_deal_with_specific_offer(self,
+                                         offer_id: int,
+                                         request: PoRepMarketDealRequest,
+                                         client_address: EthAddress,
+                                         signer: TxSigner) -> TxInfo:
+        #
         slis = request.required_slis
 
         return self.sign_and_send_tx(
-            self.contract.functions.proposeDealWithSpecificOffer(offer_id, (
-                request.manifest_hash,
-                request.requested_size_bytes,
-                request.max_price_per_32_gib_per_month,
-                request.manifest_location,
-                request.payment_token_address,
-                request.duration_days,
-                request.deal_type.value,
-                (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
-            )),
+            self.contract.functions.proposeDealWithSpecificOffer(
+                offer_id, (request.manifest_hash,
+                           request.requested_size_bytes,
+                           request.max_price_per_32_gib_per_month,
+                           request.manifest_location,
+                           request.payment_token_address,
+                           request.duration_days,
+                           request.deal_type.value,
+                           (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)),
+                client_address),
             signer
         )
 
