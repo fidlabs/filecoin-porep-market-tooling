@@ -419,11 +419,6 @@ class PoRepMarket(ContractService):
         return [PoRepMarketDeal.from_web3(deal) for deal in
                 self.call_contract_paginated(self.contract.functions.getDeals, offset, limit)]
 
-    # @notice Accepts a deal
-    # @param dealId The id of the deal proposal
-    def accept_deal(self, deal_id: int, signer: TxSigner) -> TxInfo:
-        return self.sign_and_send_tx(self.contract.functions.acceptDeal(deal_id), signer)
-
     # @notice Finalizes an active deal after service has finished
     # @param dealId The id of the deal
     def finalize_deal(self, deal_id: int, signer: TxSigner) -> TxInfo:
@@ -553,12 +548,28 @@ class PoRepMarket(ContractService):
     def current_evidence_status(self, deal_id: int) -> DataCapEvidenceStatus:
         return DataCapEvidenceStatus.from_web3(self.call_contract(self.contract.functions.currentEvidenceStatus(deal_id)))
 
-    # @notice Updates the manifest location for a specific deal
-    # @dev Only callable by the admin
+    # @notice Replaces an accepted deal's manifest and resizes its provider reservation
+    # @dev Only callable by the admin before any evidence has been submitted.
+    # Keeps the selected provider and payment terms; rejects an ineligible size or assigned manifest.
+    # Provider tooling must stop queued work for the old manifest before replacement.
     # @param dealId The unique identifier of the deal
     # @param newManifestLocation The new manifest location URL to be updated for the deal
-    def update_manifest_location(self, deal_id: int, new_manifest_location: str, signer: TxSigner) -> TxInfo:
-        return self.sign_and_send_tx(self.contract.functions.updateManifestLocation(deal_id, new_manifest_location), signer)
+    # @param newRequestedSizeBytes The new requested size in bytes read from the updated manifest
+    # @param newManifestHash The replacement piece-set commitment, including the new piece list and total size
+    def update_manifest_location(self,
+                                 deal_id: int,
+                                 new_manifest_location: str,
+                                 new_requested_size_bytes: int,
+                                 new_manifest_hash: bytes,
+                                 signer: TxSigner) -> TxInfo:
+        #
+        return self.sign_and_send_tx(
+            self.contract.functions.updateManifestLocation(
+                deal_id,
+                new_manifest_location,
+                new_requested_size_bytes,
+                new_manifest_hash),
+            signer)
 
     # @notice Updates the validator instance assigned to a deal
     # @param dealId The id of the deal
