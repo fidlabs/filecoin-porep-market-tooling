@@ -123,6 +123,7 @@ def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = N
         curio_path = _get_curio_path()
         evidence_adapter_filecoin_address = deal.deal.evidence_adapter_address.to_filecoin_address()
 
+        # noinspection PyShadowingNames
         def build_allocation_command(allocation_id: int, deal: PoRepMarketDeal, **_) -> list[str]:
             return _build_allocation_command_curio(curio_path, evidence_adapter_filecoin_address, allocation_id, deal)
 
@@ -133,6 +134,7 @@ def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = N
         boostd_path = _get_boostd_path()
         _cars_dir = Path(cars_dir).resolve()
 
+        # noinspection PyShadowingNames
         def build_allocation_command(allocation_id: int, cid: str, **_) -> list[str]:
             return _build_allocation_command_boost(boostd_path, allocation_id, cid, _cars_dir)
     else:

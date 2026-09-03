@@ -355,6 +355,7 @@ class Web3Service:
         return self._w3.eth.wait_for_transaction_receipt(tx_hash, timeout=timeout, poll_latency=poll_latency)
 
     def wallet_balance(self, address: FilAddress | EthAddress | ActorId) -> int:
+        # noinspection PyShadowingNames
         def filecoin_wallet_balance(address: FilAddress | ActorId) -> int:
             response = self._w3.provider.make_request(
                 RPCEndpoint("Filecoin.WalletBalance"),

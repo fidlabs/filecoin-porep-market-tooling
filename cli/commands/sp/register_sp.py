@@ -44,7 +44,7 @@ def register_sp(provider_id: str,
                 "SP is not registered yet. Please provide all required parameters: --available-capacity, --payee-address"
             ) from e
 
-    # noinspection PyArgumentList
+    # noinspection PyArgumentList,PyUnresolvedReferences
     provider = SPRegistryProviderInput(
         provider_id=_provider_id,
         organization_address=registered_info.organization_address if registered_info else sp_organization_address(),

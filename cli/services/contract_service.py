@@ -131,6 +131,7 @@ class ContractService:
         return ContractService._KNOWN_ABIS
 
     def __decode_contract_error(self, err: ContractCustomError) -> str:
+        # noinspection PyShadowingNames
         def find_error_in_abi(selector: bytes) -> ABIElement | None:
             for item in [i for i in ContractService.__get_known_abis() if i.get("type") == "error"]:
                 sig = item["name"] + "(" + ",".join(i["type"] for i in item["inputs"]) + ")"
@@ -140,6 +141,7 @@ class ContractService:
 
             return None
 
+        # noinspection PyShadowingNames
         def format_error_args(abi_error: ABIElement, arg_data: bytes) -> str:
             types = [i["type"] for i in abi_error["inputs"]]
             names = [i["name"] for i in abi_error["inputs"]]

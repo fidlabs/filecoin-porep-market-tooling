@@ -148,6 +148,7 @@ def json_dataclass(eq=True, init=True, **d_kwargs):
         cls = dataclasses.dataclass(**d_kwargs, eq=eq, init=init)(cls)
 
         def __str__(self):
+            # noinspection PyTypeChecker
             return json_pretty(dataclasses.asdict(self))
 
         cls.__str__ = __str__
