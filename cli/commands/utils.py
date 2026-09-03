@@ -1,6 +1,7 @@
 import ipaddress
 import json
 import socket
+import sys
 from math import ceil
 from pathlib import Path
 from urllib.parse import ParseResult, urlparse
@@ -658,11 +659,25 @@ def propose_deal(signer: TxSigner,
                   f"{against_offer_warn}"
                   f"Continue?", abort=True)
 
-    if offer_id:
-        tx_hash = PoRepMarket().propose_deal_with_specific_offer(offer_id, deal_request, signer).tx_hash
-        click.echo(f"Created deal proposal from manifest {manifest_url} against offer {offer_id}: {tx_hash}")
-    else:
-        tx_hash = PoRepMarket().propose_deal(deal_request, signer).tx_hash
-        click.echo(f"Created deal proposal from manifest {manifest_url}: {tx_hash}")
+    # noinspection PyShadowingNames
+    def find_deal_id(tx) -> int | None:
+        try:
+            # noinspection PyUnresolvedReferences
+            return next(event for event in tx.events if event.event == "DealCreated" or event.event == "DealAccepted").args.dealId
+        except StopIteration:
+            return None
 
-    return tx_hash
+    if offer_id:
+        tx = PoRepMarket().propose_deal_with_specific_offer(offer_id, deal_request, signer)
+        click.echo(f"Created deal from manifest {manifest_url} against offer {offer_id}: {tx.tx_hash}")
+    else:
+        tx = PoRepMarket().propose_deal(deal_request, signer)
+        click.echo(f"Created deal from manifest {manifest_url}: {tx.tx_hash}")
+
+    deal_id = find_deal_id(tx)
+    if deal_id is not None:
+        click.echo(PoRepMarketViewHelper().get_deal_view(deal_id))
+
+    click.echo(f"Run `{sys.argv[0]} client init-deals {deal_id}` to initialize this deal")
+
+    return tx.tx_hash
