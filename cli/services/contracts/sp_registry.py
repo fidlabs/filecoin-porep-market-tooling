@@ -256,10 +256,14 @@ class SPRegistry(ContractService):
     def is_provider_registered(self, provider_id: ActorId) -> bool:
         return self.call_contract(self.contract.functions.isProviderRegistered(provider_id))
 
-    # @notice Returns all registered provider actor IDs.
-    # @return Array of provider actor IDs.
-    def get_providers(self) -> list[ActorId]:
-        return [ActorId(provider_id) for provider_id in self.call_contract(self.contract.functions.getProviders())]
+    # @notice Returns a page of registered provider actor IDs.
+    # @param offset Zero-based index in the provider list.
+    # @param limit Maximum number of provider actor IDs to return.
+    # @return providers Page of provider actor IDs in the existing index order.
+    # @return total Total number of registered providers at call time.
+    def get_providers(self, offset: int | None = None, limit: int | None = None) -> list[ActorId]:
+        return [ActorId(provider_id) for provider_id in
+                self.call_contract_paginated(self.contract.functions.getProviders, offset, limit)]
 
     def get_provider_views(self) -> list[SPRegistryProviderView]:
         return [self.get_provider_view(provider_id) for provider_id in self.get_providers()]
@@ -361,11 +365,14 @@ class SPRegistry(ContractService):
     # @param payments Initial payment rows.
     # @return offerId Created offer ID.
     def create_offer(self, offer: SPRegistryOfferInput, signer: TxSigner) -> TxInfo:
+        terms = offer.terms
+        slis = offer.slis
+
         return self.sign_and_send_tx(
             self.contract.functions.createOffer(
                 offer.provider_id,
-                (offer.terms.min_size_bytes, offer.terms.max_size_bytes, offer.terms.min_duration_epochs, offer.terms.max_duration_epochs),
-                (offer.slis.retrievability_bps, offer.slis.bandwidth_bytes_per_second, offer.slis.latency_ms, offer.slis.indexing_pct),
+                (terms.min_size_bytes, terms.max_size_bytes, terms.min_duration_epochs, terms.max_duration_epochs),
+                (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct),
                 [(payment.token, payment.active, payment.price_per_32_gib_per_month) for payment in offer.payments]
             ),
             signer
@@ -406,12 +413,16 @@ class SPRegistry(ContractService):
     # @notice Previews automatic offer matching without reserving capacity.
     # @param request Client deal request.
     # @return selection Selected offer snapshot, or zero provider when no offer matches.
-    def preview_provider_for_deal(self, request: PoRepMarketDealRequest) -> SPRegistryProviderDealSelection:
+    def preview_provider_for_deal(self,
+                                  client_address: EthAddress,
+                                  request: PoRepMarketDealRequest) -> SPRegistryProviderDealSelection:
+        #
         slis = request.required_slis
 
         return SPRegistryProviderDealSelection.from_web3(
             self.call_contract(
                 self.contract.functions.previewProviderForDeal(
+                    client_address,
                     (
                         request.manifest_hash,
                         request.requested_size_bytes,
@@ -426,13 +437,19 @@ class SPRegistry(ContractService):
             ))
 
     # @notice Selects an offer automatically and reserves pending provider capacity.
+    # @param client Client the manifest assignment is scoped to.
     # @param request Client deal request.
     # @return selection Selected offer snapshot.
-    def reserve_provider_for_deal(self, request: PoRepMarketDealRequest, signer: TxSigner) -> TxInfo:
+    def reserve_provider_for_deal(self,
+                                  client_address: EthAddress,
+                                  request: PoRepMarketDealRequest,
+                                  signer: TxSigner) -> TxInfo:
+        #
         slis = request.required_slis
 
         return self.sign_and_send_tx(
             self.contract.functions.reserveProviderForDeal(
+                client_address,
                 (
                     request.manifest_hash,
                     request.requested_size_bytes,
@@ -449,15 +466,21 @@ class SPRegistry(ContractService):
 
     # @notice Previews a specific offer for a deal without reserving capacity.
     # @param offerId Offer ID to validate.
+    # @param client Client the manifest assignment is scoped to.
     # @param request Client deal request.
     # @return selection Selected offer snapshot, or zero provider when the offer does not match.
     # @return reason OfferMatch reason code; OfferMatch.OK when the offer is eligible.
-    def preview_offer_for_deal(self, offer_id: int, request: PoRepMarketDealRequest) -> tuple[SPRegistryProviderDealSelection, int]:
+    def preview_offer_for_deal(self,
+                               offer_id: int,
+                               client_address: EthAddress,
+                               request: PoRepMarketDealRequest) -> tuple[SPRegistryProviderDealSelection, int]:
+        #
         slis = request.required_slis
 
         selection, reason = self.call_contract(
             self.contract.functions.previewOfferForDeal(
                 offer_id,
+                client_address,
                 (
                     request.manifest_hash,
                     request.requested_size_bytes,
@@ -475,14 +498,21 @@ class SPRegistry(ContractService):
 
     # @notice Validates a specific offer and reserves pending provider capacity.
     # @param offerId Offer ID to validate.
+    # @param client Client the manifest assignment is scoped to.
     # @param request Client deal request.
     # @return selection Selected offer snapshot.
-    def reserve_offer_for_deal(self, offer_id: int, request: PoRepMarketDealRequest, signer: TxSigner) -> TxInfo:
+    def reserve_offer_for_deal(self,
+                               offer_id: int,
+                               client_address: EthAddress,
+                               request: PoRepMarketDealRequest,
+                               signer: TxSigner) -> TxInfo:
+        #
         slis = request.required_slis
 
         return self.sign_and_send_tx(
             self.contract.functions.reserveOfferForDeal(
                 offer_id,
+                client_address,
                 (
                     request.manifest_hash,
                     request.requested_size_bytes,
@@ -494,42 +524,5 @@ class SPRegistry(ContractService):
                     (slis.retrievability_bps, slis.bandwidth_bytes_per_second, slis.latency_ms, slis.indexing_pct)
                 )
             ),
-            signer
-        )
-
-    # @notice Checks whether a provider is already assigned to a manifest.
-    # @param manifestHash Manifest hash used as data identity.
-    # @param provider Provider actor ID.
-    # @return True when provider is locked for the manifest.
-    def is_manifest_assigned_to_provider(self, manifest_hash: bytes, provider_id: ActorId) -> bool:
-        return self.call_contract(self.contract.functions.isManifestAssignedToProvider(manifest_hash, provider_id))
-
-    # @notice Releases committed provider capacity and clears the manifest/provider assignment.
-    # @param provider Provider actor ID.
-    # @param sizeBytes Capacity to release.
-    # @param manifestHash Manifest hash whose provider assignment should be cleared.
-    def release_capacity(self, provider_id: ActorId, size_bytes: int, manifest_hash: bytes, signer: TxSigner) -> TxInfo:
-        return self.sign_and_send_tx(
-            self.contract.functions.releaseCapacity(provider_id, size_bytes, manifest_hash),
-            signer
-        )
-
-    # @notice Releases pending provider capacity and clears the manifest/provider assignment.
-    # @param provider Provider actor ID.
-    # @param sizeBytes Pending capacity to release.
-    # @param manifestHash Manifest hash whose provider assignment should be cleared.
-    def release_pending_capacity(self, provider_id: ActorId, size_bytes: int, manifest_hash: bytes, signer: TxSigner) -> TxInfo:
-        return self.sign_and_send_tx(
-            self.contract.functions.releasePendingCapacity(provider_id, size_bytes, manifest_hash),
-            signer
-        )
-
-    # @notice Converts pending capacity into committed capacity.
-    # @param provider Provider actor ID.
-    # @param estimatedSizeBytes Pending bytes reserved by the deal request.
-    # @param actualSizeBytes Actual activated bytes.
-    def commit_capacity(self, provider_id: ActorId, estimated_size_bytes: int, actual_size_bytes: int, signer: TxSigner) -> TxInfo:
-        return self.sign_and_send_tx(
-            self.contract.functions.commitCapacity(provider_id, estimated_size_bytes, actual_size_bytes),
             signer
         )

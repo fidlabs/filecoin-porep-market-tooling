@@ -391,17 +391,33 @@ class PoRepMarket(ContractService):
         return self.call_contract(self.contract.functions.getDealIdsByState(state.value, offset, limit))
 
     # @notice Gets deals for a specific organization by state
-    # @param organization_address The address of the organization
+    # @param organization The address of the organization
     # @param state The state of the deals to retrieve
-    # @return deals Array of deal proposals for the organization in the specified state (from all providers associated with the organization)
-    def get_deals_for_organization_by_state(self, organization_address: EthAddress, state: PoRepMarketDealState) -> list[PoRepMarketDeal]:
+    # @param offset Zero-based index in the organization's state-specific deal list
+    # @param limit Maximum number of deals to return
+    # @return deals Array of deals for the organization in the specified state
+    # @return total Total number of deals for the organization in the specified state
+    def get_deals_for_organization_by_state(self,
+                                            organization_address: EthAddress,
+                                            state: PoRepMarketDealState,
+                                            offset: int | None = None,
+                                            limit: int | None = None) -> list[PoRepMarketDeal]:
+        #
         return [PoRepMarketDeal.from_web3(deal) for deal in
-                self.call_contract(self.contract.functions.getDealsForOrganizationByState(organization_address, state.value))]
+                self.call_contract_paginated(self.contract.functions.getDealsForOrganizationByState,
+                                             offset,
+                                             limit,
+                                             organization_address,
+                                             state.value)]
 
-    # @notice Gets all deals
-    # @return deals Array of all deals
-    def get_deals(self) -> list[PoRepMarketDeal]:
-        return [PoRepMarketDeal.from_web3(deal) for deal in self.call_contract(self.contract.functions.getDeals())]
+    # @notice Gets a page of all deals in creation order
+    # @param offset Zero-based index in the creation-order deal list
+    # @param limit Maximum number of deals to return
+    # @return deals Array of deals in creation order
+    # @return total Total number of created deals
+    def get_deals(self, offset: int | None = None, limit: int | None = None) -> list[PoRepMarketDeal]:
+        return [PoRepMarketDeal.from_web3(deal) for deal in
+                self.call_contract_paginated(self.contract.functions.getDeals, offset, limit)]
 
     # @notice Accepts a deal
     # @param dealId The id of the deal proposal

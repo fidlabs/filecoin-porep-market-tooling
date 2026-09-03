@@ -666,7 +666,18 @@
     {
         "type": "function",
         "name": "getDeals",
-        "inputs": [],
+        "inputs": [
+            {
+                "name": "offset",
+                "type": "uint256",
+                "internalType": "uint256"
+            },
+            {
+                "name": "limit",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
         "outputs": [
             {
                 "name": "deals",
@@ -724,6 +735,11 @@
                         "internalType": "CommonTypes.ChainEpoch"
                     }
                 ]
+            },
+            {
+                "name": "total",
+                "type": "uint256",
+                "internalType": "uint256"
             }
         ],
         "stateMutability": "view"
@@ -741,6 +757,16 @@
                 "name": "state",
                 "type": "uint8",
                 "internalType": "uint8"
+            },
+            {
+                "name": "offset",
+                "type": "uint256",
+                "internalType": "uint256"
+            },
+            {
+                "name": "limit",
+                "type": "uint256",
+                "internalType": "uint256"
             }
         ],
         "outputs": [
@@ -800,6 +826,11 @@
                         "internalType": "CommonTypes.ChainEpoch"
                     }
                 ]
+            },
+            {
+                "name": "total",
+                "type": "uint256",
+                "internalType": "uint256"
             }
         ],
         "stateMutability": "view"
@@ -941,6 +972,11 @@
         "type": "function",
         "name": "previewProviderForDeal",
         "inputs": [
+            {
+                "name": "client",
+                "type": "address",
+                "internalType": "address"
+            },
             {
                 "name": "request",
                 "type": "tuple",
@@ -2152,6 +2188,11 @@
     },
     {
         "type": "error",
+        "name": "EvidenceTooStale",
+        "inputs": []
+    },
+    {
+        "type": "error",
         "name": "FailedCall",
         "inputs": []
     },
@@ -2345,6 +2386,22 @@
     },
     {
         "type": "error",
+        "name": "ServiceAlreadyEnded",
+        "inputs": [
+            {
+                "name": "serviceEndEpoch",
+                "type": "int64",
+                "internalType": "int64"
+            },
+            {
+                "name": "currentEpoch",
+                "type": "int64",
+                "internalType": "int64"
+            }
+        ]
+    },
+    {
+        "type": "error",
         "name": "ServiceNotEnded",
         "inputs": [
             {
@@ -2354,6 +2411,22 @@
             },
             {
                 "name": "currentEpoch",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "error",
+        "name": "SettlementTooEarly",
+        "inputs": [
+            {
+                "name": "requestedToEpoch",
+                "type": "uint256",
+                "internalType": "uint256"
+            },
+            {
+                "name": "earliestSettlementEpoch",
                 "type": "uint256",
                 "internalType": "uint256"
             }
