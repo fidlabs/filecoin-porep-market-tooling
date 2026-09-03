@@ -40,41 +40,41 @@ def get_db_offers(db_url: str,
     def sla_class_to_sli_thresholds(sla_class: str) -> PoRepMarketSLIThresholds:
         sla_class = sla_class.lower()
 
+        # TODO ASAP
         if sla_class == "accessible_storage":
             # noinspection PyArgumentList
             return PoRepMarketSLIThresholds(
                 retrievability_bps=8000,  # 80 %
-                bandwidth_bytes_per_second=322122547,  # 300 MiB per second
-                latency_ms=0,  # TODO ASAP
+                bandwidth_bytes_per_second=37_500_000,  # 300 Mbps
+                latency_ms=0,
                 indexing_pct=100
             )
 
         elif sla_class == "premium_storage":
             # noinspection PyArgumentList
             return PoRepMarketSLIThresholds(
-                retrievability_bps=10000,  # 100 %
-                bandwidth_bytes_per_second=1073741824,  # 1 GiB per second
-                latency_ms=0,  # TODO ASAP
+                retrievability_bps=9000,  # 90 %
+                bandwidth_bytes_per_second=125_000_000,  # 1 Gbps
+                latency_ms=0,
                 indexing_pct=100
             )
 
+        # ruff: noqa: SIM114
         elif sla_class == "archival":
-            # TODO ASAP
             # noinspection PyArgumentList
             return PoRepMarketSLIThresholds(
                 retrievability_bps=0,  # 0 %
-                bandwidth_bytes_per_second=0,
-                latency_ms=999,
+                bandwidth_bytes_per_second=125_000,  # 1 Mbps
+                latency_ms=24 * 60 * 60 * 1000,  # 24 hours
                 indexing_pct=0
             )
 
-        if sla_class == "accessible_backup":
-            # TODO ASAP
+        elif sla_class == "accessible_backup":
             # noinspection PyArgumentList
             return PoRepMarketSLIThresholds(
                 retrievability_bps=0,  # 0 %
-                bandwidth_bytes_per_second=0,
-                latency_ms=999,
+                bandwidth_bytes_per_second=125_000,  # 1 Mbps
+                latency_ms=24 * 60 * 60 * 1000,  # 24 hours
                 indexing_pct=0
             )
 
