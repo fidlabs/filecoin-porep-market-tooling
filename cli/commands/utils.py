@@ -82,16 +82,16 @@ def get_sp_deals(state: PoRepMarketDealState | None = None,
 def get_deal_allocation_ids(deal: PoRepMarketDeal) -> list[int]:
     adapter = DataCapEvidenceAdapter(deal.evidence_adapter_address)
 
-    ids: list[int] = []
+    all_ids: list[int] = []
     offset = 0
 
     while True:
-        page, total = adapter.get_allocation_ids_per_deal(deal.deal_id, offset, _EVIDENCE_IDS_PAGE_SIZE)
-        ids.extend(int(allocation_id) for allocation_id in page)
-        offset += len(page)
+        ids, total = adapter.get_allocation_ids_per_deal(deal.deal_id, offset, _EVIDENCE_IDS_PAGE_SIZE)
+        all_ids.extend(int(allocation_id) for allocation_id in ids)
+        offset += len(ids)
 
-        if not page or offset >= total:
-            return ids
+        if not ids or offset >= total:
+            return all_ids
 
 
 def get_deal_claim_ids(deal: PoRepMarketDeal) -> list[int]:
