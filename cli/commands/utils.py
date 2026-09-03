@@ -571,7 +571,7 @@ def calculate_deposit_amount(size_bytes: int,
 
 def propose_deal(signer: TxSigner,
                  manifest_url: str,
-                 retrievability_bps: int,
+                 retrievability_pct: int,
                  bandwidth_mbps: int,
                  price_per_tib_per_month: float,
                  duration_months: int,
@@ -617,7 +617,7 @@ def propose_deal(signer: TxSigner,
         duration_days=duration_months * 30,  # PoRep Market smart contracts assumes month == 30 days
         deal_type=deal_type,
         required_slis=PoRepMarketSLIThresholds(
-            retrievability_bps=retrievability_bps,
+            retrievability_bps=retrievability_pct * 100,
             bandwidth_bytes_per_second=utils.Mbps_to_Bps(bandwidth_mbps),
             latency_ms=latency_ms,
             indexing_pct=indexing_pct,
@@ -625,7 +625,7 @@ def propose_deal(signer: TxSigner,
     )
 
     client_address = client_address or signer.address()
-    Web3Service().wait_for_pending_transactions(client_address)
+    Web3Service().wait_for_pending_transactions(signer.address())
     existing_deals = get_client_deals(client_address)
 
     # warn if any of existing client deals looks similar to the new deal proposal

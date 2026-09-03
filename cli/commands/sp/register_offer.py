@@ -31,9 +31,9 @@ from cli.services.web3_service import Web3Service, EthAddress, ActorId
 @click.option("--min-price-per-tib-per-month", type=click.FloatRange(min=0, min_open=True), required=True,
               prompt="Enter minimum monthly price per 1 TiB in decimal format in given --payment-token tokens (e.g., 1.5 for 1.5 USDC)",
               help="Minimum monthly price per 1 TiB in decimal format in given --payment-token tokens. (e.g., 1.5 for 1.5 USDC).")
-@click.option("--retrievability-bps", type=click.IntRange(0, 10000), required=True,
-              prompt="Enter retrievability guarantee in bps (basis points, e.g. 7550 = 75.50%)",
-              help="Retrievability guarantee in bps (basis points, e.g. 7550 = 75.50%).")
+@click.option("--retrievability-pct", type=click.IntRange(0, 100), required=True,
+              prompt="Enter retrievability guarantee in percentage",
+              help="Retrievability guarantee in percentage.")
 @click.option("--bandwidth-mbps", type=click.IntRange(0, 64000), required=True,
               prompt="Enter bandwidth guarantee in Mbps",
               help="Bandwidth guarantee in Mbps.")
@@ -50,7 +50,7 @@ def register_offer(provider_id: str,
                    max_duration_months: int,
                    payment_token: str,
                    min_price_per_tib_per_month: float,
-                   retrievability_bps: int,
+                   retrievability_pct: int,
                    bandwidth_mbps: int,
                    latency_ms: int,
                    indexing_pct: int):
@@ -82,7 +82,7 @@ def register_offer(provider_id: str,
                                      max_duration_epochs=utils.months_to_epochs(max_duration_months, EPOCHS_IN_MONTH)
                                  ),
                                  slis=PoRepMarketSLIThresholds(
-                                     retrievability_bps=retrievability_bps,
+                                     retrievability_bps=retrievability_pct * 100,
                                      bandwidth_bytes_per_second=utils.Mbps_to_Bps(bandwidth_mbps),
                                      latency_ms=latency_ms,
                                      indexing_pct=indexing_pct
