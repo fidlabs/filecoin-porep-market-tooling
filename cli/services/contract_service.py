@@ -304,3 +304,21 @@ class ContractService:
         except Exception as e:
             self._handle_contract_error(e, call, None)
             assert False  # unreachable
+
+    def call_contract_paginated(self, func, offset: int | None, limit: int | None, *args) -> T:
+        if offset is not None and limit is not None:
+            result, total = self.call_contract(func(*args, offset, limit))
+            return result
+
+        all_results = []
+        offset = offset or 0
+        limit = limit or 100
+
+        while True:
+            result, total = self.call_contract(func(*args, offset, limit))
+            all_results.extend(result)
+
+            if not result or len(all_results) >= total:
+                return all_results
+
+            offset += limit

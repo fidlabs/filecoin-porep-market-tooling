@@ -6,6 +6,7 @@ from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceStatu
 from cli.services.contracts.porep_market import (
     PoRepMarketDeal,
     PoRepMarketSLIThresholds,
+    PoRepMarketDealState,
 )
 from cli.services.web3_service import EthAddress, FilAddress
 
@@ -183,23 +184,36 @@ class PoRepMarketViewHelper(ContractService):
         return EthAddress(self.call_contract(self.contract.functions.POREPMARKET_CONTRACT()))
 
     # @notice Gets the complete generic read model for one deal.
-    # @dev External tools, oracles, CLIs, and RPC consumers use this bounded
-    # snapshot when they need all PoRepMarket-owned or PoRepMarket-frozen facts for
-    # one deal in a single eth_call. The evidence status is adapter-local stored
-    # status and does not refresh Filecoin actor state.
     # @param dealId The id of the deal.
     # @return dealView Complete generic deal snapshot.
     def get_deal_view(self, deal_id: int) -> PoRepMarketDealView:
         return PoRepMarketDealView.from_web3(self.call_contract(self.contract.functions.getDealView(deal_id)), deal_id)
 
     # @notice Gets a caller-sized page of complete generic deal views.
-    # @dev Oracle jobs and CLI tools use this for normal batch scans. The caller
-    # chooses `limit` because RPC providers and JSON-RPC clients have gas, timeout,
-    # and response-size limits for eth_call.
-    # @param offset Zero-based index in the creation-order deal ID list.
+    # @param offset Zero-based index in the creation-order deal list.
     # @param limit Maximum number of deal views to return.
     # @return dealViews Page of complete generic deal snapshots.
-    # @return total Total number of created deal IDs at call time.
-    def get_deal_views(self, offset: int, limit: int) -> tuple[list[PoRepMarketDealView], int]:
-        views, total = self.call_contract(self.contract.functions.getDealViews(offset, limit))
-        return [PoRepMarketDealView.from_web3(view) for view in views], total
+    # @return total Total number of created deals at call time.
+    def get_deal_views(self, offset: int | None = None, limit: int | None = None) -> list[PoRepMarketDealView]:
+        return [PoRepMarketDealView.from_web3(view) for view in
+                self.call_contract_paginated(self.contract.functions.getDealViews, offset, limit)]
+
+    # @notice Gets a caller-sized page of complete deal views for an organization and state.
+    # @param organization The address of the organization.
+    # @param state The state of the deals to retrieve.
+    # @param offset Zero-based index in the organization's state-specific deal list.
+    # @param limit Maximum number of deal views to return.
+    # @return dealViews Page of complete generic deal snapshots.
+    # @return total Total number of matching deals at call time.
+    def get_deal_views_for_organization_by_state(self,
+                                                 organization_address: EthAddress,
+                                                 state: PoRepMarketDealState,
+                                                 offset: int | None = None,
+                                                 limit: int | None = None) -> list[PoRepMarketDealView]:
+        #
+        return [PoRepMarketDealView.from_web3(view) for view in
+                self.call_contract_paginated(self.contract.functions.getDealViewsForOrganizationByState,
+                                             offset,
+                                             limit,
+                                             organization_address,
+                                             state.value)]
