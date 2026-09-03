@@ -4,6 +4,7 @@ from eth_hash.backends.pycryptodome import keccak256
 from cli import utils
 from cli.commands.admin._admin import admin_signer
 from cli.services.contracts.access_control_upgradeable import AccessControlUpgradeable
+from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import EthAddress
 
 
@@ -15,10 +16,13 @@ def set_role(contract_address: str, role: str, account: str):
     """
     Grant a role to an address on a contract that implements AccessControlUpgradeable.
 
+    \b
     CONTRACT_ADDRESS - The address of the contract to modify role on. Can be any format possible.
-    ROLE - The role to modify. Can be a hex, integer or alpha-only string.
+    ROLE - The role to modify. Can be a hex, integer or alpha-only (+ underscore) string.
     ACCOUNT - The address to grant the role to. Can be any format possible.
     """
+
+    SelfUpdateService.check_and_prompt(manual=False)
 
     _contract_address = EthAddress.from_any(contract_address)
     _account = EthAddress.from_any(account)
@@ -28,7 +32,7 @@ def set_role(contract_address: str, role: str, account: str):
         role_bytes = utils.uint_to_bytes(int(role, 16), 32)
     elif role.isdigit():
         role_bytes = utils.uint_to_bytes(int(role), 32)
-    elif role.isalpha():
+    elif role.replace("_", "").isalpha():
         role_bytes = keccak256(role.encode("utf-8"))
     else:
         raise click.UsageError("Role must be a hex, integer or alpha-only string")
@@ -39,6 +43,40 @@ def set_role(contract_address: str, role: str, account: str):
     utils.confirm(f"Setting role {role} ({role_bytes.hex()}) for address {account_str} on contract {contract_address_str}",
                   abort=True)
 
-    tx_hash = contract.grant_role(role_bytes, _account, admin_signer())
-
+    tx_hash = contract.grant_role(role_bytes, _account, admin_signer()).tx_hash
     click.echo(f"Role set: {tx_hash}")
+
+
+@click.command()
+@click.argument("contract_address")
+@click.argument("role")
+@click.argument("account")
+def has_role(contract_address: str, role: str, account: str):
+    """
+    Check if an address has a role on a contract that implements AccessControlUpgradeable.
+
+    \b
+    CONTRACT_ADDRESS - The address of the contract to check role on. Can be any format possible.
+    ROLE - The role to check. Can be a hex, integer or alpha-only (+ underscore) string.
+    ACCOUNT - The address to check the role for. Can be any format possible.
+    """
+
+    SelfUpdateService.check_and_prompt(manual=False)
+
+    _contract_address = EthAddress.from_any(contract_address)
+    _account = EthAddress.from_any(account)
+    contract = AccessControlUpgradeable(_contract_address)
+
+    if role.startswith("0x"):
+        role_bytes = utils.uint_to_bytes(int(role, 16), 32)
+    elif role.isdigit():
+        role_bytes = utils.uint_to_bytes(int(role), 32)
+    elif role.replace("_", "").isalpha():
+        role_bytes = keccak256(role.encode("utf-8"))
+    else:
+        raise click.UsageError("Role must be a hex, integer or alpha-only string")
+
+    account_str = f"{account} ({_account})" if account != _account else account
+    contract_address_str = f"{contract_address} ({_contract_address})" if contract_address != _contract_address else contract_address
+
+    click.echo(f"Address {account_str} has role {role} ({role_bytes.hex()}) on contract {contract_address_str}: {contract.has_role(role_bytes, _account)}")

@@ -1,64 +1,71 @@
 import ipaddress
 import json
 import socket
+import sys
+from math import ceil
 from pathlib import Path
-from urllib.parse import ParseResult
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse
 
 import click
+import humanfriendly
 import requests
+from hexbytes import HexBytes
 from requests import RequestException
+from web3 import Web3
 
 from cli import utils
 from cli._cli import is_dry_run
-from cli.services.contracts.client_contract import ClientContract
+from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.filecoin_pay import FileCoinPay
-from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarketDealProposal, PoRepMarket
-from cli.services.contracts.sp_registry import SPRegistry
+from cli.services.contracts.porep_market import (
+    PoRepMarket,
+    PoRepMarketDeal,
+    PoRepMarketDealState, PoRepMarketDealType, PoRepMarketDealRequest, PoRepMarketSLIThresholds,
+)
+from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
+from cli.services.contracts.sp_registry import SPRegistry, SPRegistryProviderInput, SPRegistryProviderView, SPRegistryOfferInput
 from cli.services.contracts.validator_factory import ValidatorFactory
 from cli.services.txsigner import TxSigner
-from cli.services.web3_service import EthAddress, ActorId, FilAddress
-from cli.services.web3_service import Web3Service
+from cli.services.web3_service import ActorId, EthAddress, FilAddress, Web3Service
+
+_EVIDENCE_IDS_PAGE_SIZE = 500
 
 
-def get_all_deals(state: PoRepMarketDealState | str | None = None,
-                  organization: EthAddress | None = None) -> list[PoRepMarketDealProposal]:
+def get_all_deals(state: PoRepMarketDealState | None = None,
+                  organization: EthAddress | None = None) -> list[PoRepMarketDeal]:
     #
-    _state = PoRepMarketDealState.from_string(str(state)) if state else None
-
     if organization:
         # prefer get_deals_for_organization_by_state function when asking for organization...
         result = []
-        selected_states = [_state] if _state else list(PoRepMarketDealState)
+        selected_states = [state] if state else list(PoRepMarketDealState)
 
         for selected_state in selected_states:
             result.extend(PoRepMarket().get_deals_for_organization_by_state(organization, selected_state))
     else:
-        # ... otherwise prefer get_all_deals function
+        # ... otherwise prefer get_deals function
         result = PoRepMarket().get_deals()
 
-        if _state:
-            result = [deal for deal in result if deal.state == _state]
+        if state:
+            result = [deal for deal in result if deal.state == state]
 
     return result
 
 
-def get_client_deals(_client_address: EthAddress,
-                     state: PoRepMarketDealState | None = None) -> list[PoRepMarketDealProposal]:
+def get_client_deals(_client_address: EthAddress, state: PoRepMarketDealState | None = None) -> list[PoRepMarketDeal]:
     all_deals = get_all_deals(state)
     return [deal for deal in all_deals if deal.client_address == _client_address]
 
 
 def get_sp_deals(state: PoRepMarketDealState | None = None,
                  organization_address: EthAddress | None = None,
-                 provider_id: ActorId | None = None) -> list[PoRepMarketDealProposal]:
+                 provider_id: ActorId | None = None) -> list[PoRepMarketDeal]:
     #
     if provider_id:
         assert not organization_address
 
         try:
-            provider_info = SPRegistry().get_provider_info(provider_id)
+            provider_info = SPRegistry().get_provider_view(provider_id)
         except RuntimeError:
             return []
 
@@ -73,18 +80,48 @@ def get_sp_deals(state: PoRepMarketDealState | None = None,
     return result
 
 
-def get_deal_allocations(deal: PoRepMarketDealProposal) -> dict[str, dict]:
-    deal_allocations = ClientContract().get_client_allocation_ids_per_deal(deal.deal_id)
+def get_deal_allocation_ids(deal: PoRepMarketDeal) -> list[int]:
+    adapter = DataCapEvidenceAdapter(deal.evidence_adapter_address)
 
-    allocations = Web3Service().state_get_allocations(ClientContract().address().to_actor_id())
+    all_ids: list[int] = []
+    offset = 0
+
+    while True:
+        ids, total = adapter.get_allocation_ids_per_deal(deal.deal_id, offset, _EVIDENCE_IDS_PAGE_SIZE)
+        all_ids.extend(int(allocation_id) for allocation_id in ids)
+        offset += len(ids)
+
+        if not ids or offset >= total:
+            return all_ids
+
+
+def get_deal_claim_ids(deal: PoRepMarketDeal) -> list[int]:
+    adapter = DataCapEvidenceAdapter(deal.evidence_adapter_address)
+
+    ids: list[int] = []
+    offset = 0
+
+    while True:
+        page, total = adapter.get_claim_ids(deal.deal_id, offset, _EVIDENCE_IDS_PAGE_SIZE)
+        ids.extend(int(claim_id) for claim_id in page)
+        offset += len(page)
+
+        if not page or offset >= total:
+            return ids
+
+
+def get_deal_allocations(deal: PoRepMarketDeal) -> dict[str, dict]:
+    deal_allocations = get_deal_allocation_ids(deal)
+
+    allocations = Web3Service().state_get_allocations(deal.evidence_adapter_address.to_actor_id())
     return {allocation_id: allocation for allocation_id, allocation in allocations.items() if int(allocation_id) in deal_allocations}
 
 
-def get_deal_claims(deal: PoRepMarketDealProposal) -> dict[str, dict]:
-    deal_allocations = ClientContract().get_client_allocation_ids_per_deal(deal.deal_id)
+def get_deal_claims(deal: PoRepMarketDeal) -> dict[str, dict]:
+    deal_claims = get_deal_claim_ids(deal)
 
-    claims = Web3Service().state_get_claims(deal.provider_id, ClientContract().address().to_actor_id())
-    return {claim_id: claim for claim_id, claim in claims.items() if int(claim_id) in deal_allocations}
+    claims = Web3Service().state_get_claims(deal.provider_id, deal.evidence_adapter_address.to_actor_id())
+    return {claim_id: claim for claim_id, claim in claims.items() if int(claim_id) in deal_claims}
 
 
 # pylint: disable=broad-exception-caught
@@ -110,16 +147,20 @@ def print_info(account_address: EthAddress | None = None, account_name: str = "A
         click.echo()
 
     try:
-        click.echo(f"Chain ID: {Web3Service().get_chain_id()}")
+        click.echo(f"Chain ID: {Web3Service().get_chain_id()} ({Web3Service().get_network_name()})")
     except Exception as e:
         click.echo(f"Error fetching chain ID: {e}")
 
-    click.echo()
     click.echo(f"RPC_URL={utils.get_env('RPC_URL', required=False)}")
     click.echo()
-    click.echo(f"POREP_MARKET={utils.get_env('POREP_MARKET', required=False)}")
+    click.echo(f"POREP_MARKET_VIEW_HELPER={utils.get_env('POREP_MARKET_VIEW_HELPER', required=False)}")
     click.echo(f"FILECOIN_PAY={utils.get_env('FILECOIN_PAY', required=False)}")
     click.echo(f"USDC_TOKEN={utils.get_env('USDC_TOKEN', required=False)}")
+
+    try:
+        click.echo(f"POREP_MARKET={PoRepMarket().address()}")
+    except Exception as e:
+        click.echo(f"Error fetching PoRep Market address: {e}")
 
     try:
         click.echo(f"SP_REGISTRY={SPRegistry().address()}")
@@ -132,9 +173,9 @@ def print_info(account_address: EthAddress | None = None, account_name: str = "A
         click.echo(f"Error fetching Validator Factory address: {e}")
 
     try:
-        click.echo(f"CLIENT_CONTRACT={ClientContract().address()}")
+        click.echo(f"EVIDENCE_ADAPTER={DataCapEvidenceAdapter().address()}")
     except Exception as e:
-        click.echo(f"Error fetching Client Contract address: {e}")
+        click.echo(f"Error fetching Evidence Adapter address: {e}")
 
     click.echo()
     click.echo(f"DRY_RUN={is_dry_run()}")
@@ -145,7 +186,7 @@ def print_info(account_address: EthAddress | None = None, account_name: str = "A
 def fetch_manifest(manifest_url: str,
                    show_manifest: bool | None = None,
                    retries: int | None = None,
-                   quiet=False) -> list[dict]:
+                   quiet=False) -> tuple[list[dict], bytes]:
     #
     if not quiet:
         click.echo(f"Fetching manifest from {manifest_url}")
@@ -171,15 +212,20 @@ def fetch_manifest(manifest_url: str,
                     retries -= 1
 
 
-def fetch_local_manifest(manifest_path: Path, quiet=False) -> list[dict]:
+def fetch_local_manifest(manifest_path: Path, quiet=False) -> tuple[list[dict], bytes]:
     try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        raw_manifest = manifest_path.read_bytes()
+        manifest = json.loads(raw_manifest.decode("utf-8"))
     except OSError as e:
         raise click.ClickException(f"Failed to read manifest file: {e}") from e
     except ValueError as e:
         raise click.ClickException(f"Manifest is not a valid JSON: {e}") from e
 
-    return _validate_manifest(manifest, quiet)
+    return _validate_manifest(manifest, quiet), raw_manifest
+
+
+def _private_manifest_urls_allowed() -> bool:
+    return utils.string_to_bool(utils.get_env("ALLOW_PRIVATE_MANIFEST_URLS", default="false")) or False
 
 
 def validate_and_parse_url(manifest_url: str) -> ParseResult:
@@ -191,20 +237,19 @@ def validate_and_parse_url(manifest_url: str) -> ParseResult:
     if parsed.scheme not in ("http", "https"):
         raise click.ClickException("Manifest URL must use http/https")
 
-    # noinspection PyTypeChecker
-    ip = socket.gethostbyname(parsed.hostname)
-    addr = ipaddress.ip_address(ip)
+    # SSRF guard; ALLOW_PRIVATE_MANIFEST_URLS=true disables it for local devnets
+    if not _private_manifest_urls_allowed():
+        # noinspection PyTypeChecker
+        ip = socket.gethostbyname(parsed.hostname)
+        addr = ipaddress.ip_address(ip)
 
-    if addr.is_private or addr.is_loopback or addr.is_reserved or addr.is_link_local or addr.is_multicast:
-        raise click.ClickException(f"Manifest URL resolves to a disallowed IP address: {ip}")
+        if addr.is_private or addr.is_loopback or addr.is_reserved or addr.is_link_local or addr.is_multicast:
+            raise click.ClickException(f"Manifest URL resolves to a disallowed IP address: {ip}")
 
     return parsed
 
 
-def _fetch_manifest(parsed_url: ParseResult,
-                    show_manifest: bool | None = None,
-                    quiet=False) -> list[dict]:
-    #
+def _fetch_manifest(parsed_url: ParseResult, show_manifest: bool | None = None, quiet=False) -> tuple[list[dict], bytes]:
     resp = requests.get(parsed_url.geturl(), headers={"Host": parsed_url.hostname}, timeout=30, allow_redirects=False)
 
     # don't retry on 4xx errors
@@ -218,6 +263,7 @@ def _fetch_manifest(parsed_url: ParseResult,
 
     try:
         manifest = resp.json()
+        raw_manifest = resp.content
     except ValueError as e:
         raise click.ClickException(f"Manifest is not a valid JSON: {e}") from e
 
@@ -226,7 +272,7 @@ def _fetch_manifest(parsed_url: ParseResult,
         click.echo_via_pager("\n".join([f"{i + 1}. {line}" for i, line in enumerate(_manifest.splitlines())]))
         click.echo()
 
-    return _validate_manifest(manifest, quiet)
+    return _validate_manifest(manifest, quiet), raw_manifest
 
 
 def _validate_manifest(manifest: object, quiet=False) -> list[dict]:
@@ -263,8 +309,12 @@ def _validate_manifest(manifest: object, quiet=False) -> list[dict]:
         data_pieces = [piece for piece in pieces if piece["pieceType"] == "data"]
         dag_pieces = [piece for piece in pieces if piece["pieceType"] == "dag"]
 
+        pieces_size_bytes = sum(piece.get("pieceSize", 0) for piece in pieces)
+        if pieces_size_bytes <= 0:
+            raise click.ClickException("Invalid pieceSize in manifest pieces: must be greater than 0")
+
         if not quiet:
-            click.echo(f"Found {len(data_pieces)} data piece(s) and {len(dag_pieces)} dag piece(s), {len(pieces)} total")
+            click.echo(f"Found {len(data_pieces)} data piece(s) and {len(dag_pieces)} dag piece(s), {len(pieces)} total pieces")
 
         if len(pieces) <= 1 or len(data_pieces) != len(pieces) - 1 or len(dag_pieces) != 1:
             raise click.ClickException("Invalid manifest pieces: must contain exactly one dag piece and at least one data piece")
@@ -285,17 +335,16 @@ def _validate_manifest(manifest: object, quiet=False) -> list[dict]:
     return manifest
 
 
-def get_filecoinpay_account(token_address: str, owner_address: EthAddress):
-    _token_address = EthAddress(token_address)
-    token = ERC20Contract(_token_address)
+def get_filecoinpay_account(token_address: EthAddress, owner_address: EthAddress):
+    token = ERC20Contract(token_address)
     token_symbol = token.symbol()
     token_decimals = token.decimals()
-    account = FileCoinPay().get_account(_token_address, owner_address)
+    account = FileCoinPay().get_account(token_address, owner_address)
 
     return {
         "owner": str(owner_address),
         "token": {
-            "address": str(_token_address),
+            "address": str(token_address),
             "name": token.name(),
             "symbol": token_symbol,
             "decimals": token_decimals,
@@ -308,13 +357,331 @@ def get_filecoinpay_account(token_address: str, owner_address: EthAddress):
     }
 
 
-def reject_deal(deal: PoRepMarketDealProposal, signer: TxSigner, confirm_session_id: str | None = None) -> str:
-    if deal.state != PoRepMarketDealState.PROPOSED:
-        raise click.ClickException(f"Deal ID {deal.deal_id} is in state {deal.state} != PROPOSED")
+def withdraw_from_filecoinpay(to_address: str, amount: float, token_address: EthAddress, from_address: EthAddress, signer: TxSigner) -> str:
+    _to_address = EthAddress.from_any(to_address)
 
-    utils.confirm(f"Rejecting deal ID {deal.deal_id}: {deal}", default=True, abort=True, session_id=confirm_session_id)
+    token = ERC20Contract(token_address)
+    token_decimals = token.decimals()
+    token_symbol = token.symbol()
 
-    tx_hash = PoRepMarket().reject_deal(deal.deal_id, signer)
-    click.echo(f"Deal ID {deal.deal_id} rejected: {tx_hash}")
+    def print_token_balance(_account_address: EthAddress):
+        token_balance = token.balance_of(_account_address)
+        token_balance_str = utils.str_from_wei(token_balance, token_decimals)
+
+        click.echo(f"Token balance of {_account_address}: {token_balance_str} {token_symbol}")
+        click.echo()
+
+    print_token_balance(_to_address)
+    click.echo(f"FileCoinPay account of {from_address}: " + utils.json_pretty(get_filecoinpay_account(token_address, from_address)))
+    click.echo()
+
+    _amount = utils.to_wei(amount, token_decimals)
+    amount_str = utils.str_from_wei(_amount, token_decimals)
+
+    utils.confirm(f"Withdraw {amount_str} {token_symbol} from {from_address} FileCoinPay account to {_to_address}?", abort=True)
+
+    tx_hash = FileCoinPay().withdraw_to(token_address,
+                                        _to_address,
+                                        _amount,
+                                        signer).tx_hash
+
+    click.echo(f"Withdraw transaction sent: {tx_hash}")
+    print_token_balance(_to_address)
 
     return tx_hash
+
+
+def pause_sp(provider_id: ActorId, signer: TxSigner) -> str:
+    provider = SPRegistry().get_provider_view(provider_id)
+
+    if provider.paused:
+        raise click.ClickException(f"Storage Provider {provider.provider_id} is already paused")
+
+    utils.confirm(f"Pausing Storage Provider {provider.provider_id}: "
+                  f"{utils.json_pretty(provider)}", abort=True)
+
+    tx_hash = SPRegistry().pause_provider(provider.provider_id, signer).tx_hash
+    click.echo(f"Storage Provider {provider.provider_id} paused: {tx_hash}")
+
+    return tx_hash
+
+
+def unpause_sp(provider_id: ActorId, signer: TxSigner) -> str:
+    provider = SPRegistry().get_provider_view(provider_id)
+
+    if not provider.paused:
+        raise click.ClickException(f"Storage Provider {provider.provider_id} is not paused")
+
+    utils.confirm(f"Unpausing Storage Provider {provider.provider_id}: "
+                  f"{utils.json_pretty(provider)}", abort=True)
+
+    tx_hash = SPRegistry().unpause_provider(provider.provider_id, signer).tx_hash
+    click.echo(f"Storage Provider {provider.provider_id} unpaused: {tx_hash}")
+
+    return tx_hash
+
+
+def block_sp(provider_id: ActorId, signer: TxSigner) -> str:
+    provider = SPRegistry().get_provider_view(provider_id)
+
+    if provider.blocked:
+        raise click.ClickException(f"Storage Provider {provider.provider_id} is already blocked")
+
+    utils.confirm(f"Blocking Storage Provider {provider.provider_id}: "
+                  f"{utils.json_pretty(provider)}", abort=True)
+
+    tx_hash = SPRegistry().block_provider(provider.provider_id, signer).tx_hash
+    click.echo(f"Storage Provider {provider.provider_id} blocked: {tx_hash}")
+
+    return tx_hash
+
+
+def unblock_sp(provider_id: ActorId, signer: TxSigner) -> str:
+    provider = SPRegistry().get_provider_view(provider_id)
+
+    if not provider.blocked:
+        raise click.ClickException(f"Storage Provider {provider.provider_id} is not blocked")
+
+    utils.confirm(f"Unblocking Storage Provider {provider.provider_id}: "
+                  f"{utils.json_pretty(provider)}", abort=True)
+
+    tx_hash = SPRegistry().unblock_provider(provider.provider_id, signer).tx_hash
+    click.echo(f"Storage Provider {provider.provider_id} unblocked: {tx_hash}")
+
+    return tx_hash
+
+
+def _update_sp_params(provider_info: SPRegistryProviderInput,
+                      registered_info: SPRegistryProviderView,
+                      signer: TxSigner):
+    #
+    if provider_info.organization_address != registered_info.organization_address:
+        if not utils.confirm(f"\norganization_address cannot be updated for Storage Provider {provider_info.provider_id}, "
+                             f"continue with other parameters?",
+                             default=True):
+            #
+            click.echo("Skipped this SP")
+            return
+
+    if provider_info.payee_address != registered_info.payee_address:
+        if utils.confirm(f"\nUpdating payee_address for Storage Provider {provider_info.provider_id}: "
+                         f"Current: {registered_info.payee_address} -> New: {provider_info.payee_address}",
+                         default=True,
+                         session_id=f"update-{provider_info.provider_id}"):
+            #
+            tx_hash = SPRegistry().set_payee(provider_info.provider_id,
+                                             provider_info.payee_address,
+                                             signer).tx_hash
+
+            click.echo(f"Updated payee_address for Storage Provider {provider_info.provider_id}: {tx_hash}")
+
+        else:
+            click.echo("Skipped this parameter\n")
+
+    if provider_info.available_bytes != registered_info.available_bytes:
+        if utils.confirm(f"\nUpdating available_bytes for Storage Provider {provider_info.provider_id}: "
+                         f"Current: {registered_info.available_bytes} -> New: {provider_info.available_bytes}",
+                         default=True,
+                         session_id=f"update-{provider_info.provider_id}"):
+            #
+            tx_hash = SPRegistry().update_available_space(provider_info.provider_id,
+                                                          provider_info.available_bytes,
+                                                          signer).tx_hash
+
+            click.echo(f"Updated available_bytes for Storage Provider {provider_info.provider_id}: {tx_hash}")
+
+        else:
+            click.echo("Skipped this parameter\n")
+
+
+def register_or_update_sps(providers: list[SPRegistryProviderInput], signer: TxSigner):
+    for provider_info in providers:
+        if SPRegistry().is_provider_registered(provider_info.provider_id):
+            # update Storage Provider parameters if different from registered ones
+            registered_info = SPRegistry().get_provider_view(provider_info.provider_id)
+
+            # print only different parameters
+            current_different_params = {k: getattr(registered_info, k) for k in provider_info.__dict__ if
+                                        getattr(registered_info, k) != getattr(provider_info, k)}
+            new_different_params = {k: v for k, v in provider_info.__dict__.items() if getattr(registered_info, k) != v}
+            assert current_different_params.keys() == new_different_params.keys()
+
+            if not current_different_params:
+                click.echo(f"Storage Provider {provider_info.provider_id} already registered with same parameters")
+                continue
+
+            if not utils.confirm(f"\nStorage Provider {provider_info.provider_id} already registered with different parameters. "
+                                 f"Do you want to update the parameters?\n"
+                                 f"Current: {utils.json_pretty(current_different_params)} -> New: {utils.json_pretty(new_different_params)}",
+                                 session_id="update-provider"):
+                #
+                click.echo("Skipped this SP")
+                continue
+
+            _update_sp_params(provider_info, registered_info, signer)
+
+        else:
+            # register Storage Provider with given parameters
+
+            if not utils.confirm(f"\nRegistering Storage Provider with parameters: {provider_info}", default=True, session_id="register-provider"):
+                click.echo("Skipped this SP")
+                continue
+
+            if not utils.confirm(f"\nThe organization_address {provider_info.organization_address} cannot be changed "
+                                 f"once registered for provider_id {provider_info.provider_id}. Are you sure this is correct?"):
+                #
+                click.echo("Skipped this SP")
+                continue
+
+            tx_hash = SPRegistry().register_provider_for(provider_info, signer).tx_hash
+            click.echo(f"Provider {provider_info.provider_id} registered: {tx_hash}")
+
+
+def register_offers(offers: list[SPRegistryOfferInput], signer: TxSigner):
+    for offer in offers:
+        if not utils.confirm(f"Registering PoRep Market offer for provider {offer.provider_id} with parameters: {offer}\n"
+                             f"The parameters cannot be changed once registered. The easiest way to update them is to "
+                             f"set existing offer as not active and create a new one. Continue?", default=True, session_id="register-offer"):
+            click.echo("Skipped this offer")
+            continue
+
+        tx_hash = SPRegistry().create_offer(offer, signer).tx_hash
+        click.echo(f"Offer for provider {offer.provider_id} registered: {tx_hash}")
+
+
+def hash_manifest(raw_manifest: bytes) -> HexBytes:
+    return Web3.keccak(text=raw_manifest.decode("utf-8"))
+
+
+def calculate_deposit_amount(size_bytes: int,
+                             price_per_sector_per_month: int,
+                             sector_size_bytes: int,
+                             deposit_for_months: int = 1) -> int:
+    #
+    assert deposit_for_months > 0
+
+    deal_size_sectors = utils.bytes_to_sectors(size_bytes, sector_size_bytes)
+    result = deal_size_sectors * price_per_sector_per_month * deposit_for_months
+
+    if result != ceil(result):
+        utils.confirm(f"Calculated deposit amount {result} != {ceil(result)}. Continue?", default=True, abort=True, session_id="calculated-deposit-amount")
+
+    return ceil(result)
+
+
+def propose_deal(signer: TxSigner,
+                 manifest_url: str,
+                 retrievability_pct: int,
+                 bandwidth_mbps: int,
+                 price_per_tib_per_month: float,
+                 duration_months: int,
+                 latency_ms: int,
+                 indexing_pct: int,
+                 payment_token_address: EthAddress,
+                 deal_type: PoRepMarketDealType,
+                 offer_id: int | None = None,
+                 client_address: EthAddress | None = None) -> str:
+    #
+    if client_address and not offer_id:
+        raise click.BadParameter("Client address can only be specified when proposing a deal against a specific offer.")
+
+    if price_per_tib_per_month > 100:
+        raise click.BadParameter("Price per TiB per month is too high. Please use decimal format (e.g., 1.5 for 1.5 USDC).")
+
+    SECTOR_SIZE_BYTES = PoRepMarket().get_sector_size_bytes()
+    manifest, raw_manifest = fetch_manifest(manifest_url)
+
+    pieces = manifest[0]["pieces"]
+    pieces_size_bytes = sum(piece.get("pieceSize", 0) for piece in pieces)
+
+    click.echo(f"\nFound {len(pieces)} total pieces with total pieceSize "
+               f"{humanfriendly.format_size(pieces_size_bytes)} = {humanfriendly.format_size(pieces_size_bytes, binary=True)} = "
+               f"{utils.bytes_to_sectors(pieces_size_bytes, SECTOR_SIZE_BYTES)} sectors "
+               f"(including dag piece)")
+
+    payment_token = ERC20Contract(payment_token_address)
+    payment_token_decimals = payment_token.decimals()
+    price_per_sector_per_month_wei = utils.price_per_TiB_tokens_to_per_sector_wei(
+        price_per_tib_per_month,
+        payment_token_decimals,
+        SECTOR_SIZE_BYTES
+    )
+
+    # noinspection PyArgumentList
+    deal_request = PoRepMarketDealRequest(
+        manifest_hash=hash_manifest(raw_manifest),
+        requested_size_bytes=pieces_size_bytes,
+        max_price_per_32_gib_per_month=price_per_sector_per_month_wei,
+        manifest_location=manifest_url,
+        payment_token_address=payment_token_address,
+        duration_days=duration_months * 30,  # PoRep Market smart contracts assumes month == 30 days
+        deal_type=deal_type,
+        required_slis=PoRepMarketSLIThresholds(
+            retrievability_bps=retrievability_pct * 100,
+            bandwidth_bytes_per_second=utils.Mbps_to_Bps(bandwidth_mbps),
+            latency_ms=latency_ms,
+            indexing_pct=indexing_pct,
+        )
+    )
+
+    client_address = client_address or signer.address()
+    Web3Service().wait_for_pending_transactions(signer.address())
+    existing_deals = get_client_deals(client_address)
+
+    # warn if any of existing client deals looks similar to the new deal proposal
+    for existing_deal in existing_deals:
+        is_active = existing_deal.state in [PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE]
+        existing_deal_view = PoRepMarketViewHelper().get_deal_view(existing_deal.deal_id)
+
+        if deal_request.requested_size_bytes == existing_deal_view.terms.requested_size_bytes:
+            utils.confirm(f"\nWARNING: Client deal with the same deal size "
+                          f"already exists in PoRep Market: {utils.json_pretty(existing_deal)} "
+                          "Continue?", default=not is_active, abort=True)
+
+        if deal_request.manifest_location == existing_deal_view.data.manifest_location:
+            utils.confirm(
+                f"\nWARNING: Client deal with the same manifest location "
+                f"already exists in PoRep Market: {utils.json_pretty(existing_deal)} "
+                "Continue?", default=not is_active, abort=True)
+
+    payment_token_symbol = payment_token.symbol()
+    deal_duration_months = deal_request.duration_days // 30  # PoRep Market smart contracts assumes month == 30 days
+
+    max_cost_per_month = calculate_deposit_amount(deal_request.requested_size_bytes,
+                                                  deal_request.max_price_per_32_gib_per_month,
+                                                  SECTOR_SIZE_BYTES,
+                                                  deposit_for_months=1)
+    max_cost_per_month_str = utils.str_from_wei(max_cost_per_month, payment_token_decimals)
+
+    total_max_cost = max_cost_per_month * deal_duration_months
+    total_max_cost_str = utils.str_from_wei(total_max_cost, payment_token_decimals)
+    against_offer_str = f" against offer {offer_id}" if offer_id else ""
+    against_offer_warn = "The admin account becomes the client of the resulting deal. " if offer_id else ""
+
+    utils.confirm(f"\nProposing deal{against_offer_str}: {utils.json_pretty(deal_request)}\n\n"
+                  f"This will cost you maximum of {max_cost_per_month_str} {payment_token_symbol} per month. "
+                  f"This is a total of {total_max_cost_str} {payment_token_symbol} for {duration_months} months. "
+                  f"{against_offer_warn}"
+                  f"Continue?", abort=True)
+
+    # noinspection PyShadowingNames
+    def find_deal_id(tx) -> int | None:
+        try:
+            # noinspection PyUnresolvedReferences
+            return next(event for event in tx.events if event.event == "DealCreated" or event.event == "DealAccepted").args.dealId
+        except StopIteration:
+            return None
+
+    if offer_id:
+        tx = PoRepMarket().propose_deal_with_specific_offer(offer_id, deal_request, client_address, signer)
+        click.echo(f"Created deal from manifest {manifest_url} against offer {offer_id}: {tx.tx_hash}")
+    else:
+        tx = PoRepMarket().propose_deal(deal_request, signer)
+        click.echo(f"Created deal from manifest {manifest_url}: {tx.tx_hash}")
+
+    deal_id = find_deal_id(tx)
+    if deal_id is not None:
+        click.echo(PoRepMarketViewHelper().get_deal_view(deal_id))
+        click.echo(f"Run `{sys.argv[0]} client init-deals {deal_id}` to initialize this deal")
+
+    return tx.tx_hash

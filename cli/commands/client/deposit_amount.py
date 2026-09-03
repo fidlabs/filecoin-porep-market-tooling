@@ -4,6 +4,7 @@ from cli import utils
 from cli.commands.client import _utils as client_utils
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.usdc_token import USDCToken
+from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import EthAddress
 
 
@@ -18,7 +19,9 @@ def deposit_amount(amount: float, token_address: str):
     TOKEN_ADDRESS - Address of the ERC20 token to deposit.  [default: USDC_TOKEN env var]
     """
 
-    _token_address = EthAddress(token_address)
+    SelfUpdateService.check_and_prompt(manual=False)
+
+    _token_address = EthAddress.from_any(token_address)
     token_decimals = ERC20Contract(_token_address).decimals()
 
     client_utils.deposit_to_filecoinpay(utils.to_wei(amount, token_decimals), USDCToken(_token_address))

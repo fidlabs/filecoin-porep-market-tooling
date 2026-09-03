@@ -3,7 +3,8 @@ import enum
 import json
 import os
 import sys
-from typing import TypeVar, Callable
+from collections.abc import Callable
+from typing import TypeVar
 
 import click
 from dotenv import load_dotenv
@@ -139,7 +140,7 @@ def confirm_str(text: str,
 
 # equivalent to "press enter to continue"
 def confirm_ok(prompt: str):
-    _ = confirm_str(f"{prompt} [OK]", default="OK", prompt_suffix=" ")
+    _ = confirm_str(f"{prompt} [Press enter to continue]", default="OK", prompt_suffix=" ")
 
 
 def json_dataclass(eq=True, init=True, **d_kwargs):
@@ -147,6 +148,7 @@ def json_dataclass(eq=True, init=True, **d_kwargs):
         cls = dataclasses.dataclass(**d_kwargs, eq=eq, init=init)(cls)
 
         def __str__(self):
+            # noinspection PyTypeChecker
             return json_pretty(dataclasses.asdict(self))
 
         cls.__str__ = __str__
@@ -159,6 +161,10 @@ def json_pretty(json_data, sort_keys: bool = False):
     def _json_pretty(data):
         if issubclass(type(data), enum.Enum):
             return data.name
+        if isinstance(data, (bytes, bytearray)):
+            return "0x" + data.hex()
+        if hasattr(data, "__json__") and callable(data.__json__):
+            return data.__json__()
         if hasattr(data, "__dict__") and data.__dict__:
             return _json_pretty(data.__dict__)
         if isinstance(data, list):
@@ -171,21 +177,21 @@ def json_pretty(json_data, sort_keys: bool = False):
 
         return data
 
-    return json.dumps(_json_pretty(json_data), indent=4, sort_keys=sort_keys)
+    return json.dumps(_json_pretty(json_data), indent=4, sort_keys=sort_keys, default=str)
 
 
 # converts 1100000000000000000 wei -> 1.1 ETH
-def from_wei(amount: int | float, decimals: int) -> float:
+def from_wei(amount: float, decimals: int) -> float:
     return amount / (10 ** decimals)
 
 
-def str_from_wei(amount: int | float, decimals: int) -> str:
+def str_from_wei(amount: float, decimals: int) -> str:
     # pylint: disable=consider-using-f-string
     return "{:.{}f}".format(from_wei(amount, decimals), decimals)  # cannot be f-string because decimals is dynamic
 
 
 # converts 1.1 ETH -> 1100000000000000000 wei
-def to_wei(amount: int | float, decimals: int) -> int:
+def to_wei(amount: float, decimals: int) -> int:
     result = amount * (10 ** decimals)
 
     if result != int(result):
@@ -241,6 +247,43 @@ def private_str_to_log_str(private_str) -> str:
 
 def bytes_to_sectors(bytes_size: int, sector_size_bytes: int) -> float:
     return bytes_size / sector_size_bytes
+
+
+def months_to_epochs(months: int, epochs_in_month: int) -> int:
+    return months * epochs_in_month
+
+
+# noinspection PyPep8Naming,PyShadowingNames
+# pylint: disable=invalid-name
+def Mbps_to_Bps(Mbps: int) -> int:
+    MBPS_TO_BYTES_PER_SECOND = 125_000  # 1 Mbps = 10^6 bits/s / 8 = 125 000 bytes/s
+    return Mbps * MBPS_TO_BYTES_PER_SECOND
+
+
+# noinspection PyPep8Naming,PyShadowingNames
+# pylint: disable=invalid-name
+def price_per_TiB_tokens_to_per_sector_wei(
+        price_per_TiB_tokens: float,
+        payment_token_decimals: int,
+        sector_size_bytes: int,
+) -> int:
+    TIB_BYTES = 1024 ** 4  # 1 TiB in bytes
+
+    if sector_size_bytes <= 0:
+        raise ValueError(f"Invalid sector size: {sector_size_bytes}")
+
+    sectors_per_TiB, size_remainder = divmod(TIB_BYTES, sector_size_bytes)
+
+    if size_remainder != 0:
+        raise ValueError(f"Sector size {sector_size_bytes} does not divide 1 TiB exactly")
+
+    price_per_TiB_wei = to_wei(price_per_TiB_tokens, payment_token_decimals)
+    price_per_sector_wei, price_remainder = divmod(price_per_TiB_wei, sectors_per_TiB)
+
+    if price_remainder != 0:
+        raise ValueError(f"Precision lost: {price_per_TiB_wei} / {sectors_per_TiB} has remainder {price_remainder}")
+
+    return price_per_sector_wei
 
 
 def _show(self, file=None):

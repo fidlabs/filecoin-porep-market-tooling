@@ -1,22 +1,21 @@
 from pathlib import Path
 
-from cli.services.contracts.contract_service import ContractService
-from cli.services.web3_service import EthAddress
+from cli.services.contract_service import ContractService
+from cli.services.web3_service import EthAddress, FilAddress
 
 
 class ERC20Contract(ContractService):
-    def __init__(self, contract_address: EthAddress, contract_abi_path: Path | None = None):
-        super().__init__(contract_address,
-                         contract_abi_path or (self.abi_dir() / "ERC20.json"))
+    def __init__(self, contract_address: EthAddress | FilAddress, contract_abi_path: Path | None = None):
+        super().__init__(contract_address, contract_abi_path or (self.abi_dir() / "ERC20.json"))
 
     def balance_of(self, account: EthAddress) -> int:
-        return self.contract.functions.balanceOf(account).call()
+        return self.call_contract(self.contract.functions.balanceOf(account))
 
     def decimals(self) -> int:
-        return self.contract.functions.decimals().call()
+        return self.call_contract(self.contract.functions.decimals())
 
     def name(self) -> str:
-        return self.contract.functions.name().call()
+        return self.call_contract(self.contract.functions.name())
 
     def symbol(self) -> str:
-        return self.contract.functions.symbol().call()
+        return self.call_contract(self.contract.functions.symbol())

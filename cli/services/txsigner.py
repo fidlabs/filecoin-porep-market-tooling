@@ -1,11 +1,17 @@
 import rlp
+
+# noinspection PyProtectedMember
 from eth_account._utils.legacy_transactions import (
-    Transaction, encode_transaction, serializable_unsigned_transaction_from_dict,
+    Transaction,
+    encode_transaction,
+    serializable_unsigned_transaction_from_dict,
 )
 from eth_account.datastructures import SignedMessage, SignedTransaction
-from eth_account.messages import encode_typed_data, SignableMessage
+from eth_account.messages import SignableMessage, encode_typed_data
 from eth_account.typed_transactions import TypedTransaction
-from eth_account.typed_transactions.dynamic_fee_transaction import transaction_rpc_to_rlp_structure
+from eth_account.typed_transactions.dynamic_fee_transaction import (
+    transaction_rpc_to_rlp_structure,
+)
 from eth_account.types import PrivateKeyType
 from eth_utils import keccak
 from eth_utils.toolz import dissoc
@@ -99,6 +105,8 @@ class LotusWalletTxSigner(TxSigner):
         if recovered != self.eth_address:
             raise RuntimeError(f"Lotus signed typed data with unexpected address: recovered={recovered}, expected={self.eth_address}")
 
+    # noinspection PyTypeChecker,PyUnresolvedReferences,PyProtectedMember
+    # pylint: disable=protected-access
     @staticmethod
     def _unsigned_tx_to_raw_bytes(unsigned_tx) -> bytes:
         """
@@ -125,6 +133,7 @@ class LotusWalletTxSigner(TxSigner):
         if isinstance(unsigned_tx, TypedTransaction):
             return recovery_id  # EIP-2718: y_parity is raw 0 or 1
         elif isinstance(unsigned_tx, Transaction):
+            # noinspection PyUnresolvedReferences
             return recovery_id + 35 + 2 * unsigned_tx.v  # EIP-155
         else:
             return recovery_id + 27
@@ -137,6 +146,7 @@ class LotusWalletTxSigner(TxSigner):
         r, s, recovery_id = LotusWalletTxSigner._parse_rsv(Web3Service().wallet_sign(self.fil_address, raw_bytes, self.lotus_token))
         v = LotusWalletTxSigner.compute_v(unsigned_tx, recovery_id)
 
+        # noinspection PyTypeChecker
         encoded_tx = encode_transaction(unsigned_tx, vrs=(v, r, s))
         signed_tx = SignedTransaction(
             raw_transaction=HexBytes(encoded_tx),

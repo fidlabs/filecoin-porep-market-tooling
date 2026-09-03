@@ -11,6 +11,8 @@ import humanfriendly
 from cli import utils
 from cli.commands import utils as commands_utils
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
+from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
+from cli.services.self_update import SelfUpdateService
 
 
 def _get_aria2c_path() -> str:
@@ -91,8 +93,8 @@ def _write_manifest_file(manifest: list[dict], output_dir: Path, deal_id: int) -
     return manifest_file.resolve()
 
 
-@click.command(context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))
-@click.argument("deal_id", type=click.IntRange(min=0))
+@click.command(context_settings={"ignore_unknown_options": True, "allow_extra_args": True})
+@click.argument("deal_id", type=click.IntRange(min=1))
 @click.option("--output-dir", type=click.Path(file_okay=False), required=True,
               help="Directory to save downloaded pieces.")
 @click.option("--host",
@@ -106,7 +108,7 @@ def _write_manifest_file(manifest: list[dict], output_dir: Path, deal_id: int) -
 @click.option("--claim-allocations", type=click.Choice(["curio", "boost"], case_sensitive=False),
               help="Claim allocation(s) for each piece right after download using specified software.  [default: none]")
 @click.pass_context
-# TODO add commP files verification after download
+# TODO LATER add commP files verification after download
 def onboard_data(ctx,
                  deal_id: int,
                  output_dir: str,
@@ -129,16 +131,18 @@ def onboard_data(ctx,
     See https://aria2.github.io/ and https://github.com/aria2/aria2 for more information about aria2 and installation instructions.
     """
 
+    SelfUpdateService.check_and_prompt(manual=False)
+
     aria2c_path = _get_aria2c_path()
 
     click.echo("Fetching deal details...")
-    deal = PoRepMarket().get_deal_proposal(deal_id)
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
 
-    if deal.state != PoRepMarketDealState.COMPLETED:
-        raise click.ClickException(f"Deal ID {deal_id} is in state {deal.state} != COMPLETED")
+    if deal.deal.state not in (PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE):
+        raise click.ClickException(f"Deal ID {deal_id} is in state {deal.deal.state}, expected ACCEPTED or ACTIVE")
 
-    deal_allocations = commands_utils.get_deal_allocations(deal)
-    deal_claims = commands_utils.get_deal_claims(deal)
+    deal_allocations = commands_utils.get_deal_allocations(deal.deal)
+    deal_claims = commands_utils.get_deal_claims(deal.deal)
     allocations_not_claimed = {allocation_id: alloc for allocation_id, alloc in deal_allocations.items() if str(allocation_id) not in deal_claims}
     cids_claimed = [claim.get("Data", {}).get("/") for claim in deal_claims.values()]
 
@@ -147,12 +151,12 @@ def onboard_data(ctx,
         return
 
     if not deal_claims and not allocations_not_claimed:
-        raise click.ClickException(f"No allocations found for deal ID {deal_id} but deal in COMPLETED state.")
+        raise click.ClickException(f"No allocations found for deal ID {deal_id} but deal in {deal.deal.state} state.")
 
     click.echo(f"Found {len(allocations_not_claimed)} allocations not claimed and {len(deal_claims)} claims for deal ID {deal_id}, "
                f"{len(deal_allocations) + len(deal_claims)} total")
 
-    manifest = commands_utils.fetch_manifest(deal.manifest_location, show_manifest=False, retries=10)
+    manifest, _ = commands_utils.fetch_manifest(deal.data.manifest_location, show_manifest=False, retries=10)
     pieces = manifest[0]["pieces"]
     pieces_claimed = [piece for piece in pieces if piece["pieceCid"] in cids_claimed]
     pieces_to_download = [piece for piece in pieces if piece not in pieces_claimed]
@@ -167,15 +171,15 @@ def onboard_data(ctx,
     if host and not host.startswith(("http://", "https://")):
         host = f"http://{host}"
 
-    parsed_url = commands_utils.validate_and_parse_url(host or deal.manifest_location)
+    parsed_url = commands_utils.validate_and_parse_url(host or deal.data.manifest_location)
     download_host = f"{parsed_url.scheme or 'http'}://{parsed_url.hostname}:{port}"
     aria2_file = _write_aria2c_input_file(pieces_to_download if not force else pieces, download_host, _output_dir, no_summary)
 
     try:
         command = [aria2c_path,
                    "-i", str(aria2_file),
-                   "-x", "4",
-                   "-s", "4",
+                   "-x", "16",
+                   "-s", "16",
                    "--continue=true",
                    "--auto-file-renaming=false",
                    "--summary-interval=30",

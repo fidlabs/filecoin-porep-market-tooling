@@ -1,33 +1,20 @@
 import time
-from math import ceil
 
 import click
 from eth_account.datastructures import SignedMessage
 
 from cli import utils
 from cli.commands.client._client import client_address, client_signer
-from cli.services.contracts.client_contract import ClientContract
+from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter
 from cli.services.contracts.filecoin_pay import FileCoinPay
-from cli.services.contracts.porep_market import PoRepMarketDealProposal, PoRepMarketDealState, PoRepMarketDealRequest, PoRepMarket
+from cli.services.contracts.porep_market import (
+    PoRepMarket,
+    PoRepMarketDeal,
+    PoRepMarketDealState,
+)
+from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.contracts.usdc_token import USDCToken
 from cli.services.web3_service import Web3Service
-
-
-def calculate_deposit_amount_for_deal(deal: PoRepMarketDealRequest,
-                                      deposit_for_months: int = 1,
-                                      sector_size_bytes: int | None = None) -> int:
-    assert deposit_for_months > 0
-
-    if not sector_size_bytes:
-        sector_size_bytes = PoRepMarket().get_sector_size_bytes()
-
-    deal_size_sectors = utils.bytes_to_sectors(deal.terms.deal_size_bytes, sector_size_bytes)
-    result = deal_size_sectors * deal.terms.price_per_sector_per_month * deposit_for_months
-
-    if result != ceil(result):
-        utils.confirm(f"Calculated deposit amount {result} != {ceil(result)}. Continue?", default=True, abort=True, session_id="calculated-deposit-amount")
-
-    return ceil(result)
 
 
 def get_filecoin_permit_deadline() -> int:
@@ -69,15 +56,15 @@ def sign_filecoinpay_permit(amount: int, permit_deadline: int, token: USDCToken)
     return signed_msg
 
 
-def complete_deal(deal: PoRepMarketDealProposal) -> str:
+def finish_datacap_posting(deal: PoRepMarketDeal) -> str:
     if deal.state != PoRepMarketDealState.ACCEPTED:
         raise click.ClickException(f"Deal id {deal.deal_id} is not in ACCEPTED state, current state: {deal.state}")
 
-    check_allocations_size(deal)
-    utils.confirm(f"Completing deal id {deal.deal_id}: {deal}", default=True, abort=True)
+    check_allocations_size(deal.deal_id)
+    utils.confirm(f"Finishing DataCap posting for deal id {deal.deal_id} (blocks further allocation batches)", default=True, abort=True)
 
-    tx_hash = PoRepMarket().complete_deal(deal.deal_id, client_signer())
-    click.echo(f"Deal id {deal.deal_id} completed: {tx_hash}")
+    tx_hash = DataCapEvidenceAdapter(deal.evidence_adapter_address).finish_datacap_posting(deal.deal_id, client_signer()).tx_hash
+    click.echo(f"DataCap posting for deal id {deal.deal_id} finished: {tx_hash}")
 
     return tx_hash
 
@@ -107,16 +94,17 @@ def deposit_to_filecoinpay(deposit_amount: int, token: USDCToken):
                                                 deposit_amount,
                                                 permit_deadline,
                                                 signed_msg.v, utils.uint_to_bytes(signed_msg.r), utils.uint_to_bytes(signed_msg.s),
-                                                client_signer())
+                                                client_signer()).tx_hash
 
     click.echo(f"Deposited {deposit_amount_str} {token_symbol}: {tx_hash}")
 
 
-def check_allocations_size(deal: PoRepMarketDealProposal):
-    final_allocation_size = ClientContract().get_size_of_allocations(deal.deal_id)
-    padding = PoRepMarket().get_deal_completion_padding()
-    proposed_size = deal.terms.deal_size_bytes
+def check_allocations_size(deal_id: int):
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
+    final_allocation_size = DataCapEvidenceAdapter(deal.deal.evidence_adapter_address).get_allocated_bytes(deal_id)
+    padding = PoRepMarket().get_deal_activation_padding()
+    proposed_size = deal.terms.requested_size_bytes
     delta = abs(final_allocation_size - proposed_size)
 
     if delta * 100 > proposed_size * padding:
-        click.echo("\n[WARNING] allocated size is not in padding range! Deal completion will likely revert.")
+        click.echo("\n[WARNING] allocated size is not in padding range! Deal activation will likely revert.")

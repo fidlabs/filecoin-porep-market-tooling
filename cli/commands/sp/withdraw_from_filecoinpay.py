@@ -1,10 +1,8 @@
 import click
 
-from cli import utils
 from cli.commands import utils as commands_utils
-from cli.commands.sp._sp import sp_signer, sp_address
-from cli.services.contracts.erc20_contract import ERC20Contract
-from cli.services.contracts.filecoin_pay import FileCoinPay
+from cli.commands.sp._sp import sp_address, sp_signer
+from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import EthAddress
 
 
@@ -22,33 +20,6 @@ def withdraw_from_filecoinpay(to_address: str, amount: float, token_address: str
     TOKEN_ADDRESS - Address of the ERC20 token to withdraw.  [default: USDC_TOKEN env var]
     """
 
-    _to_address = EthAddress.from_any(to_address)
-    _token_address = EthAddress(token_address)
+    SelfUpdateService.check_and_prompt(manual=False)
 
-    token = ERC20Contract(_token_address)
-    token_decimals = token.decimals()
-    token_symbol = token.symbol()
-
-    def print_token_balance(account_address: EthAddress):
-        token_balance = token.balance_of(account_address)
-        token_balance_str = utils.str_from_wei(token_balance, token_decimals)
-
-        click.echo(f"Token balance of {account_address}: {token_balance_str} {token_symbol}")
-        click.echo()
-
-    print_token_balance(_to_address)
-    click.echo(f"FileCoinPay account of {sp_address()}: " + utils.json_pretty(commands_utils.get_filecoinpay_account(token_address, sp_address())))
-    click.echo()
-
-    _amount = utils.to_wei(amount, token_decimals)
-    amount_str = utils.str_from_wei(_amount, token_decimals)
-
-    utils.confirm(f"Withdraw {amount_str} {token_symbol} from {sp_address()} FileCoinPay account to {_to_address}?", abort=True)
-
-    tx_hash = FileCoinPay().withdraw_to(_token_address,
-                                        EthAddress.from_any(to_address),
-                                        _amount,
-                                        sp_signer())
-
-    click.echo(f"Withdraw transaction sent: {tx_hash}")
-    print_token_balance(_to_address)
+    commands_utils.withdraw_from_filecoinpay(to_address, amount, EthAddress.from_any(token_address), sp_address(), sp_signer())

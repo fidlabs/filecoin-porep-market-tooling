@@ -8,13 +8,14 @@
 # pylint: disable=broad-exception-caught
 
 import __future__
+
 import os
 import sys
 
 _ = __future__
 
 LOG_FILE = "logs/logs.log"
-ERROR_LOG_FILE = "logs/error.logs"
+ERROR_LOG_FILE = "logs/error.log"
 DEBUG = True
 
 
@@ -30,7 +31,7 @@ def configure_logger():
             "fatal": logging.FATAL,
             "error": logging.ERROR,
             "warning": logging.WARNING,
-            "warn": logging.WARN,
+            "warn": logging.WARNING,
             "info": logging.INFO,
             "debug": logging.DEBUG,
             "notset": logging.NOTSET,

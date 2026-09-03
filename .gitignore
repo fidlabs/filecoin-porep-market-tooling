@@ -1,13 +1,24 @@
+# build and development
 .venv
 .idea
 *.pyc
 mypy.ini
+.local/
 
+# envs
 .env
 .env.devnet
+.env.secrets
+
+# logs and downloads
 logs/
 data/
+
+# mocked things
 curio.sh
 curio.bat
-aria2-1.37.0-win-64bit-build1/
-.local/
+aria2-*/
+
+# others
+
+.env.backup

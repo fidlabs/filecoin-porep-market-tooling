@@ -1,14 +1,14 @@
 import click
 
 from cli import utils
-from cli.services.web3_service import EthAddress, FilAddress, ActorId
+from cli.services.web3_service import ActorId, EthAddress, FilAddress
 
 
 @click.command()
 @click.argument("xinput")
 def convert(xinput: str):
     """
-    Convert XINPUT to all address formats.
+    Convert XINPUT string to all address formats.
 
     XINPUT - can be Ethereum address, Filecoin address, or ActorId
     """

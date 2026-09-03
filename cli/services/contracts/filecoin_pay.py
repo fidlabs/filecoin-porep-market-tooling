@@ -1,12 +1,12 @@
 from cli import utils
-from cli.services.contracts.contract_service import ContractService
+from cli.services.contract_service import ContractService, TxInfo
 from cli.services.txsigner import TxSigner
-from cli.services.web3_service import EthAddress
+from cli.services.web3_service import EthAddress, FilAddress
 
 
 # https://github.com/FilOzone/filecoin-pay
 
-@utils.json_dataclass()
+@utils.json_dataclass()  # noqa: E302
 class FileCoinPayAccount:
     funds: int
     lockup_current: int
@@ -63,7 +63,7 @@ class FileCoinPayRailView:
 
     @staticmethod
     def from_web3(data) -> "FileCoinPayRailView":
-        if not EthAddress(data[0]):
+        if not data[0] or not EthAddress(data[0]):
             raise ValueError("Rail not found")
 
         # noinspection PyArgumentList
@@ -84,8 +84,8 @@ class FileCoinPayRailView:
 
 
 class FileCoinPay(ContractService):
-    def __init__(self, contract_address: EthAddress | None = None):
-        super().__init__(contract_address or utils.get_env_required("FILECOIN_PAY", required_type=EthAddress),
+    def __init__(self, contract_address: EthAddress | FilAddress | None = None):
+        super().__init__(contract_address or utils.get_env_required("FILECOIN_PAY", required_type=EthAddress.from_any),
                          self.abi_dir() / "FileCoinPay.json")
 
     # @notice Deposits tokens using permit (EIP-2612) approval in a single transaction,
@@ -115,12 +115,14 @@ class FileCoinPay(ContractService):
                                                  rate_allowance: int,
                                                  lockup_allowance: int,
                                                  max_lockup_period: int,
-                                                 signer: TxSigner) -> str:
+                                                 signer: TxSigner) -> TxInfo:
         #
         return self.sign_and_send_tx(
             self.contract.functions.depositWithPermitAndApproveOperator(
                 token, to, amount, deadline, v, r, s, operator, rate_allowance, lockup_allowance, max_lockup_period
-            ), signer)
+            ),
+            signer
+        )
 
     # @notice Deposits tokens using permit (EIP-2612) approval in a single transaction, while also increasing operator approval allowances.
     # @param token The ERC20 token address to deposit and for which the operator approval is being increased.
@@ -142,12 +144,14 @@ class FileCoinPay(ContractService):
                                                            operator: EthAddress,
                                                            rate_allowance_increase: int,
                                                            lockup_allowance_increase: int,
-                                                           signer: TxSigner) -> str:
+                                                           signer: TxSigner) -> TxInfo:
         #
         return self.sign_and_send_tx(
             self.contract.functions.depositWithPermitAndIncreaseOperatorApproval(
                 token, to, amount, deadline, v, r, s, operator, rate_allowance_increase, lockup_allowance_increase
-            ), signer)
+            ),
+            signer
+        )
 
     # @notice Deposits tokens using permit (EIP-2612) approval in a single transaction.
     # @param token The ERC20 token address to deposit.
@@ -161,32 +165,32 @@ class FileCoinPay(ContractService):
                             amount: int,
                             deadline: int,
                             v: int, r: bytes, s: bytes,
-                            signer: TxSigner) -> str:
+                            signer: TxSigner) -> TxInfo:
         #
         return self.sign_and_send_tx(
-            self.contract.functions.depositWithPermit(
-                token, to, amount, deadline, v, r, s
-            ), signer)
+            self.contract.functions.depositWithPermit(token, to, amount, deadline, v, r, s),
+            signer
+        )
 
     # token => client => operator => Approval
     def get_operator_approval(self, token: EthAddress, client: EthAddress, operator: EthAddress) -> FileCoinPayOperatorApproval:
-        return FileCoinPayOperatorApproval.from_web3(self.contract.functions.operatorApprovals(token, client, operator).call())
+        return FileCoinPayOperatorApproval.from_web3(self.call_contract(self.contract.functions.operatorApprovals(token, client, operator)))
 
     # Internal balances
     # The self-balance collects network fees
     def get_account(self, token: EthAddress, owner: EthAddress) -> FileCoinPayAccount:
-        return FileCoinPayAccount.from_web3(self.contract.functions.accounts(token, owner).call())
+        return FileCoinPayAccount.from_web3(self.call_contract(self.contract.functions.accounts(token, owner)))
 
     # @notice Gets the current state of the target rail or reverts if the rail isn't active.
     # @param railId the ID of the rail.
     def get_rail(self, rail_id: int) -> FileCoinPayRailView:
-        return FileCoinPayRailView.from_web3(self.contract.functions.getRail(rail_id).call())
+        return FileCoinPayRailView.from_web3(self.call_contract(self.contract.functions.getRail(rail_id)))
 
     # @notice Withdraws tokens from the caller's account to the caller's account, up to the amount of currently available tokens
     #     (the tokens not currently locked in rails).
     # @param token The ERC20 token address to withdraw.
     # @param amount The amount of tokens to withdraw.
-    def withdraw(self, token: EthAddress, amount: int, signer: TxSigner) -> str:
+    def withdraw(self, token: EthAddress, amount: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.withdraw(token, amount), signer)
 
     # @notice Withdraws tokens (`token`) from the caller's account to `to`, up to the amount of currently available tokens
@@ -194,5 +198,5 @@ class FileCoinPay(ContractService):
     # @param token The ERC20 token address to withdraw.
     # @param to The address to receive the withdrawn tokens.
     # @param amount The amount of tokens to withdraw.
-    def withdraw_to(self, token: EthAddress, to: EthAddress, amount: int, signer: TxSigner) -> str:
+    def withdraw_to(self, token: EthAddress, to: EthAddress, amount: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.withdrawTo(token, to, amount), signer)

@@ -1,6 +1,5 @@
 import base64
 import time
-from typing import Dict
 
 import click
 from eth_account.datastructures import SignedTransaction
@@ -9,35 +8,61 @@ from hexbytes import HexBytes
 from web3 import Web3
 from web3.contract import Contract
 from web3.exceptions import Web3RPCError
-from web3.types import TxParams, BlockIdentifier, TxData, TxReceipt, RPCEndpoint
+from web3.types import BlockIdentifier, RPCEndpoint, TxData, TxParams, TxReceipt
 
 from cli import utils
 
 
-# TODO LATER support testnet t0 id
 class ActorId(int):
-    VALID_PREFIXES = ("f0", "t0")
-
     def __new__(cls, actor_id: int | str) -> "ActorId":
+        VALID_PREFIX_PER_CHAIN_ID = {
+            314: "f0",  # Filecoin Mainnet
+            314159: "t0",  # Filecoin Calibration Testnet
+            31415926: "f0",  # Lotus devnet
+        }
+
+        chain_id = Web3Service().get_chain_id()
+
+        try:
+            expected_prefix = VALID_PREFIX_PER_CHAIN_ID[chain_id]
+        except KeyError as e:
+            raise ValueError(f"Unknown network prefix for chain ID {chain_id} ({Web3Service().get_network_name()})") from e
+
         if isinstance(actor_id, str):
-            if actor_id.startswith(cls.VALID_PREFIXES):
+            # case: string "f1000" or "t1000"
+            if actor_id.startswith(tuple(VALID_PREFIX_PER_CHAIN_ID.values())):
+                prefix = actor_id[:2]
                 actor_id = actor_id[2:]
+
+                if prefix != expected_prefix:
+                    raise ValueError(f"Invalid ActorId prefix: {prefix}{actor_id} on {Web3Service().get_network_name()}: "
+                                     f"expected {expected_prefix!r}, got {prefix!r}")
+
+            # case: string "1000"
             try:
                 actor_id = int(actor_id)
             except ValueError as e:
                 raise ValueError(f"Invalid ActorId format: {actor_id!r}") from e
 
+        # case: int 1000
         if not isinstance(actor_id, int) or actor_id < 100:
             raise ValueError(f"Invalid ActorId: {actor_id!r}")
 
         # noinspection PyTypeChecker
-        return super().__new__(cls, actor_id)
+        self = super().__new__(cls, actor_id)
+        self.prefix = expected_prefix
+
+        # noinspection PyTypeChecker
+        return self
 
     def __str__(self) -> str:
-        return f"f0{int(self)}"
+        return f"{self.prefix}{int(self)}"
 
     def __repr__(self) -> str:
-        return f"ActorId({int(self)})"
+        return f"ActorId({str(self)!r})"
+
+    def __json__(self) -> str:
+        return str(self)
 
     @classmethod
     def try_parse(cls, actor_id: str | int) -> "ActorId | None":
@@ -168,6 +193,11 @@ class EthAddress(str):
     ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
     def __new__(cls, addr: str) -> "EthAddress":
+        addr = str(addr).strip()
+
+        if addr in ["0", "0x", "0x0"]:
+            addr = cls.ZERO_ADDRESS
+
         # noinspection PyTypeChecker
         return super().__new__(cls, str(Web3.to_checksum_address(addr)))
 
@@ -270,6 +300,7 @@ class Web3Service:
     ZERO_TX_HASH = "0x" + "00" * 32
 
     def __new__(cls) -> "Web3Service":
+        # singleton pattern
         if cls._instance is None:
             cls._instance = super().__new__(cls)
 
@@ -278,15 +309,23 @@ class Web3Service:
 
     def __init__(self):
         if hasattr(self, "_w3"):
-            return
+            return  # already initialized
 
         self._w3 = Web3(Web3.HTTPProvider(utils.get_env_required("RPC_URL")))
+        self._chain_id = self._w3.eth.chain_id  # cache
 
     def w3(self) -> Web3:
         return self._w3
 
     def get_chain_id(self) -> int:
-        return self._w3.eth.chain_id
+        return self._chain_id
+
+    def get_network_name(self, chain_id: int | None = None) -> str:
+        return {
+            314: "Filecoin Mainnet",
+            314159: "Filecoin Calibration Testnet",
+            31415926: "Lotus devnet",
+        }.get(chain_id if chain_id is not None else self.get_chain_id(), "unknown network")
 
     def get_block_number(self) -> int:
         return self._w3.eth.block_number
@@ -316,6 +355,7 @@ class Web3Service:
         return self._w3.eth.wait_for_transaction_receipt(tx_hash, timeout=timeout, poll_latency=poll_latency)
 
     def wallet_balance(self, address: FilAddress | EthAddress | ActorId) -> int:
+        # noinspection PyShadowingNames
         def filecoin_wallet_balance(address: FilAddress | ActorId) -> int:
             response = self._w3.provider.make_request(
                 RPCEndpoint("Filecoin.WalletBalance"),
@@ -333,12 +373,12 @@ class Web3Service:
             except ValueError as e:
                 raise RuntimeError(f"Filecoin.WalletBalance({address}) failed: invalid balance format {response['result']!r}") from e
 
-        if isinstance(address, FilAddress) or isinstance(address, ActorId):
+        if isinstance(address, (FilAddress, ActorId)):
             return filecoin_wallet_balance(address)
         elif isinstance(address, EthAddress):
             return self._w3.eth.get_balance(address)
         else:
-            raise ValueError(f"Unsupported address type: {address!r}")
+            raise TypeError(f"Unsupported address type: {address!r}")
 
     def wallet_sign(self, from_address: FilAddress, raw_bytes: bytes, lotus_token: str) -> bytes:
         _w3 = Web3(Web3.HTTPProvider(utils.get_env_required("RPC_URL"), request_kwargs={"headers": {"Authorization": f"Bearer {lotus_token}"}}))
@@ -373,7 +413,7 @@ class Web3Service:
 
         return sig_bytes
 
-    def state_get_allocations(self, actor_id: ActorId) -> Dict[str, dict]:
+    def state_get_allocations(self, actor_id: ActorId) -> dict[str, dict]:
         response = self._w3.provider.make_request(
             RPCEndpoint("Filecoin.StateGetAllocations"),
             [str(actor_id), None]
@@ -387,7 +427,7 @@ class Web3Service:
 
         return response["result"]
 
-    def state_get_claims(self, actor_id: ActorId, client: ActorId | None = None) -> Dict[str, dict]:
+    def state_get_claims(self, actor_id: ActorId, client: ActorId | None = None) -> dict[str, dict]:
         response = self._w3.provider.make_request(
             RPCEndpoint("Filecoin.StateGetClaims"),
             [str(actor_id), None]

@@ -3,7 +3,7 @@ from eth_typing import HexStr
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.services.txsigner import TxSigner, PrivateKeyTxSigner, LotusWalletTxSigner
+from cli.services.txsigner import LotusWalletTxSigner, PrivateKeyTxSigner, TxSigner
 from cli.services.web3_service import EthAddress, Web3Service
 
 ADMIN_PRIVATE_KEY: str | None = None
@@ -40,7 +40,7 @@ def admin_address() -> EthAddress:
     elif ADMIN_LOTUS_WALLET:
         return EthAddress.from_any(ADMIN_LOTUS_WALLET)
     else:
-        raise click.ClickException("Admin private key or Lotus wallet is not set")
+        raise click.ClickException("Admin private key is not set, set ADMIN_PRIVATE_KEY or both ADMIN_LOTUS_WALLET and ADMIN_LOTUS_TOKEN env vars")
 
 
 # lazy initialization
@@ -62,6 +62,7 @@ def admin_signer() -> TxSigner:
 def _info():
     try:
         _admin_address = admin_address() if ADMIN_PRIVATE_KEY or ADMIN_LOTUS_WALLET else None
+
     # pylint: disable=broad-exception-caught
     except Exception as e:
         _admin_address = None

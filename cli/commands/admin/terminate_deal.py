@@ -1,52 +1,35 @@
 import click
 
 from cli import utils
-from cli.commands.admin._admin import admin_signer, admin_address
-from cli.services.contracts.filecoinpay_validator import FileCoinPayValidator
-from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState, PoRepMarketDealProposal
-from cli.services.contracts.validator_factory import ValidatorFactory
+from cli.commands.admin._admin import admin_address, admin_signer
+from cli.services.contracts.porep_market import (
+    PoRepMarket,
+    PoRepMarketDeal,
+    PoRepMarketDealState,
+)
+from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
+from cli.services.self_update import SelfUpdateService
 from cli.services.web3_service import Web3Service
 
 
-def _terminate_proposed_deal(deal: PoRepMarketDealProposal) -> str:
-    assert deal.state == PoRepMarketDealState.PROPOSED
+def _terminate_active_deal(deal: PoRepMarketDeal) -> str:
+    assert deal.state == PoRepMarketDealState.ACTIVE
+    assert deal.rail_id
 
-    return PoRepMarket().reject_deal(deal.deal_id, admin_signer())
-
-
-def _terminate_completed_deal(deal: PoRepMarketDealProposal) -> str:
-    assert deal.state == PoRepMarketDealState.COMPLETED
-
-    validator_address = ValidatorFactory().get_instance(deal.deal_id)
-    if validator_address != deal.validator_address:
-        raise click.ClickException(f"Validator address {validator_address} does not match expected {deal.validator_address} for deal ID {deal.deal_id}")
-
-    return FileCoinPayValidator(deal.validator_address).terminate_rail(admin_signer())
+    return PoRepMarket().terminate_deal(deal.deal_id, PoRepMarketDealState.EARLY_TERMINATED, admin_signer()).tx_hash
 
 
-def _terminate_accepted_deal(deal: PoRepMarketDealProposal) -> str:
-    def terminate_accepted_initialized_deal() -> str:
-        assert deal.state == PoRepMarketDealState.ACCEPTED
-        assert deal.rail_id
-
-        raise click.ClickException("Terminating an ACCEPTED and initialized deal is not (and won't be) supported in v1 Smart Contracts.")
-
-    def terminate_accepted_not_initialized_deal() -> str:
-        assert deal.state == PoRepMarketDealState.ACCEPTED
-        assert not deal.rail_id
-
-        return PoRepMarket().reject_accepted_deal(deal.deal_id, admin_signer())
-
+def _terminate_accepted_deal(deal: PoRepMarketDeal) -> str:
     assert deal.state == PoRepMarketDealState.ACCEPTED
 
     if deal.rail_id == 0:
-        return terminate_accepted_not_initialized_deal()
+        return PoRepMarket().reject_accepted_deal(deal.deal_id, admin_signer()).tx_hash
     else:
-        return terminate_accepted_initialized_deal()
+        return PoRepMarket().terminate_deal(deal.deal_id, PoRepMarketDealState.EARLY_TERMINATED, admin_signer()).tx_hash
 
 
 @click.command()
-@click.argument("deal_id", type=click.IntRange(min=0))
+@click.argument("deal_id", type=click.IntRange(min=1))
 def terminate_deal(deal_id: int):
     """
     Terminate a deal early. Not all deals can be terminated.
@@ -54,23 +37,23 @@ def terminate_deal(deal_id: int):
     \b
     Calls:
     - `PoRepMarket.rejectAcceptedDeal` for ACCEPTED deals without initialized FileCoinPay rail,
-    - `FileCoinPayValidator.terminateRail` for COMPLETED deals,
-    - `PoRepMarket.rejectDeal` for PROPOSED deals.
+    - `PoRepMarket.terminateDeal` for ACCEPTED/ACTIVE deals with initialized FileCoinPay rail.
 
+    \b
     DEAL_ID - The ID of the deal to terminate.
     """
 
+    SelfUpdateService.check_and_prompt(manual=False)
     Web3Service().wait_for_pending_transactions(admin_address())
-    deal = PoRepMarket().get_deal_proposal(deal_id)
-    utils.confirm(f"Terminating deal ID {deal.deal_id}: {deal}", abort=True)
 
-    if deal.state == PoRepMarketDealState.COMPLETED:
-        tx_hash = _terminate_completed_deal(deal)
-    elif deal.state == PoRepMarketDealState.ACCEPTED:
-        tx_hash = _terminate_accepted_deal(deal)
-    elif deal.state == PoRepMarketDealState.PROPOSED:
-        tx_hash = _terminate_proposed_deal(deal)
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
+    utils.confirm(f"Terminating deal ID {deal.deal.deal_id}: {deal}", abort=True)
+
+    if deal.deal.state == PoRepMarketDealState.ACTIVE:
+        tx_hash = _terminate_active_deal(deal.deal)
+    elif deal.deal.state == PoRepMarketDealState.ACCEPTED:
+        tx_hash = _terminate_accepted_deal(deal.deal)
     else:
         raise click.ClickException(f"Deal ID {deal_id} is not in a state that can be terminated")
 
-    click.echo(f"Deal ID {deal.deal_id} terminated: {tx_hash}")
+    click.echo(f"Deal ID {deal.deal.deal_id} terminated: {tx_hash}")

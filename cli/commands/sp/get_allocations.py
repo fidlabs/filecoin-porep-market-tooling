@@ -2,11 +2,11 @@ import click
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.services.contracts.porep_market import PoRepMarket
+from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 
 
 @click.command()
-@click.argument("deal_id", type=click.IntRange(min=0))
+@click.argument("deal_id", type=click.IntRange(min=1))
 @click.option("--not-claimed", is_flag=True, default=False,
               help="Show only allocations that have not been claimed.  [default: false]")
 def get_allocations(deal_id: int, not_claimed: bool = False):
@@ -16,11 +16,11 @@ def get_allocations(deal_id: int, not_claimed: bool = False):
     DEAL_ID - The ID of the deal to get DDO allocations for.
     """
 
-    deal = PoRepMarket().get_deal_proposal(deal_id)
-    allocations = commands_utils.get_deal_allocations(deal)
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
+    allocations = commands_utils.get_deal_allocations(deal.deal)
 
     if not_claimed:
-        claims = commands_utils.get_deal_claims(deal)
+        claims = commands_utils.get_deal_claims(deal.deal)
         allocations = {allocation_id: alloc for allocation_id, alloc in allocations.items() if allocation_id not in claims}
 
     click.echo(utils.json_pretty(allocations))

@@ -4,7 +4,7 @@ from eth_typing import HexStr
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.services.txsigner import TxSigner, PrivateKeyTxSigner, LotusWalletTxSigner
+from cli.services.txsigner import LotusWalletTxSigner, PrivateKeyTxSigner, TxSigner
 from cli.services.web3_service import EthAddress, Web3Service
 
 CLIENT_ADDRESS: str | None = None
@@ -54,7 +54,7 @@ def client_address() -> EthAddress:
         elif CLIENT_LOTUS_WALLET:
             CLIENT_ETH_ADDRESS = EthAddress.from_any(CLIENT_LOTUS_WALLET)
         else:
-            raise click.ClickException("Client address is not set and cannot be derived from private key or Lotus wallet")
+            raise click.ClickException("Client address is not set, set CLIENT_ADDRESS env var or use --address option")
 
         if CLIENT_ADDRESS and CLIENT_ETH_ADDRESS != CLIENT_ADDRESS:
             click.echo(f"Converted client address {CLIENT_ADDRESS} to EVM 0x-address {CLIENT_ETH_ADDRESS}.")
@@ -87,6 +87,7 @@ def client_signer() -> TxSigner:
 def _info():
     try:
         _client_address = client_address() if CLIENT_PRIVATE_KEY or CLIENT_LOTUS_WALLET else None
+
     # pylint: disable=broad-exception-caught
     except Exception as e:
         _client_address = None
@@ -121,7 +122,7 @@ def wait():
 
 def validate_address_matches_private_key(address: EthAddress, private_key: PrivateKeyType | None):
     if not private_key:
-        raise click.ClickException("Private key is not set")
+        raise click.ClickException("Client private key is not set, set CLIENT_PRIVATE_KEY or both CLIENT_LOTUS_WALLET and CLIENT_LOTUS_TOKEN env vars")
 
     derived_address = EthAddress.from_private_key(private_key)
 

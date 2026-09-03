@@ -1,21 +1,73 @@
-from cli.services.contracts.contract_service import ContractService
+import enum
+
+from cli.services.contract_service import ContractService, TxInfo
 from cli.services.txsigner import TxSigner
-from cli.services.web3_service import EthAddress
+from cli.services.web3_service import EthAddress, FilAddress
+
+
+# @title RailStatus
+# @notice Defines status codes for a FilecoinPay rail lifecycle
+class FileCoinPayRailStatus(enum.Enum):
+    NONE = 0  # Rail is authorized and ready, but payment cannot accrue until storage activates.
+    PREPARED = 10
+    ACTIVE = 20
+    TERMINATED = 100  # FilecoinPay rail termination has been observed by Validator and settlement is capped at earlyTerminatedEpoch.
+
+    @staticmethod
+    def from_web3(s: str | int | None) -> "FileCoinPayRailStatus":
+        if s is None or s == "":
+            raise ValueError(f"Invalid rail status: {s}")
+
+        s = str(s).strip().lower()
+
+        if s in ("0", "none"):
+            return FileCoinPayRailStatus.NONE
+        elif s in ("10", "prepared"):
+            return FileCoinPayRailStatus.PREPARED
+        elif s in ("20", "active"):
+            return FileCoinPayRailStatus.ACTIVE
+        elif s in ("100", "terminated"):
+            return FileCoinPayRailStatus.TERMINATED
+        else:
+            raise ValueError(f"Invalid rail status: {s}")
+
+    @staticmethod
+    def to_string_list():
+        return [v.name for v in FileCoinPayRailStatus]
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return self.name
 
 
 class FileCoinPayValidator(ContractService):
-    def __init__(self, contract_address: EthAddress):
-        super().__init__(contract_address,
-                         self.abi_dir() / "Validator.json")
+    def __init__(self, contract_address: EthAddress | FilAddress):
+        super().__init__(contract_address, self.abi_dir() / "Validator.json")
 
-    # @notice Creates a payment rail with the specified parameters and set initial lockup period
-    # @dev Only callable by the client
-    # @dev Sets railID in contract state and updates the PoRepMarket with the created rail ID
-    # @param token The ERC20 token to use for the payment rail
-    def create_rail(self, token_address: EthAddress, signer: TxSigner) -> str:
-        return self.sign_and_send_tx(self.contract.functions.createRail(token_address), signer)
+    # @notice Creates the FilecoinPay rail for this validator and sets the initial lockup period.
+    # @dev Only callable by the client.
+    # @dev Sets railID in contract state and updates the PoRepMarket with the created rail ID.
+    def create_rail(self, signer: TxSigner) -> TxInfo:
+        return self.sign_and_send_tx(self.contract.functions.createRail(), signer)
 
-    # @notice Terminates a payment rail, preventing further payments after the rail's lockup period.
-    #         After calling this method, the lockup period cannot be changed, and the rail's rate and fixed lockup may only be reduced.
-    def terminate_rail(self, signer: TxSigner) -> str:
-        return self.sign_and_send_tx(self.contract.functions.terminateRail(), signer)
+    # @notice Terminates a payment rail early and terminates its deal
+    # @dev Only callable by POREP_SERVICE bot
+    def early_rail_termination(self, signer: TxSigner) -> TxInfo:
+        return self.sign_and_send_tx(self.contract.functions.earlyRailTermination(), signer)
+
+    # @notice Finalizes the deal after the service window has ended, terminating the rail
+    def finalize_deal(self, signer: TxSigner) -> TxInfo:
+        return self.sign_and_send_tx(self.contract.functions.finalizeDeal(), signer)
+
+    # @notice Retrieves the current status of the payment rail
+    # @return railStatus Current status of the payment rail
+    def get_rail_status(self) -> FileCoinPayRailStatus:
+        return FileCoinPayRailStatus.from_web3(self.call_contract(self.contract.functions.getRailStatus()))
+
+    # @notice Modifies the payment rate
+    # @dev Only callable by the PoRepMarket contract
+    # @param newRate The new payment rate per epoch
+    def modify_rail_payment(self, new_rate: int, signer: TxSigner) -> TxInfo:
+        return self.sign_and_send_tx(self.contract.functions.modifyRailPayment(new_rate), signer)
