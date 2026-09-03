@@ -26,7 +26,6 @@ class TxInfo:
     tx_hash: str
     transaction: object
     tx_receipt: dict
-    tx_params: dict
     events: list[EventData]
 
 
@@ -198,7 +197,6 @@ class ContractService:
             return TxInfo(
                 tx_hash=Web3Service.ZERO_TX_HASH,
                 transaction=transaction,
-                tx_params=tx_params,
                 tx_receipt={},
                 events=[]
             )
@@ -235,7 +233,6 @@ class ContractService:
         return TxInfo(
             tx_hash=tx_hash.to_0x_hex(),
             transaction=transaction,
-            tx_params=tx_params,
             tx_receipt=tx_receipt,
             events=events
         )

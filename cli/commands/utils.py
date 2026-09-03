@@ -677,7 +677,6 @@ def propose_deal(signer: TxSigner,
     deal_id = find_deal_id(tx)
     if deal_id is not None:
         click.echo(PoRepMarketViewHelper().get_deal_view(deal_id))
-
-    click.echo(f"Run `{sys.argv[0]} client init-deals {deal_id}` to initialize this deal")
+        click.echo(f"Run `{sys.argv[0]} client init-deals {deal_id}` to initialize this deal")
 
     return tx.tx_hash
