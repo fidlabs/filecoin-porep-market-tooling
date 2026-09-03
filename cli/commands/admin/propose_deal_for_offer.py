@@ -3,8 +3,6 @@ import click
 from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.admin._admin import admin_signer
-# noinspection PyProtectedMember
-from cli.commands.client._client import client_address
 from cli.services.contracts.porep_market import PoRepMarketDealType
 from cli.services.contracts.sp_registry import SPRegistry
 from cli.services.self_update import SelfUpdateService
@@ -39,8 +37,9 @@ from cli.services.web3_service import EthAddress
 @click.option("--indexing-pct", type=click.IntRange(0, 100), required=True,
               prompt="Enter IPNI indexing guarantee in percentage; 0 means \"don't care\"",
               help="IPNI indexing guarantee in percentage; 0 means \"don't care\".")
-@click.option("--client", type=str,
-              help="The client address to use for the deal.  [default: current client address]")
+@click.option("--client-address", type=str, required=True,
+              prompt="Enter the client address to use for the deal",
+              help="The client address to use for the deal.")
 def propose_deal_for_offer(offer_id: int,
                            manifest_url: str,
                            retrievability_pct: int,
@@ -51,7 +50,7 @@ def propose_deal_for_offer(offer_id: int,
                            indexing_pct: int,
                            payment_token: str,
                            deal_type: str,
-                           client: str | None = None):
+                           client_address: str):
     """
     Interactively propose a deal from MANIFEST_URL against a specific OFFER_ID,
     bypassing automatic Storage Provider matching.
@@ -71,13 +70,14 @@ def propose_deal_for_offer(offer_id: int,
 
     SelfUpdateService.check_and_prompt(manual=False)
 
+    _client_address = EthAddress.from_any(client_address)
     offer = SPRegistry().get_offer_view(offer_id)
-    utils.confirm(f"\nReserving offer for deal: {utils.json_pretty(offer)} "
+    utils.confirm(f"\nReserving offer for client {_client_address} and deal: {utils.json_pretty(offer)} "
                   "This bypasses automatic Storage Provider matching. Continue?", abort=True)
 
     commands_utils.propose_deal(admin_signer(),
                                 manifest_url,
-                                retrievability_pct * 100,
+                                retrievability_pct,
                                 bandwidth_mbps,
                                 price_per_tib_per_month,
                                 duration_months,
@@ -86,4 +86,4 @@ def propose_deal_for_offer(offer_id: int,
                                 EthAddress.from_any(payment_token),
                                 PoRepMarketDealType.from_web3(deal_type),
                                 offer_id=offer_id,
-                                client_address=EthAddress.from_any(client) if client else client_address())
+                                client_address=_client_address)

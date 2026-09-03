@@ -168,7 +168,7 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
    python3 ./porep_tooling_cli.py client propose-deal <manifest-url> \
      --price-per-tib-per-month <usdc-in-decimal-format> \
      --duration-months <months> \
-     --retrievability-bps <bps> \
+     --retrievability-pct <pct> \
      --bandwidth-mbps <mbps> \
      --latency-ms <ms> \
      --indexing-pct <pct> \
