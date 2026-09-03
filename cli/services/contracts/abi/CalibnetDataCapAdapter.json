@@ -517,6 +517,25 @@
     },
     {
         "type": "function",
+        "name": "hasSubmittedEvidence",
+        "inputs": [
+            {
+                "name": "dealId",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "",
+                "type": "bool",
+                "internalType": "bool"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
         "name": "initialize",
         "inputs": [
             {
@@ -1140,6 +1159,11 @@
     },
     {
         "type": "error",
+        "name": "AllocatedBytesExceededRequestedSize",
+        "inputs": []
+    },
+    {
+        "type": "error",
         "name": "AllocationOrClaimIdAssignedToAnotherDeal",
         "inputs": []
     },
@@ -1424,6 +1448,17 @@
                 "name": "slot",
                 "type": "bytes32",
                 "internalType": "bytes32"
+            }
+        ]
+    },
+    {
+        "type": "error",
+        "name": "UnsupportedChainId",
+        "inputs": [
+            {
+                "name": "chainId",
+                "type": "uint256",
+                "internalType": "uint256"
             }
         ]
     },
