@@ -66,7 +66,7 @@ def get_db_offers(db_url: str,
                 retrievability_bps=0,  # 0 %
                 bandwidth_bytes_per_second=125_000,  # 1 Mbps
                 latency_ms=24 * 60 * 60 * 1000,  # 24 hours
-                indexing_pct=0
+                indexing_pct=100
             )
 
         elif sla_class == "accessible_backup":
@@ -75,7 +75,7 @@ def get_db_offers(db_url: str,
                 retrievability_bps=0,  # 0 %
                 bandwidth_bytes_per_second=125_000,  # 1 Mbps
                 latency_ms=24 * 60 * 60 * 1000,  # 24 hours
-                indexing_pct=0
+                indexing_pct=100
             )
 
         else:
