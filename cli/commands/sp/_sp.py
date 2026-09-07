@@ -95,8 +95,14 @@ def _info():
         _sp_address = None
         click.echo(f"Error getting SP address: {e}")
 
-    click.echo(f"SP organization address: {sp_organization_address() if SP_ORGANIZATION else ''}")
-    click.echo(f"SP organization: {SP_ORGANIZATION or ''}")
+    _sp_organization_address = sp_organization_address() if SP_ORGANIZATION else ""
+    _sp_organization = SP_ORGANIZATION or ""
+
+    click.echo(f"SP organization address: {_sp_organization_address}")
+
+    if _sp_organization != _sp_organization_address:
+        click.echo(f"SP organization: {_sp_organization}")
+
     click.echo()
     click.echo(f"SP wallet private key: {utils.private_str_to_log_str(SP_PRIVATE_KEY)}")
     commands_utils.print_info(_sp_address, "SP wallet")
