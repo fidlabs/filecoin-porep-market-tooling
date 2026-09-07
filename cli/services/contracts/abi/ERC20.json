@@ -311,5 +311,45 @@
         ],
         "stateMutability": "nonpayable",
         "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "TotalSupplyOverflow",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "AllowanceOverflow",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "AllowanceUnderflow",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "InsufficientBalance",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "InsufficientAllowance",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "InvalidPermit",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "PermitExpired",
+        "type": "error"
+    },
+    {
+        "inputs": [],
+        "name": "Permit2AllowanceIsFixedAtInfinity",
+        "type": "error"
     }
 ]
