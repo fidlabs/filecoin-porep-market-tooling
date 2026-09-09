@@ -46,14 +46,70 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
 
 ## Security considerations
 
-- All blockchain transactions **require manual user confirmation** before sending. There is no option to override this. \
-  If you decline the final confirmation, the command falls back to dry-run behavior without broadcasting the transaction.
+- Blockchain writes require confirmation. Migration commands confirm the displayed batch once;
+  other commands retain their per-transaction confirmation.
+  Use migration `--print-only` to inspect a plan without a signer. The general CLI dry-run path may sign transactions.
 - The app runs locally and does not transmit any data to external servers besides blockchain.
   All interactions are between the user's machine and the provided `RPC_URL` blockchain.
 - The app does not log any sensitive information to the console or to the log files.
   All transaction logs are stored without any sensitive information.
 - When using Lotus wallet for blockchain transaction signing, the **private key never leaves the Lotus wallet** and is not exposed to the CLI app. \
   This is the recommended way of using the app.
+
+## V1 to V2 migration
+
+Configure `POREP_MARKET_V1`, `POREP_MARKET_V1_CHAIN_ID` and
+`POREP_MARKET_SECTOR_STATUS_INSPECTOR` alongside the existing V2 contract and RPC settings.
+The source market must be a trusted address. Deal IDs below refer to V2.
+
+Anyone can inspect a deal without a signing wallet:
+
+```bash
+uv run python porep_tooling_cli.py migration-status --deal-id <v2-deal-id>
+```
+
+The client runs these commands at separate stages:
+
+```bash
+uv run python porep_tooling_cli.py client --address <client-address> migration-status
+uv run python porep_tooling_cli.py client --address <client-address> prepare-migration --print-only
+uv run python porep_tooling_cli.py client --address <client-address> prepare-migration
+# Run after the SP has extended the sectors:
+uv run python porep_tooling_cli.py client --address <client-address> finish-migration
+```
+
+Prepare and finish default to all applicable client deals. An optional positional deal ID
+limits execution to one deal. Re-running skips completed work and reports deals that need
+another participant. `--print-only` checks the plan without loading a signer.
+Prepare adopts the full V1 claim set and calculates the funding shortfall in each deal's configured token.
+The quote includes 30 days of payments and the additional activation lockup for prepared rails.
+Lockup is reserved account balance, not an extra fee.
+A USDFC deal requires USDFC funds; an axlUSD balance does not fund it.
+
+The SP uses an installed, configured `sptool` and runs:
+
+```bash
+uv run python porep_tooling_cli.py sp --organization <organization-address> migration-status
+uv run python porep_tooling_cli.py sp --organization <organization-address> extend-deal-sectors <v2-deal-id>
+```
+
+The extension command reads the claim and sector IDs from chain, previews the operation,
+and asks for confirmation. It does not drop claims or require exchanging sector files.
+Sector expiration readback determines completion; a pending message is not confirmation.
+If this provider has a pending sector extension, wait for it before retrying.
+The SP RPC endpoint must expose `Filecoin.MpoolPending`.
+Set `SPTOOL_PATH` if `sptool` is not on `PATH`. Pending or incomplete extensions exit
+with an error; rerun the command after the message lands to verify completion.
+
+Migration discovery and resume use the source reference stored in the fragment of V2's
+`manifestLocation`. No local mapping file is required. The original manifest URL and hash
+are preserved, including when the file is unavailable. Only whole, verified source deals
+qualify. An expired preparation window requires operator intervention.
+
+Operators propose V2 and close V1 using the [separate migration scripts](scripts/migrations/README.md). V2 activates before
+V1 closes, so a short period of overlapping payments is expected. Deployment still requires
+verification of V2 evidence, payment and retrieval services. URL Finder fragment handling and
+SLI for unavailable manifests are separate integration work.
 
 ## Typical SP workflow
 
@@ -180,6 +236,11 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
    ```bash
    python3 ./porep_tooling_cli.py client init-deals
    ```
+
+   Initialization deposits the 30-day shortfall after checking available FileCoinPay funds.
+   ERC20 approval and the validator's operator approval are separate transactions.
+   Re-running this command skips deals that already have a rail; use `client deposit-for-deals`
+   to check their funding.
 
 6. Make DataCap allocations:
 
