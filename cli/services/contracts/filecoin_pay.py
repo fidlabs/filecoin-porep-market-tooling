@@ -25,6 +25,24 @@ class FileCoinPayAccount:
 
 
 @utils.json_dataclass()
+class FileCoinPayAccountInfoIfSettled:
+    funded_until_epoch: int
+    current_funds: int
+    available_funds: int
+    current_lockup_rate: int
+
+    @staticmethod
+    def from_web3(data) -> "FileCoinPayAccountInfoIfSettled":
+        # noinspection PyArgumentList
+        return FileCoinPayAccountInfoIfSettled(
+            funded_until_epoch=int(data[0]),
+            current_funds=int(data[1]),
+            available_funds=int(data[2]),
+            current_lockup_rate=int(data[3]),
+        )
+
+
+@utils.json_dataclass()
 class FileCoinPayOperatorApproval:
     is_approved: bool
     rate_allowance: int
@@ -87,6 +105,33 @@ class FileCoinPay(ContractService):
     def __init__(self, contract_address: EthAddress | FilAddress | None = None):
         super().__init__(contract_address or utils.get_env_required("FILECOIN_PAY", required_type=EthAddress.from_any),
                          self.abi_dir() / "FileCoinPay.json")
+
+    def deposit(self,
+                token: EthAddress,
+                to: EthAddress,
+                amount: int,
+                signer: TxSigner) -> TxInfo:
+        return self.sign_and_send_tx(self.contract.functions.deposit(token, to, amount), signer)
+
+    def set_operator_approval(self,
+                              token: EthAddress,
+                              operator: EthAddress,
+                              approved: bool,
+                              rate_allowance: int,
+                              lockup_allowance: int,
+                              max_lockup_period: int,
+                              signer: TxSigner) -> TxInfo:
+        return self.sign_and_send_tx(
+            self.contract.functions.setOperatorApproval(
+                token,
+                operator,
+                approved,
+                rate_allowance,
+                lockup_allowance,
+                max_lockup_period,
+            ),
+            signer,
+        )
 
     # @notice Deposits tokens using permit (EIP-2612) approval in a single transaction,
     #         while also setting operator approval.
@@ -180,6 +225,12 @@ class FileCoinPay(ContractService):
     # The self-balance collects network fees
     def get_account(self, token: EthAddress, owner: EthAddress) -> FileCoinPayAccount:
         return FileCoinPayAccount.from_web3(self.call_contract(self.contract.functions.accounts(token, owner)))
+
+    def get_account_info_if_settled(self,
+                                    token: EthAddress,
+                                    owner: EthAddress) -> FileCoinPayAccountInfoIfSettled:
+        result = self.call_contract(self.contract.functions.getAccountInfoIfSettled(token, owner))
+        return FileCoinPayAccountInfoIfSettled.from_web3(result)
 
     # @notice Gets the current state of the target rail or reverts if the rail isn't active.
     # @param railId the ID of the rail.
