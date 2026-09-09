@@ -198,7 +198,7 @@ def prepare_migration(deal_id: int | None, print_only: bool):
                         ),
                         f"FileCoinPay {token.symbol()} deposit",
                     )
-            for pair, old_plan in plans:
+            for pair, _ in plans:
                 target_id = pair.target.deal.deal_id
                 try:
                     current = PoRepMarketViewHelper().get_deal_view(target_id)
@@ -236,16 +236,16 @@ def prepare_migration(deal_id: int | None, print_only: bool):
                 refreshed_pair = pair.__class__(
                     pair.marker, pair.source, PoRepMarketViewHelper().get_deal_view(target_id)
                 )
-                plan = service.adoption_plan(refreshed_pair)
                 if plan.extensions:
                     adapter = DataCapEvidenceAdapter(refreshed_pair.target.deal.evidence_adapter_address)
                     deterministic_failure = False
-                    for batch_number, batch in enumerate(plan.batches(), start=1):
-                        params = service.transfer_params(batch)
-                        operation = adapter.contract.functions.submitDataCapBatch(
-                            (params.to, params.amount, params.operator_data), target_id
-                        )
+                    for batch_number, planned_batch in enumerate(plan.batches(), start=1):
                         try:
+                            batch = service.validate_outgoing_batch(refreshed_pair, plan, planned_batch)
+                            params = service.transfer_params(batch)
+                            operation = adapter.contract.functions.submitDataCapBatch(
+                                (params.to, params.amount, params.operator_data), target_id
+                            )
                             operation.call({"from": client_address()})
                             operation.estimate_gas({"from": client_address()})
                         except Exception as exc:  # pylint: disable=broad-exception-caught
@@ -257,25 +257,24 @@ def prepare_migration(deal_id: int | None, print_only: bool):
                             adapter.submit_datacap_batch(params, target_id, signer),
                             f"claim adoption batch {batch_number} for V2 {target_id}",
                         )
-                        verified_pair = pair.__class__(
-                            pair.marker, pair.source, PoRepMarketViewHelper().get_deal_view(target_id)
-                        )
-                        verified = service.adoption_plan(verified_pair)
-                        submitted_ids = {extension.claim_id for extension in batch.extensions}
-                        remaining_ids = {extension.claim_id for extension in verified.extensions}
-                        if not submitted_ids <= verified.target_ids or submitted_ids & remaining_ids:
+                        try:
+                            service.validate_batch_receipt(refreshed_pair, plan, batch)
+                        except Exception as exc:  # pylint: disable=broad-exception-caught
                             raise click.ClickException(
-                                f"V2 {target_id} claim batch receipt did not produce authoritative chain state; "
-                                "stopping writes"
-                            )
+                                f"V2 {target_id} claim batch receipt is not authoritative: {exc}; stopping writes"
+                            ) from exc
                     if deterministic_failure:
                         continue
+                    verified_pair = pair.__class__(
+                        pair.marker, pair.source, PoRepMarketViewHelper().get_deal_view(target_id)
+                    )
+                    verified = service.adoption_plan(verified_pair)
                     expected_ids = {claim.claim_id for claim in verified.source_claims}
                     if verified.extensions or verified.target_ids != expected_ids:
                         raise click.ClickException(
                             f"V2 {target_id} claim adoption did not produce the exact complete claim set; stopping writes"
                         )
-                elif old_plan.complete:
+                elif plan.complete:
                     click.echo(f"V2 {target_id}: claims already adopted, skipped")
                     summary["skipped"] += 1
                     continue

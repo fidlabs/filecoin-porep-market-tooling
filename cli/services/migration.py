@@ -560,7 +560,9 @@ class MigrationService:
         tipset_key = tipset_key or self.web3.get_tipset_key()
         current_epoch = self.web3.get_block_number()
         self._qualify_source_rail(pair.source)
+        self._qualify_claim_sectors(pair, claims, tipset_key, current_epoch)
 
+    def _qualify_claim_sectors(self, pair, claims, tipset_key, current_epoch):
         inspector = SectorStatusInspector()
         if inspector.porep_market_contract() != self.view_helper.porep_market_contract():
             raise MigrationError("Sector status inspector belongs to a different V2 PoRep Market")
@@ -576,6 +578,80 @@ class MigrationService:
                 raise MigrationError(f"Sector {claim.sector} for V1 claim {claim.claim_id} is expired")
             if not inspector.is_active(pair.target.deal.deal_id, claim.sector, deadline, partition_index):
                 raise MigrationError(f"Sector {claim.sector} for V1 claim {claim.claim_id} is not active")
+
+    def _fresh_batch_claims(self, pair, baseline, claim_ids, tipset_key):
+        baseline_by_id = {claim.claim_id: claim for claim in baseline.source_claims}
+        rpc_claims = self.web3.state_get_claims(pair.source.provider, tipset_key=tipset_key)
+        legacy_client = self.source_market.get_client_contract()
+        claims = []
+        for claim_id in claim_ids:
+            original = baseline_by_id.get(claim_id)
+            raw = rpc_claims.get(str(claim_id))
+            if original is None or raw is None:
+                raise MigrationError(f"Outgoing V1 claim {claim_id} is absent from the refreshed source set")
+            claim = Claim.from_rpc(claim_id, raw)
+            if legacy_client.is_claim_terminated(claim_id):
+                raise MigrationError(f"Outgoing V1 claim {claim_id} became terminated")
+            if (claim.provider != original.provider
+                    or claim.client != original.client
+                    or claim.data != original.data
+                    or claim.size != original.size
+                    or claim.term_min != original.term_min
+                    or claim.term_start != original.term_start
+                    or claim.sector != original.sector):
+                raise MigrationError(f"Outgoing V1 claim {claim_id} identity changed after full preflight")
+            claims.append(claim)
+        return claims
+
+    def validate_outgoing_batch(self, pair, baseline: AdoptionPlan, batch: AdoptionPlan) -> AdoptionPlan:
+        """Refresh only claims and sectors included in the next bounded write."""
+        tipset_key = self.web3.get_tipset_key()
+        current_epoch = self.web3.get_block_number()
+        latest_preparation_epoch = pair.target.deal.proposed_at_epoch + PREPARATION_BUFFER_EPOCHS
+        if current_epoch > latest_preparation_epoch:
+            raise MigrationError(
+                f"V2 deal {pair.target.deal.deal_id} passed its fixed preparation deadline "
+                f"{latest_preparation_epoch} at epoch {current_epoch}"
+            )
+        self._qualify_source_rail(pair.source)
+        claim_ids = [extension.claim_id for extension in batch.extensions]
+        claims = self._fresh_batch_claims(pair, baseline, claim_ids, tipset_key)
+        self._qualify_claim_sectors(pair, claims, tipset_key, current_epoch)
+        return build_adoption_plan(
+            claims,
+            [],
+            [],
+            baseline.sector_target_epoch,
+            current_epoch,
+        )
+
+    def validate_batch_receipt(self, pair, baseline: AdoptionPlan, batch: AdoptionPlan):
+        """Verify one sent batch without repeating the full source and sector scan."""
+        adapter = DataCapEvidenceAdapter(pair.target.deal.evidence_adapter_address)
+        pending = self._all_adapter_ids(adapter.get_allocation_ids_per_deal, pair.target.deal.deal_id)
+        confirmed = self._all_adapter_ids(adapter.get_claim_ids, pair.target.deal.deal_id)
+        if (len(set(pending)) != len(pending)
+                or len(set(confirmed)) != len(confirmed)
+                or set(pending) & set(confirmed)):
+            raise MigrationError("Batch receipt produced duplicate pending or confirmed claim IDs")
+        target_ids = set(pending + confirmed)
+        source_by_id = {claim.claim_id: claim for claim in baseline.source_claims}
+        foreign = target_ids - set(source_by_id)
+        submitted_ids = {extension.claim_id for extension in batch.extensions}
+        if foreign or not submitted_ids <= target_ids:
+            raise MigrationError("Batch receipt did not produce the expected source claim membership")
+        expected_bytes = sum(source_by_id[claim_id].size for claim_id in target_ids)
+        if adapter.get_allocated_bytes(pair.target.deal.deal_id) != expected_bytes:
+            raise MigrationError("Batch receipt produced an unexpected registered byte total")
+        tipset_key = self.web3.get_tipset_key()
+        claims = self._fresh_batch_claims(pair, baseline, submitted_ids, tipset_key)
+        claims_by_id = {claim.claim_id: claim for claim in claims}
+        for extension in batch.extensions:
+            claim = claims_by_id[extension.claim_id]
+            if claim.term_max < extension.new_term_max or claim.end_epoch <= baseline.sector_target_epoch:
+                raise MigrationError(
+                    f"Batch receipt did not apply the required term for claim {extension.claim_id}"
+                )
 
     def adoption_plan(self, pair: MigrationPair) -> AdoptionPlan:
         adapter = DataCapEvidenceAdapter(pair.target.deal.evidence_adapter_address)

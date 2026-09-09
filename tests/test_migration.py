@@ -15,6 +15,7 @@ from cli.services.contracts.legacy_porep_market import LegacyValidator
 from cli.services.contracts.porep_market import PoRepMarketDealState, PoRepMarketDealType
 from cli.services.migration import (
     CLAIM_ROUNDING_RESERVE_EPOCHS,
+    PREPARATION_BUFFER_EPOCHS,
     Claim,
     MigrationError,
     MigrationMarker,
@@ -211,6 +212,77 @@ class MigrationTests(unittest.TestCase):
             list(range(1, 206)),
         )
         self.assertEqual(sum(batch.datacap_amount for batch in batches), 205 * 10 ** 18)
+
+    def test_bounded_batch_refresh_recomputes_terms_and_checks_receipt_state(self):
+        original = self.claim(term_max=1_000)
+        baseline = build_adoption_plan([original], [], [], target_epoch=10_000, current_epoch=500)
+        planned_batch = baseline.batches()[0]
+
+        def raw(term_max=20_000, data=original.data):
+            return {
+                "Provider": int(original.provider),
+                "Client": int(original.client),
+                "Data": data,
+                "Size": original.size,
+                "TermMin": original.term_min,
+                "TermMax": term_max,
+                "TermStart": original.term_start,
+                "Sector": original.sector,
+            }
+
+        service = object.__new__(MigrationService)
+        service.web3 = SimpleNamespace(
+            get_tipset_key=MagicMock(return_value=[{"/": "tipset"}]),
+            get_block_number=MagicMock(return_value=500),
+            state_get_claims=MagicMock(return_value={"10": raw()}),
+        )
+        service.source_market = SimpleNamespace(get_client_contract=MagicMock(return_value=SimpleNamespace(
+            is_claim_terminated=MagicMock(return_value=False)
+        )))
+        service._qualify_source_rail = MagicMock()
+        service._qualify_claim_sectors = MagicMock()
+        pair = SimpleNamespace(
+            source=SimpleNamespace(provider=original.provider),
+            target=SimpleNamespace(deal=SimpleNamespace(
+                deal_id=9,
+                evidence_adapter_address=MARKET,
+                proposed_at_epoch=500,
+            )),
+        )
+
+        refreshed = service.validate_outgoing_batch(pair, baseline, planned_batch)
+
+        self.assertEqual(refreshed.extensions[0].new_term_max, 20_001)
+        self.assertEqual(cbor2.loads(refreshed.operator_data), [[], [[1234, 10, 20_001]]])
+        service._qualify_claim_sectors.assert_called_once()
+
+        service.web3.state_get_claims.return_value = {"10": raw(data="changed-piece")}
+        with self.assertRaisesRegex(MigrationError, "identity changed"):
+            service.validate_outgoing_batch(pair, baseline, planned_batch)
+
+        service.web3.state_get_claims.return_value = {"10": raw(term_max=20_001)}
+        adapter = SimpleNamespace(
+            get_allocation_ids_per_deal=MagicMock(return_value=([10], 1)),
+            get_claim_ids=MagicMock(return_value=([], 0)),
+            get_allocated_bytes=MagicMock(return_value=original.size),
+        )
+        from cli.services import migration as migration_service_module
+        with patch.object(migration_service_module, "DataCapEvidenceAdapter", return_value=adapter):
+            service.validate_batch_receipt(pair, baseline, refreshed)
+            service.web3.state_get_claims.return_value = {"10": raw(term_max=20_000)}
+            with self.assertRaisesRegex(MigrationError, "required term"):
+                service.validate_batch_receipt(pair, baseline, refreshed)
+
+        service._qualify_source_rail.reset_mock()
+        service.web3.get_block_number.return_value = 500 + PREPARATION_BUFFER_EPOCHS + 1
+        with self.assertRaisesRegex(MigrationError, "passed its fixed preparation deadline"):
+            service.validate_outgoing_batch(pair, baseline, planned_batch)
+        service._qualify_source_rail.assert_not_called()
+
+        service.web3.get_block_number.return_value = 500
+        service._qualify_source_rail.side_effect = MigrationError("V1 rail stopped")
+        with self.assertRaisesRegex(MigrationError, "V1 rail stopped"):
+            service.validate_outgoing_batch(pair, baseline, planned_batch)
 
     def test_foreign_or_insufficient_registered_claim_fails(self):
         with self.assertRaises(MigrationError):
@@ -827,10 +899,10 @@ class MigrationTests(unittest.TestCase):
                 failing_plan,
                 successful_plan,
                 failing_plan,
-                failing_plan,
-                successful_plan,
                 successful_plan,
             ]),
+            validate_outgoing_batch=MagicMock(side_effect=lambda _pair, _plan, batch: batch),
+            validate_batch_receipt=MagicMock(),
             transfer_params=MagicMock(return_value=SimpleNamespace(to=(b"\x00\x06",), amount=(b"x", False), operator_data=b"x")),
         )
         operation = SimpleNamespace(
@@ -864,6 +936,68 @@ class MigrationTests(unittest.TestCase):
         self.assertIn("claim batch preflight failed: deterministic revert", result.output)
         self.assertIn("completed=1, skipped=0, waiting=1", result.output)
         adapter.submit_datacap_batch.assert_not_called()
+
+    def test_prepare_large_deal_uses_three_full_scans_and_bounded_batch_checks(self):
+        from cli.commands.client import migration as client_migration
+
+        claims = [self.claim(claim_id=claim_id, size=1) for claim_id in range(1, 1_394)]
+        initial = build_adoption_plan(claims, [], [], target_epoch=500_000, current_epoch=1_000)
+        complete = initial.__class__(
+            source_claims=initial.source_claims,
+            target_ids=frozenset(claim.claim_id for claim in claims),
+            extensions=(),
+            operator_data=cbor2.dumps([[], []], canonical=True),
+            datacap_amount=0,
+            sector_target_epoch=initial.sector_target_epoch,
+        )
+        target = SimpleNamespace(
+            deal=SimpleNamespace(
+                deal_id=10,
+                state=PoRepMarketDealState.ACCEPTED,
+                rail_id=1,
+                validator_address=CLIENT_B,
+                evidence_adapter_address=MARKET,
+            ),
+            payment=SimpleNamespace(payment_token=TOKEN),
+        )
+        pair = MigrationPair(MigrationMarker(314, MARKET, 1), SimpleNamespace(), target)
+        service = SimpleNamespace(
+            adoption_plan=MagicMock(side_effect=[initial, initial, complete]),
+            validate_outgoing_batch=MagicMock(side_effect=lambda _pair, _plan, batch: batch),
+            validate_batch_receipt=MagicMock(),
+            transfer_params=MagicMock(return_value=SimpleNamespace(
+                to=(b"\x00\x06",), amount=(b"x", False), operator_data=b"x"
+            )),
+        )
+        operation = SimpleNamespace(call=MagicMock(), estimate_gas=MagicMock())
+        adapter = SimpleNamespace(
+            contract=SimpleNamespace(functions=SimpleNamespace(
+                submitDataCapBatch=MagicMock(return_value=operation)
+            )),
+            submit_datacap_batch=MagicMock(return_value="0xabc"),
+        )
+        signer = SimpleNamespace(address=MagicMock(return_value=CLIENT_A))
+        with patch.object(client_migration, "migration_pairs", return_value=(service, [pair])), \
+                patch.object(client_migration, "_validate_prepared_rail", return_value=SimpleNamespace()), \
+                patch.object(client_migration, "_funding_by_token", return_value={}), \
+                patch.object(client_migration, "client_address", return_value=CLIENT_A), \
+                patch.object(client_migration, "client_signer", return_value=signer), \
+                patch.object(client_migration, "Web3Service", return_value=SimpleNamespace(
+                    ensure_no_pending_transactions=MagicMock()
+                )), \
+                patch.object(client_migration, "PoRepMarketViewHelper", return_value=SimpleNamespace(
+                    get_deal_view=MagicMock(return_value=target)
+                )), \
+                patch.object(client_migration, "DataCapEvidenceAdapter", return_value=adapter), \
+                patch.object(client_migration.client_utils, "approve_filecoinpay_operator", return_value=None), \
+                patch.object(client_migration.utils, "confirm", return_value=True):
+            result = CliRunner().invoke(client_migration.prepare_migration)
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertEqual(service.adoption_plan.call_count, 3)
+        self.assertEqual(service.validate_outgoing_batch.call_count, 14)
+        self.assertEqual(service.validate_batch_receipt.call_count, 14)
+        self.assertEqual(adapter.submit_datacap_batch.call_count, 14)
 
     def test_finish_mixed_batch_continues_but_uncertain_send_stops_with_summary(self):
         from cli.commands.client import migration as client_migration
