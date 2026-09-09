@@ -5,6 +5,7 @@ from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals
 from .get_filecoinpay_account import get_filecoinpay_account
 from .init_deals import init_deals
 from .make_allocations import make_allocations
+from .migration import finish_migration, migration_status, prepare_migration
 from .propose_deal import propose_deal, propose_deal_mocked
 from .sign_retrieval_voucher import sign_retrieval_voucher
 from .validate_manifest import validate_manifest
@@ -27,3 +28,6 @@ client.add_command(deposit_for_whole_deal)
 client.add_command(make_allocations)
 client.add_command(withdraw_from_filecoinpay)
 client.add_command(sign_retrieval_voucher)
+client.add_command(migration_status)
+client.add_command(prepare_migration)
+client.add_command(finish_migration)

@@ -1,5 +1,7 @@
 import json
 import logging
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 from typing import ClassVar, TypeVar
 
@@ -51,6 +53,7 @@ def _tx_to_log_string(operation, tx_params: dict | None) -> str:
 
 class ContractService:
     _KNOWN_ABIS: ClassVar[list[ABIElement]] = []
+    _BATCH_CONFIRMED: ClassVar[ContextVar[bool]] = ContextVar("contract_service_batch_confirmed", default=False)
 
     def __new__(cls, *args, **kwargs):
         return object.__new__(cls)
@@ -263,7 +266,12 @@ class ContractService:
         # transaction.args is sensitive info, should never be logged
 
         from_address = signer.address()
-        nonce = self.web3.get_address_nonce(from_address)
+        confirmed = self._BATCH_CONFIRMED.get()
+        if confirmed:
+            self.web3.ensure_no_pending_transactions(from_address)
+            nonce = self.web3.get_address_nonce(from_address, block_identifier="latest")
+        else:
+            nonce = self.web3.get_address_nonce(from_address)
         tx_params = None
 
         # noinspection PyBroadException
@@ -272,17 +280,17 @@ class ContractService:
             tx_params = transaction.build_transaction({"from": from_address, "nonce": nonce})
             _dry_run = is_dry_run()
 
-            if not utils.confirm(f"\n== DRY RUN: {_dry_run}\n"
-                                 f"== Chain ID: {tx_params['chainId']} ({Web3Service().get_network_name(tx_params['chainId'])})\n"
-                                 f"== Transaction:\n"
-                                 f"==   from: {tx_params['from']}\n"
-                                 f"==   to: {tx_params['to']}\n"
-                                 f"==   signature: {transaction.signature}\n"
-                                 f"==   nonce: {tx_params['nonce']}\n"
-                                 f"==   gas price: {self.web3.get_gas_price()} wei\n"
-                                 f"==   gas: {tx_params['gas']}\n"
-                                 f"==   value: {tx_params['value']} wei\n"
-                                 f"== This is the final confirmation", default=_dry_run):
+            if not confirmed and not utils.confirm(f"\n== DRY RUN: {_dry_run}\n"
+                                                   f"== Chain ID: {tx_params['chainId']} ({Web3Service().get_network_name(tx_params['chainId'])})\n"
+                                                   f"== Transaction:\n"
+                                                   f"==   from: {tx_params['from']}\n"
+                                                   f"==   to: {tx_params['to']}\n"
+                                                   f"==   signature: {transaction.signature}\n"
+                                                   f"==   nonce: {tx_params['nonce']}\n"
+                                                   f"==   gas price: {self.web3.get_gas_price()} wei\n"
+                                                   f"==   gas: {tx_params['gas']}\n"
+                                                   f"==   value: {tx_params['value']} wei\n"
+                                                   f"== This is the final confirmation", default=_dry_run):
                 #
                 click.echo("Enabling dry-run mode. This transaction WILL NOT be executed.")
                 _dry_run = True
@@ -294,6 +302,16 @@ class ContractService:
         except Exception as e:
             self._handle_contract_error(e, transaction, tx_params)
             assert False  # unreachable
+
+    @classmethod
+    @contextmanager
+    def batch_confirmation(cls):
+        """Skip per-transaction prompts inside one explicitly confirmed batch."""
+        token = cls._BATCH_CONFIRMED.set(True)
+        try:
+            yield
+        finally:
+            cls._BATCH_CONFIRMED.reset(token)
 
     def call_contract(self, call) -> T:
         # noinspection PyBroadException
