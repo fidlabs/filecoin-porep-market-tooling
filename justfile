@@ -25,7 +25,10 @@ lint: pylint flake8 ruff
 test-sh:
     chmod +x cli/tests/test.sh && cli/tests/test.sh
 
-check: lint test-sh
+test-unit:
+    python3 -m unittest discover -s tests
+
+check: lint test-unit test-sh
     @echo "All checks passed."
 
 pre-push: check
