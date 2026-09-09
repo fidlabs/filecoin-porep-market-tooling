@@ -48,4 +48,12 @@ Configure one execution at a time for each signing wallet. This repository does 
 
 Before closing the first V1 deal, verify the deployed V2 evidence, refresh and payment services. URL Finder support for the migration fragment is separate work. Unavailable manifests require an explicit operational decision about SLI and payment behavior; this tooling does not manufacture SLI data.
 
+Immediately before `activateEvidence`, the deployed service must check one current tipset.
+Reject activation after `proposedAtEpoch + 30 days`, or if the registered IDs differ from
+the complete source set, any claim is terminated or ends before `currentEpoch + 180 days`,
+or any sector is inactive or expires before that epoch. Incomplete reads must stop
+activation. The existing activation contract does not enforce these migration checks;
+the earlier client finish check cannot guarantee a later asynchronous activation is safe.
+Implement and verify this service guard before the pilot.
+
 Record actual V2 activation and V1 finalization from chain. Verify a V2 settlement and a multi-batch resume before wider migration. Short overlapping payments are expected. Skipped V1 deals remain obligations to resolve before retiring V1 infrastructure.
