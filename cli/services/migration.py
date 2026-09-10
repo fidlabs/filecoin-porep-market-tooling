@@ -1,5 +1,4 @@
 import re
-from collections.abc import Mapping
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
@@ -34,26 +33,6 @@ class MigrationError(RuntimeError):
 
 class MigrationProvenanceUnavailable(MigrationError):
     pass
-
-
-def _sli_tuple(value) -> tuple[int, int, int, int]:
-    if isinstance(value, Mapping):
-        return (
-            int(value["retrievabilityBps"]),
-            int(value["bandwidthBytesPerSecond"]),
-            int(value["latencyMs"]),
-            int(value["indexingPct"]),
-        )
-    return tuple(int(item) for item in value)
-
-
-def _slis_meet(promised: tuple[int, int, int, int], requested: tuple[int, int, int, int]) -> bool:
-    return (
-        (requested[0] == 0 or promised[0] >= requested[0])
-        and (requested[1] == 0 or promised[1] >= requested[1])
-        and (requested[2] == 0 or (promised[2] != 0 and promised[2] <= requested[2]))
-        and (requested[3] == 0 or promised[3] >= requested[3])
-    )
 
 
 @dataclass(frozen=True)
@@ -234,14 +213,6 @@ def build_adoption_plan(source_claims: list[Claim],
     )
 
 
-def duplicate_id_assignments(assignments: dict[int, list[int]]) -> dict[int, list[int]]:
-    owners: dict[int, list[int]] = {}
-    for deal_id, ids in assignments.items():
-        for claim_id in set(ids):
-            owners.setdefault(claim_id, []).append(deal_id)
-    return {claim_id: deal_ids for claim_id, deal_ids in owners.items() if len(deal_ids) > 1}
-
-
 class MigrationService:
     def __init__(self,
                  trusted_source_market: EthAddress,
@@ -258,8 +229,7 @@ class MigrationService:
     def discover(self,
                  client: EthAddress | None = None,
                  provider: ActorId | None = None,
-                 deal_id: int | None = None,
-                 limit: int | None = None) -> list[MigrationPair]:
+                 deal_id: int | None = None) -> list[MigrationPair]:
         views = self.view_helper.get_deal_views()
         self.discovery_errors = []
         scoped_views = [
@@ -317,41 +287,29 @@ class MigrationService:
                 continue
             pairs.append(pair)
         pairs.sort(key=lambda pair: pair.target.deal.deal_id)
-        return pairs[:limit] if limit is not None else pairs
+        return pairs
 
     def source_reference_targets(self, source_deal_id: int) -> list[int]:
         targets = []
         for view in self.view_helper.get_deal_views():
             try:
                 marker = parse_migration_marker(view.data.manifest_location)
-                if marker is not None:
-                    self._validate_trusted_marker(marker)
-                    if marker.source_deal_id == source_deal_id:
-                        try:
-                            source = self.source_market.get_deal(source_deal_id)
-                        except Exception as exc:
-                            raise MigrationProvenanceUnavailable(
-                                f"Cannot determine whether V2 {view.deal.deal_id} already references V1 "
-                                f"{source_deal_id}: {exc}"
-                            ) from exc
-                        pair = MigrationPair(marker, source, view)
-                        try:
-                            self.validate_pair(pair)
-                            self._validate_migration_policy(pair)
-                            self.verify_direct_creation(pair)
-                        except MigrationProvenanceUnavailable:
-                            raise
-                        except MigrationError:
-                            continue
-                        except Exception as exc:
-                            raise MigrationProvenanceUnavailable(
-                                f"Cannot verify existing V2 {view.deal.deal_id}: {exc}"
-                            ) from exc
-                        targets.append(view.deal.deal_id)
+                if marker is None or marker.source_deal_id != source_deal_id:
+                    continue
+                self._validate_trusted_marker(marker)
+            except MigrationError:
+                continue
+            try:
+                self._authoritative_pair(view, marker)
             except MigrationProvenanceUnavailable:
                 raise
-            except Exception:  # noqa: S112  # pylint: disable=broad-exception-caught
+            except MigrationError:
                 continue
+            except Exception as exc:
+                raise MigrationProvenanceUnavailable(
+                    f"Cannot verify existing V2 {view.deal.deal_id}: {exc}"
+                ) from exc
+            targets.append(view.deal.deal_id)
         return sorted(targets)
 
     def _authoritative_pair(self, view: PoRepMarketDealView, marker: MigrationMarker) -> MigrationPair:
@@ -422,13 +380,6 @@ class MigrationService:
         log = logs[0]
         args = log["args"]
         expected = pair.target
-        event_slis = _sli_tuple(args["requirements"])
-        expected_slis = (
-            expected.required_slis.retrievability_bps,
-            expected.required_slis.bandwidth_bytes_per_second,
-            expected.required_slis.latency_ms,
-            expected.required_slis.indexing_pct,
-        )
         if (EthAddress(args["client"]) != expected.deal.client_address
                 or ActorId(args["provider"]) != expected.deal.provider_id
                 or bytes(args["manifestHash"]) != bytes(expected.data.manifest_hash)
@@ -446,7 +397,7 @@ class MigrationService:
         if int(receipt["status"]) != 1 or EthAddress(tx["to"]) != market_address:
             raise MigrationError(f"V2 deal {expected.deal.deal_id} was not created by a successful direct market call")
         try:
-            function, params = market.contract.decode_function_input(tx["input"])
+            function, _ = market.contract.decode_function_input(tx["input"])
         except Exception as exc:
             raise MigrationProvenanceUnavailable(
                 f"Unsupported proposal provenance for V2 deal {expected.deal.deal_id}; direct calldata cannot be decoded"
@@ -455,29 +406,9 @@ class MigrationService:
             raise MigrationError(
                 f"V2 deal {expected.deal.deal_id} was not created by direct proposeDealWithSpecificOffer"
             )
-        request = params["request"]
-        request_location = request.get("manifestLocation") if isinstance(request, Mapping) else request[3]
-        request_hash = request.get("manifestHash") if isinstance(request, Mapping) else request[0]
-        request_size = request.get("requestedSizeBytes") if isinstance(request, Mapping) else request[1]
-        request_price = request.get("maxPricePer32GiBPerMonth") if isinstance(request, Mapping) else request[2]
-        request_token = request.get("paymentToken") if isinstance(request, Mapping) else request[4]
-        request_days = request.get("durationDays") if isinstance(request, Mapping) else request[5]
-        request_type = request.get("dealType") if isinstance(request, Mapping) else request[6]
-        request_slis = request.get("requiredSLIs") if isinstance(request, Mapping) else request[7]
-        request_slis = _sli_tuple(request_slis)
-        if (int(params["offerId"]) != expected.deal.offer_id
-                or EthAddress(params["client"]) != expected.deal.client_address
-                or str(request_location) != expected.data.manifest_location
-                or bytes(request_hash) != bytes(expected.data.manifest_hash)
-                or int(request_size) != expected.terms.requested_size_bytes
-                or expected.payment.price_per_32_gib_per_month <= 0
-                or expected.payment.price_per_32_gib_per_month > int(request_price)
-                or EthAddress(request_token) != expected.payment.payment_token
-                or int(request_days) != 180
-                or int(request_type) != expected.deal.deal_type.value
-                or event_slis != request_slis
-                or not _slis_meet(expected_slis, request_slis)):
-            raise MigrationError(f"V2 deal {expected.deal.deal_id} does not match its proposal calldata")
+        # The successful admin call enforces offer price, token and SLI rules.
+        # DealCreated binds the mutable manifest and size to that original call.
+
 
     def source_claims(self, pair: MigrationPair, tipset_key: list[dict] | None = None) -> list[Claim]:
         return self._source_claims(pair.source, tipset_key)

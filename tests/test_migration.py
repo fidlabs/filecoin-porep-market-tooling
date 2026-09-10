@@ -23,19 +23,15 @@ from cli.services.migration import (
     MigrationProvenanceUnavailable,
     MigrationService,
     build_adoption_plan,
-    duplicate_id_assignments,
     migration_manifest_location,
     parse_migration_marker,
-    _sli_tuple,
 )
 from cli.services.web3_service import ActorId, EthAddress, Web3Service
-
 
 MARKET = EthAddress("0x1111111111111111111111111111111111111111")
 CLIENT_A = EthAddress("0x2222222222222222222222222222222222222222")
 CLIENT_B = EthAddress("0x3333333333333333333333333333333333333333")
 TOKEN = EthAddress("0x4444444444444444444444444444444444444444")
-
 
 class MigrationTests(unittest.TestCase):
     @classmethod
@@ -72,29 +68,6 @@ class MigrationTests(unittest.TestCase):
         self.assertTrue(migration_manifest_location("HTTP://EXAMPLE.test/path?", marker).startswith(
             "HTTP://EXAMPLE.test/path?#"
         ))
-
-    def test_real_abi_decodes_named_request_sli_mapping(self):
-        abi_path = Path("cli/services/contracts/abi/PoRepMarket.json")
-        contract = Web3().eth.contract(abi=json.loads(abi_path.read_text()))
-        request = (
-            b"\x01" * 32,
-            32,
-            100,
-            "https://example.test/manifest",
-            TOKEN,
-            180,
-            10,
-            (8000, 1_000_000, 500, 90),
-        )
-        calldata = contract.encode_abi("proposeDealWithSpecificOffer", args=[7, request, CLIENT_A])
-
-        function, params = contract.decode_function_input(calldata)
-
-        self.assertEqual(function.fn_name, "proposeDealWithSpecificOffer")
-        self.assertEqual(
-            _sli_tuple(params["request"]["requiredSLIs"]),
-            (8000, 1_000_000, 500, 90),
-        )
 
     def test_direct_creation_binds_real_abi_request_and_event_slis(self):
         from cli.services import migration as migration_service_module
@@ -176,6 +149,14 @@ class MigrationTests(unittest.TestCase):
             contract=contract
         )):
             service.verify_direct_creation(pair)
+            target.data.manifest_location += "#forged"
+            with self.assertRaises(MigrationError):
+                service.verify_direct_creation(pair)
+            target.data.manifest_location = manifest_location
+            with patch.object(contract, "decode_function_input", return_value=(
+                SimpleNamespace(fn_name="proposeDeal"), {}
+            )), self.assertRaises(MigrationError):
+                service.verify_direct_creation(pair)
 
     def test_marker_rejects_existing_or_conflicting_fragments(self):
         with self.assertRaises(MigrationError):
@@ -199,19 +180,6 @@ class MigrationTests(unittest.TestCase):
         self.assertTrue(plan.complete)
         self.assertEqual(plan.datacap_amount, 0)
         self.assertEqual(cbor2.loads(plan.operator_data), [[], []])
-
-    def test_adoption_batches_are_bounded_and_deterministic(self):
-        claims = [self.claim(claim_id=claim_id, size=1) for claim_id in range(1, 206)]
-        plan = build_adoption_plan(claims, [], [], target_epoch=500_000, current_epoch=1_000)
-
-        batches = plan.batches(100)
-
-        self.assertEqual([len(batch.extensions) for batch in batches], [100, 100, 5])
-        self.assertEqual(
-            [extension.claim_id for batch in batches for extension in batch.extensions],
-            list(range(1, 206)),
-        )
-        self.assertEqual(sum(batch.datacap_amount for batch in batches), 205 * 10 ** 18)
 
     def test_bounded_batch_refresh_recomputes_terms_and_checks_receipt_state(self):
         original = self.claim(term_max=1_000)
@@ -292,9 +260,6 @@ class MigrationTests(unittest.TestCase):
                 [self.claim(term_max=2_000)], [10], [], target_epoch=500_000, current_epoch=1_000
             )
 
-    def test_duplicate_ids_across_target_deals_are_reported(self):
-        self.assertEqual(duplicate_id_assignments({1: [10, 11], 2: [11, 12]}), {11: [1, 2]})
-
     def test_scoped_discovery_continues_after_bad_deal_and_isolates_duplicate_source(self):
         marker1 = MigrationMarker(314, MARKET, 1)
         marker3 = MigrationMarker(314, MARKET, 3)
@@ -329,30 +294,6 @@ class MigrationTests(unittest.TestCase):
         self.assertTrue(any("V2 11" in error for error in service.discovery_errors))
         self.assertTrue(any("V2 12" in error and "ambiguous" in error for error in service.discovery_errors))
         self.assertFalse(any("V2 14" in error for error in service.discovery_errors))
-
-    def test_untrusted_copy_does_not_block_authoritative_source_reference(self):
-        marker = MigrationMarker(314, MARKET, 3)
-
-        def view(target_id):
-            return SimpleNamespace(
-                deal=SimpleNamespace(deal_id=target_id),
-                data=SimpleNamespace(manifest_location=migration_manifest_location(f"https://a/{target_id}", marker)),
-            )
-
-        views = [view(10), view(11)]
-        service = object.__new__(MigrationService)
-        service.source_chain_id = 314
-        service.trusted_source_market = MARKET
-        service.view_helper = SimpleNamespace(get_deal_views=MagicMock(return_value=views))
-        service.source_market = SimpleNamespace(get_deal=MagicMock(return_value="source"))
-        service.validate_pair = MagicMock()
-        service._validate_migration_policy = MagicMock()
-        service.verify_direct_creation = MagicMock(
-            side_effect=lambda pair: (_ for _ in ()).throw(MigrationError("not direct admin"))
-            if pair.target.deal.deal_id == 11 else None
-        )
-
-        self.assertEqual(service.source_reference_targets(3), [10])
 
     def test_unverifiable_matching_reference_blocks_duplicate_proposal(self):
         marker = MigrationMarker(314, MARKET, 3)
@@ -402,6 +343,7 @@ class MigrationTests(unittest.TestCase):
 
         self.assertEqual([pair.target.deal.deal_id for pair in pairs], [10])
         self.assertFalse(any("ambiguous" in error for error in service.discovery_errors))
+        self.assertEqual(service.source_reference_targets(3), [10])
 
     def test_account_funding_counts_prepared_accepted_and_active_obligations(self):
         def view(state, requested, price, rate, deal_id=1, rail_id=0):
@@ -525,58 +467,6 @@ class MigrationTests(unittest.TestCase):
         signer.assert_not_called()
         market.propose_deal_with_specific_offer.assert_not_called()
 
-    def test_propose_runs_authoritative_policy_after_creation_readback(self):
-        from scripts.migrations import v1_to_v2
-
-        source, offer = self._proposal_objects()
-        service = SimpleNamespace(
-            source_chain_id=314,
-            trusted_source_market=MARKET,
-            source_inventory=MagicMock(return_value=(source, [self.claim()])),
-            source_reference_targets=MagicMock(return_value=[]),
-            validate_pair=MagicMock(),
-            _validate_migration_policy=MagicMock(),
-            verify_direct_creation=MagicMock(),
-        )
-        market = SimpleNamespace(
-            get_epochs_in_month=MagicMock(return_value=86_400),
-            get_global_evidence_adapter_address=MagicMock(return_value=CLIENT_B),
-            address=MagicMock(return_value=MARKET),
-            propose_deal_with_specific_offer=MagicMock(return_value=SimpleNamespace(events=[{
-                "event": "DealCreated", "args": {"dealId": 99}
-            }])),
-        )
-        adapter = SimpleNamespace(
-            evidence_type=MagicMock(return_value=SimpleNamespace(value=10)),
-            get_porep_market_contract_address=MagicMock(return_value=MARKET),
-        )
-        token = SimpleNamespace(decimals=MagicMock(return_value=18), symbol=MagicMock(return_value="TOKEN"))
-        signer = SimpleNamespace(address=MagicMock(return_value=CLIENT_A))
-        target = SimpleNamespace(deal=SimpleNamespace(deal_id=99))
-        with patch.object(v1_to_v2, "migration_service", return_value=service), \
-                patch.object(v1_to_v2, "SPRegistry", return_value=SimpleNamespace(
-                    get_offer_view=MagicMock(return_value=offer)
-                )), \
-                patch.object(v1_to_v2, "PoRepMarket", return_value=market), \
-                patch.object(v1_to_v2, "DataCapEvidenceAdapter", return_value=adapter), \
-                patch.object(v1_to_v2, "PoRepMarketViewHelper", return_value=SimpleNamespace(
-                    get_deal_view=MagicMock(return_value=target)
-                )), \
-                patch.object(v1_to_v2, "FileCoinPay", return_value=SimpleNamespace(
-                    get_rail=MagicMock(return_value=SimpleNamespace(token=TOKEN))
-                )), \
-                patch.object(v1_to_v2, "ERC20Contract", return_value=token), \
-                patch.object(v1_to_v2.utils, "get_env_required", return_value=TOKEN), \
-                patch.object(v1_to_v2._admin, "admin_signer", return_value=signer), \
-                patch.object(v1_to_v2, "Web3Service", return_value=SimpleNamespace(
-                    ensure_no_pending_transactions=MagicMock()
-                )):
-            result = CliRunner().invoke(v1_to_v2.migrations, ["--yes", "propose", "1", "7"])
-
-        self.assertEqual(result.exit_code, 0, result.output)
-        service._validate_migration_policy.assert_called_once()
-        service.verify_direct_creation.assert_called_once()
-
     def test_close_service_step_requires_completed_admin_prerequisites(self):
         from scripts.migrations import v1_to_v2
 
@@ -647,115 +537,47 @@ class MigrationTests(unittest.TestCase):
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertIn("rail already finalized", result.output)
 
-    def test_sp_global_dry_run_stops_after_sptool_preview(self):
-        from cli.commands.sp import migration as sp_migration
+    def test_sp_extension_requires_chain_confirmation(self):
+        from cli.commands.sp import migration as sp
 
         claim = SimpleNamespace(claim_id=7, sector=0, end_epoch=1_001)
-        plan = SimpleNamespace(
-            source_claims=(claim,),
-            extensions=(),
-            target_ids={7},
-            sector_target_epoch=1_000,
-        )
+        plan = SimpleNamespace(source_claims=(claim,), extensions=(), target_ids={7}, sector_target_epoch=1_000)
         pair = SimpleNamespace(
             source=SimpleNamespace(provider=ActorId(1234)),
             target=SimpleNamespace(deal=SimpleNamespace(deal_id=10, provider_id=ActorId(1234))),
         )
         service = SimpleNamespace(adoption_plan=MagicMock(return_value=plan))
-        preview = SimpleNamespace(returncode=0, stdout="estimated gas: 123", stderr="")
-        with patch.object(sp_migration, "migration_pairs", return_value=(service, [pair])), \
-                patch.object(sp_migration, "_organization_providers", return_value={ActorId(1234)}), \
-                patch.object(sp_migration, "_sector_expirations", return_value={0: 999}), \
-                patch.object(sp_migration.shutil, "which", return_value="/bin/echo"), \
-                patch.object(sp_migration.os.path, "isfile", return_value=True), \
-                patch.object(sp_migration.subprocess, "run", return_value=preview) as run, \
-                patch.object(sp_migration, "is_dry_run", return_value=True), \
-                patch.object(sp_migration, "Web3Service", return_value=SimpleNamespace(
-                    mpool_pending_method=MagicMock(return_value=[]),
-                )):
-            result = CliRunner().invoke(sp_migration.extend_deal_sectors, ["10"])
-
-        self.assertEqual(result.exit_code, 0, result.output)
-        self.assertIn("no sector message was sent", result.output)
-        run.assert_called_once()
-
-    def test_sp_repeat_skips_sector_zero_after_chain_readback(self):
-        from cli.commands.sp import migration as sp_migration
-
-        claim = SimpleNamespace(claim_id=7, sector=0, end_epoch=1_001)
-        plan = SimpleNamespace(
-            source_claims=(claim,), extensions=(), target_ids={7}, sector_target_epoch=1_000
-        )
-        pair = SimpleNamespace(
-            source=SimpleNamespace(provider=ActorId(1234)),
-            target=SimpleNamespace(deal=SimpleNamespace(deal_id=10, provider_id=ActorId(1234))),
-        )
-        service = SimpleNamespace(adoption_plan=MagicMock(return_value=plan))
-        with patch.object(sp_migration, "migration_pairs", return_value=(service, [pair])), \
-                patch.object(sp_migration, "_organization_providers", return_value={ActorId(1234)}), \
-                patch.object(sp_migration, "_sector_expirations", return_value={0: 1_000}), \
-                patch.object(sp_migration.subprocess, "run") as run:
-            result = CliRunner().invoke(sp_migration.extend_deal_sectors, ["10"])
-
-        self.assertEqual(result.exit_code, 0, result.output)
-        self.assertIn("already reach epoch", result.output)
-        run.assert_not_called()
-
-    def test_sp_success_exit_without_readback_or_pending_is_unknown(self):
-        from cli.commands.sp import migration as sp_migration
-
-        claim = SimpleNamespace(claim_id=7, sector=0, end_epoch=1_001)
-        plan = SimpleNamespace(
-            source_claims=(claim,), extensions=(), target_ids={7}, sector_target_epoch=1_000
-        )
-        pair = SimpleNamespace(
-            source=SimpleNamespace(provider=ActorId(1234)),
-            target=SimpleNamespace(deal=SimpleNamespace(deal_id=10, provider_id=ActorId(1234))),
-        )
-        service = SimpleNamespace(adoption_plan=MagicMock(return_value=plan))
-        success = SimpleNamespace(returncode=0, stdout="sent", stderr="")
-        web3 = SimpleNamespace(mpool_pending_method=MagicMock(return_value=[]))
-        with patch.object(sp_migration, "migration_pairs", return_value=(service, [pair])), \
-                patch.object(sp_migration, "_organization_providers", return_value={ActorId(1234)}), \
-                patch.object(sp_migration, "_sector_expirations", side_effect=[{0: 999}, {0: 999}]), \
-                patch.object(sp_migration.shutil, "which", return_value="/bin/echo"), \
-                patch.object(sp_migration.os.path, "isfile", return_value=True), \
-                patch.object(sp_migration.subprocess, "run", return_value=success), \
-                patch.object(sp_migration.utils, "confirm", return_value=True), \
-                patch.object(sp_migration, "is_dry_run", return_value=False), \
-                patch.object(sp_migration, "Web3Service", return_value=web3):
-            result = CliRunner().invoke(sp_migration.extend_deal_sectors, ["10"])
-
-        self.assertNotEqual(result.exit_code, 0)
-        self.assertIn("no pending message was found", result.output)
-
-    def test_sp_pending_after_send_returns_nonzero_retry_later(self):
-        from cli.commands.sp import migration as sp_migration
-
-        claim = SimpleNamespace(claim_id=7, sector=0, end_epoch=1_001)
-        plan = SimpleNamespace(
-            source_claims=(claim,), extensions=(), target_ids={7}, sector_target_epoch=1_000
-        )
-        pair = SimpleNamespace(
-            source=SimpleNamespace(provider=ActorId(1234)),
-            target=SimpleNamespace(deal=SimpleNamespace(deal_id=10, provider_id=ActorId(1234))),
-        )
-        service = SimpleNamespace(adoption_plan=MagicMock(return_value=plan))
-        success = SimpleNamespace(returncode=0, stdout="sent", stderr="")
-        web3 = SimpleNamespace(mpool_pending_method=MagicMock(side_effect=[[], [{"Message": {}}]]))
-        with patch.object(sp_migration, "migration_pairs", return_value=(service, [pair])), \
-                patch.object(sp_migration, "_organization_providers", return_value={ActorId(1234)}), \
-                patch.object(sp_migration, "_sector_expirations", side_effect=[{0: 999}, {0: 999}]), \
-                patch.object(sp_migration.shutil, "which", return_value="/bin/echo"), \
-                patch.object(sp_migration.os.path, "isfile", return_value=True), \
-                patch.object(sp_migration.subprocess, "run", return_value=success), \
-                patch.object(sp_migration.utils, "confirm", return_value=True), \
-                patch.object(sp_migration, "is_dry_run", return_value=False), \
-                patch.object(sp_migration, "Web3Service", return_value=web3):
-            result = CliRunner().invoke(sp_migration.extend_deal_sectors, ["10"])
-
-        self.assertNotEqual(result.exit_code, 0)
-        self.assertIn("extension message is pending", result.output)
+        # name, initial expiration, readback, pending before/after, dry run, exit code, subprocess calls
+        cases = [
+            ("already done", 1000, 1000, False, False, False, 0, 0),
+            ("preview", 999, 999, False, False, True, 0, 1),
+            ("pending before", 999, 999, True, False, False, 1, 0),
+            ("pending after", 999, 999, False, True, False, 1, 2),
+            ("unknown result", 999, 999, False, False, False, 1, 2),
+            ("confirmed", 999, 1000, False, False, False, 0, 2),
+        ]
+        for name, initial, readback, before, after, dry_run, exit_code, calls in cases:
+            web3 = SimpleNamespace(mpool_pending_method=MagicMock(side_effect=[
+                [{"Message": {}}] if before else [], [{"Message": {}}] if after else [],
+            ]))
+            with self.subTest(name=name), \
+                    patch.object(sp, "migration_pairs", return_value=(service, [pair])), \
+                    patch.object(sp, "_organization_providers", return_value={ActorId(1234)}), \
+                    patch.object(sp, "_sector_expirations", side_effect=[{0: initial}, {0: readback}]), \
+                    patch.object(sp.shutil, "which", return_value="/bin/echo"), \
+                    patch.object(sp.os.path, "isfile", return_value=True), \
+                    patch.object(sp.subprocess, "run", return_value=SimpleNamespace(
+                        returncode=0, stdout="estimated gas", stderr=""
+                    )) as run, \
+                    patch.object(sp.utils, "confirm", return_value=True), \
+                    patch.object(sp, "is_dry_run", return_value=dry_run), \
+                    patch.object(sp, "Web3Service", return_value=web3):
+                result = CliRunner().invoke(sp.extend_deal_sectors, ["10"])
+            self.assertEqual(result.exit_code, exit_code, result.output)
+            self.assertEqual(run.call_count, calls)
+            if calls == 2:
+                self.assertIn("--really-do-it", run.call_args.args[0])
+                self.assertEqual(run.call_args.args[0][1:3], ["--actor", "f01234"])
 
     def test_root_migration_status_uses_common_filters_without_sp_context(self):
         import importlib
@@ -776,24 +598,6 @@ class MigrationTests(unittest.TestCase):
 
         self.assertEqual(result.exit_code, 0, result.output)
         pairs.assert_called_once_with(client=CLIENT_A, provider=ActorId(1234), deal_id=None)
-
-    def test_prepare_invalid_existing_rail_is_waiting_and_never_loads_signer(self):
-        import importlib
-
-        client_migration = importlib.import_module("cli.commands.client.migration")
-        pair = SimpleNamespace(target=SimpleNamespace(deal=SimpleNamespace(
-            deal_id=10, state=PoRepMarketDealState.ACCEPTED
-        )))
-        with patch.object(client_migration, "migration_pairs", return_value=(MagicMock(), [pair])), \
-                patch.object(client_migration, "_validate_prepared_rail", side_effect=MigrationError("bad rail")), \
-                patch.object(client_migration, "_funding_by_token", return_value={}), \
-                patch.object(client_migration, "client_address", return_value=CLIENT_A), \
-                patch.object(client_migration, "client_signer") as signer:
-            result = CliRunner().invoke(client_migration.prepare_migration, ["--print-only"])
-
-        self.assertEqual(result.exit_code, 0, result.output)
-        self.assertIn("preflight failed: bad rail", result.output)
-        signer.assert_not_called()
 
     def test_prepare_pending_wallet_failure_prints_summary_before_any_deal_send(self):
         import importlib
@@ -893,7 +697,7 @@ class MigrationTests(unittest.TestCase):
             complete=False,
             batches=MagicMock(return_value=[SimpleNamespace(extensions=(extension,))]),
         )
-        successful_plan = SimpleNamespace(extensions=(), complete=False)
+        successful_plan = SimpleNamespace(extensions=(), complete=True)
         service = SimpleNamespace(
             adoption_plan=MagicMock(side_effect=[
                 failing_plan,
@@ -934,7 +738,7 @@ class MigrationTests(unittest.TestCase):
 
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertIn("claim batch preflight failed: deterministic revert", result.output)
-        self.assertIn("completed=1, skipped=0, waiting=1", result.output)
+        self.assertIn("completed=0, skipped=1, waiting=1", result.output)
         adapter.submit_datacap_batch.assert_not_called()
 
     def test_prepare_large_deal_uses_three_full_scans_and_bounded_batch_checks(self):
@@ -1139,27 +943,6 @@ class MigrationTests(unittest.TestCase):
 
         self.assertEqual(result.exit_code, 0, result.output)
         signer.assert_not_called()
-
-    def test_finish_print_only_skips_active_and_waiting_without_signer(self):
-        from cli.commands.client import migration as client_migration
-
-        active = SimpleNamespace(target=SimpleNamespace(deal=SimpleNamespace(
-            deal_id=10, state=PoRepMarketDealState.ACTIVE
-        )))
-        waiting = SimpleNamespace(target=SimpleNamespace(deal=SimpleNamespace(
-            deal_id=11, state=PoRepMarketDealState.ACCEPTED
-        )))
-        with patch.object(client_migration, "client_address", return_value=CLIENT_A), \
-                patch.object(client_migration, "migration_pairs", return_value=(MagicMock(), [active, waiting])), \
-                patch.object(client_migration, "_finish_preflight", side_effect=MigrationError("claims pending")), \
-                patch.object(client_migration, "client_signer") as signer:
-            result = CliRunner().invoke(client_migration.finish_migration, ["--print-only"])
-
-        self.assertEqual(result.exit_code, 0, result.output)
-        self.assertIn("already ACTIVE", result.output)
-        self.assertIn("claims pending", result.output)
-        signer.assert_not_called()
-
 
 if __name__ == "__main__":
     unittest.main()

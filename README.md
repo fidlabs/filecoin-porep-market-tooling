@@ -58,6 +58,9 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
 
 ## V1 to V2 migration
 
+These commands and `scripts/migrations/` are temporary migration tooling. Run the offline
+regressions with `uv run python -m unittest discover -s tests`.
+
 Configure `POREP_MARKET_V1`, `POREP_MARKET_V1_CHAIN_ID` and
 `POREP_MARKET_SECTOR_STATUS_INSPECTOR` alongside the existing V2 contract and RPC settings.
 The source market must be a trusted address. Deal IDs below refer to V2.
@@ -236,11 +239,6 @@ SLI for unavailable manifests are separate integration work.
    ```bash
    python3 ./porep_tooling_cli.py client init-deals
    ```
-
-   Initialization deposits the 30-day shortfall after checking available FileCoinPay funds.
-   ERC20 approval and the validator's operator approval are separate transactions.
-   Re-running this command skips deals that already have a rail; use `client deposit-for-deals`
-   to check their funding.
 
 6. Make DataCap allocations:
 

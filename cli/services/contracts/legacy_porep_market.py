@@ -4,6 +4,29 @@ from cli.services.contract_service import ContractService
 from cli.services.web3_service import ActorId, EthAddress, Web3Service
 
 
+LEGACY_DEAL_COMPONENTS = [
+    {"name": "id", "type": "uint256"},
+    {"name": "client", "type": "address"},
+    {"name": "provider", "type": "uint64"},
+    {"name": "requirements", "type": "tuple", "components": [
+        {"name": "retrievabilityBps", "type": "uint16"},
+        {"name": "bandwidthMbps", "type": "uint16"},
+        {"name": "latencyMs", "type": "uint16"},
+        {"name": "indexingPct", "type": "uint8"},
+    ]},
+    {"name": "terms", "type": "tuple", "components": [
+        {"name": "dealSizeBytes", "type": "uint256"},
+        {"name": "pricePerSectorPerMonth", "type": "uint256"},
+        {"name": "durationDays", "type": "uint32"},
+    ]},
+    {"name": "validator", "type": "address"},
+    {"name": "state", "type": "uint8"},
+    {"name": "railId", "type": "uint256"},
+    {"name": "proposedAtBlock", "type": "uint256"},
+    {"name": "manifestLocation", "type": "string"},
+    {"name": "manifestHash", "type": "bytes32"},
+]
+
 LEGACY_MARKET_ABI = [
     {
         "type": "function",
@@ -13,28 +36,7 @@ LEGACY_MARKET_ABI = [
         "outputs": [{
             "name": "",
             "type": "tuple",
-            "components": [
-                {"name": "id", "type": "uint256"},
-                {"name": "client", "type": "address"},
-                {"name": "provider", "type": "uint64"},
-                {"name": "requirements", "type": "tuple", "components": [
-                    {"name": "retrievabilityBps", "type": "uint16"},
-                    {"name": "bandwidthMbps", "type": "uint16"},
-                    {"name": "latencyMs", "type": "uint16"},
-                    {"name": "indexingPct", "type": "uint8"},
-                ]},
-                {"name": "terms", "type": "tuple", "components": [
-                    {"name": "dealSizeBytes", "type": "uint256"},
-                    {"name": "pricePerSectorPerMonth", "type": "uint256"},
-                    {"name": "durationDays", "type": "uint32"},
-                ]},
-                {"name": "validator", "type": "address"},
-                {"name": "state", "type": "uint8"},
-                {"name": "railId", "type": "uint256"},
-                {"name": "proposedAtBlock", "type": "uint256"},
-                {"name": "manifestLocation", "type": "string"},
-                {"name": "manifestHash", "type": "bytes32"},
-            ],
+            "components": LEGACY_DEAL_COMPONENTS,
         }],
     },
     {
@@ -42,28 +44,7 @@ LEGACY_MARKET_ABI = [
         "name": "getDeals",
         "stateMutability": "view",
         "inputs": [],
-        "outputs": [{"name": "deals", "type": "tuple[]", "components": [
-            {"name": "id", "type": "uint256"},
-            {"name": "client", "type": "address"},
-            {"name": "provider", "type": "uint64"},
-            {"name": "requirements", "type": "tuple", "components": [
-                {"name": "retrievabilityBps", "type": "uint16"},
-                {"name": "bandwidthMbps", "type": "uint16"},
-                {"name": "latencyMs", "type": "uint16"},
-                {"name": "indexingPct", "type": "uint8"},
-            ]},
-            {"name": "terms", "type": "tuple", "components": [
-                {"name": "dealSizeBytes", "type": "uint256"},
-                {"name": "pricePerSectorPerMonth", "type": "uint256"},
-                {"name": "durationDays", "type": "uint32"},
-            ]},
-            {"name": "validator", "type": "address"},
-            {"name": "state", "type": "uint8"},
-            {"name": "railId", "type": "uint256"},
-            {"name": "proposedAtBlock", "type": "uint256"},
-            {"name": "manifestLocation", "type": "string"},
-            {"name": "manifestHash", "type": "bytes32"},
-        ]}],
+        "outputs": [{"name": "deals", "type": "tuple[]", "components": LEGACY_DEAL_COMPONENTS}],
     },
     {
         "type": "function",

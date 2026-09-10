@@ -4,7 +4,7 @@ from contextlib import contextmanager
 
 from cli import utils
 from cli._cli import is_dry_run
-from cli.commands.client import _utils as client_utils
+from cli.commands.client import _migration_payments as client_utils
 from cli.commands.client._client import client_address, client_signer
 from cli.commands.migration_utils import migration_pairs, print_status
 from cli.services.contract_service import ContractService
@@ -155,14 +155,14 @@ def prepare_migration(deal_id: int | None, print_only: bool):
     click.echo(f"Prepared plan for {len(plans)} deal(s).")
     for token_address, requirement in funding.items():
         token = ERC20Contract(token_address)
-        quote = client_utils.get_filecoinpay_funding_quote(requirement.total, token, client_address())
-        approved_caps[token_address] = quote.deposit_amount
+        shortfall = client_utils.funding_shortfall(requirement.total, token, client_address())
+        approved_caps[token_address] = shortfall
         click.echo(
             f"{token.symbol()}: activation reserve "
             f"{utils.str_from_wei(requirement.activation_reserve, token.decimals())}; "
             f"30-day spending {utils.str_from_wei(requirement.spending, token.decimals())}; "
             f"overdue catch-up {utils.str_from_wei(requirement.catch_up, token.decimals())}; "
-            f"top-up {utils.str_from_wei(quote.deposit_amount, token.decimals())}"
+            f"top-up {utils.str_from_wei(shortfall, token.decimals())}"
         )
     for pair, plan in plans:
         click.echo(f"V2 {pair.target.deal.deal_id}: {len(plan.extensions)} V1 claim extension(s)")
@@ -184,17 +184,17 @@ def prepare_migration(deal_id: int | None, print_only: bool):
                     {token_address},
                     {pair.target.deal.deal_id for pair, _ in plans if not pair.target.deal.rail_id},
                 )[token_address]
-                refreshed = client_utils.get_filecoinpay_funding_quote(
+                refreshed = client_utils.funding_shortfall(
                     refreshed_requirement.total, token, client_address()
                 )
-                if refreshed.deposit_amount > approved_caps[token_address]:
+                if refreshed > approved_caps[token_address]:
                     raise click.ClickException(
                         f"{token.symbol()} top-up increased after confirmation; stopping before deposit"
                     )
-                if refreshed.deposit_amount:
+                if refreshed:
                     _require_tx(
                         client_utils.deposit_to_filecoinpay(
-                            refreshed.deposit_amount, token, owner=client_address(), signer=signer, prompt=False
+                            refreshed, token, owner=client_address(), signer=signer
                         ),
                         f"FileCoinPay {token.symbol()} deposit",
                     )
@@ -211,11 +211,10 @@ def prepare_migration(deal_id: int | None, print_only: bool):
                     click.echo(f"V2 {target_id}: refreshed preflight failed: {exc}", err=True)
                     summary["waiting"] += 1
                     continue
-                if current.deal.rail_id and plan.complete:
-                    if existing_rail:
-                        click.echo(f"V2 {target_id}: fully prepared, skipped")
-                        summary["skipped"] += 1
-                        continue
+                if existing_rail and plan.complete:
+                    click.echo(f"V2 {target_id}: fully prepared, skipped")
+                    summary["skipped"] += 1
+                    continue
                 if not current.deal.validator_address:
                     _require_tx(ValidatorFactory().create(target_id, signer), f"validator creation for V2 {target_id}")
                     current = PoRepMarketViewHelper().get_deal_view(target_id)
@@ -224,7 +223,6 @@ def prepare_migration(deal_id: int | None, print_only: bool):
                     current.deal.validator_address,
                     client_address(),
                     signer,
-                    prompt=False,
                 )
                 if approval is not None:
                     _require_tx(approval, f"FileCoinPay operator approval for V2 {target_id}")
@@ -357,24 +355,14 @@ def _finish_preflight(service, pair):
             )
     if not pair.target.deal.rail_id:
         raise MigrationError("FileCoinPay rail is not prepared")
-    rail = FileCoinPay().get_rail(pair.target.deal.rail_id)
-    if (rail.from_address != client_address()
-            or rail.to_address != pair.target.payment.payee
-            or rail.token != pair.target.payment.payment_token
-            or rail.operator != pair.target.deal.validator_address
-            or rail.validator != pair.target.deal.validator_address
-            or rail.payment_rate != 0
-            or rail.end_epoch != 0):
-        raise MigrationError("FileCoinPay prepared rail identity, rate, or end epoch is invalid")
-    if FileCoinPayValidator(pair.target.deal.validator_address).get_rail_status() != FileCoinPayRailStatus.PREPARED:
-        raise MigrationError("validator rail is not PREPARED")
+    _validate_prepared_rail(pair.target, client_address())
     obligations = _account_funding_by_token(client_address(), {pair.target.payment.payment_token})
     token = ERC20Contract(pair.target.payment.payment_token)
-    quote = client_utils.get_filecoinpay_funding_quote(
+    shortfall = client_utils.funding_shortfall(
         obligations[pair.target.payment.payment_token].total, token, client_address()
     )
-    if quote.deposit_amount:
+    if shortfall:
         raise MigrationError(
-            f"FileCoinPay account is short {quote.deposit_amount} base units for 30-day {token.symbol()} obligations"
+            f"FileCoinPay account is short {shortfall} base units for 30-day {token.symbol()} obligations"
         )
     return pair, DataCapEvidenceAdapter(pair.target.deal.evidence_adapter_address)

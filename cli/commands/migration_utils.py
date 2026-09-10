@@ -15,11 +15,10 @@ def migration_service() -> MigrationService:
 def migration_pairs(*,
                     client: EthAddress | None = None,
                     provider: ActorId | None = None,
-                    deal_id: int | None = None,
-                    limit: int | None = None) -> tuple[MigrationService, list[MigrationPair]]:
+                    deal_id: int | None = None) -> tuple[MigrationService, list[MigrationPair]]:
     service = migration_service()
     try:
-        pairs = service.discover(client=client, provider=provider, deal_id=deal_id, limit=limit)
+        pairs = service.discover(client=client, provider=provider, deal_id=deal_id)
     except MigrationError as exc:
         raise click.ClickException(str(exc)) from exc
     for error in service.discovery_errors:
