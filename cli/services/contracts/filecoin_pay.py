@@ -237,6 +237,22 @@ class FileCoinPay(ContractService):
     def get_rail(self, rail_id: int) -> FileCoinPayRailView:
         return FileCoinPayRailView.from_web3(self.call_contract(self.contract.functions.getRail(rail_id)))
 
+    def is_rail_finalized(self,
+                          rail_id: int,
+                          from_block: int,
+                          to_block: int,
+                          chunk_size: int = 2_000) -> bool:
+        end = to_block
+        while end >= from_block:
+            start = max(from_block, end - chunk_size + 1)
+            if self.contract.events.RailFinalized().get_logs(
+                    from_block=start,
+                    to_block=end,
+                    argument_filters={"railId": rail_id}):
+                return True
+            end = start - 1
+        return False
+
     # @notice Withdraws tokens from the caller's account to the caller's account, up to the amount of currently available tokens
     #     (the tokens not currently locked in rails).
     # @param token The ERC20 token address to withdraw.

@@ -736,10 +736,14 @@ class MigrationService:
                 raise MigrationError(f"Sector {claim.sector} is not active for V2 deal")
         return pair
 
-    @staticmethod
-    def next_action(pair: MigrationPair, plan: AdoptionPlan | None = None) -> str:
+    def next_action(self, pair: MigrationPair, plan: AdoptionPlan | None = None) -> str:
         state = pair.target.deal.state
         if state == PoRepMarketDealState.ACTIVE:
+            if FileCoinPay().is_rail_finalized(
+                    pair.source.rail_id,
+                    pair.source.proposed_at_epoch,
+                    self.web3.get_block_number()):
+                return "migration complete; V1 rail finalized"
             return "V2 active and verified; operator closes V1"
         if state != PoRepMarketDealState.ACCEPTED:
             return f"operator review required for V2 state {state}"
@@ -750,4 +754,4 @@ class MigrationService:
         adapter = DataCapEvidenceAdapter(pair.target.deal.evidence_adapter_address)
         if not adapter.is_datacap_posting_finished(pair.target.deal.deal_id):
             return "client runs finish-migration after the SP extends sectors"
-        return "service submits evidence, then admin activates payment"
+        return "service submits and activates evidence"

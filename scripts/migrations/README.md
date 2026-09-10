@@ -6,6 +6,7 @@ Configure the existing V2 contracts and Filecoin Pay, plus:
 
 - `POREP_MARKET_V1`: trusted source market address.
 - `POREP_MARKET_V1_CHAIN_ID`: source chain ID, matching the connected network.
+- `POREP_MARKET_VIEW_HELPER`: view helper bound to the V2 market.
 - `POREP_MARKET_SECTOR_STATUS_INSPECTOR`: inspector bound to the V2 market.
 - `MIGRATION_PAYMENT_TOKEN`: expected offer token address. Use the verified USDFC deployment for the selected network.
 
@@ -23,7 +24,7 @@ Only complete, running V1 deals qualify. Review the selected provider, original 
 Migration discovery currently supports successful direct admin calls to `proposeDealWithSpecificOffer`.
 Multisig or forwarded proposals are rejected because their authority is not verified by this tooling.
 
-Clients run `prepare-migration`, SPs run `extend-deal-sectors`, and clients run `finish-migration` when ready. Participants can proceed independently. The existing V2 service/admin path submits evidence and activates V2.
+Clients run `prepare-migration`, SPs run `extend-deal-sectors`, and clients run `finish-migration` when ready. Participants can proceed independently. The existing V2 service path submits and activates evidence.
 
 ## Close V1 after V2 activates
 

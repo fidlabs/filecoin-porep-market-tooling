@@ -627,7 +627,7 @@ class MigrationTests(unittest.TestCase):
         self.assertIn("Preparation summary: planned=2", result.output)
         factory.assert_not_called()
 
-    def test_prepare_refreshed_invalid_rail_waits_without_approval_or_send(self):
+    def test_prepare_fully_prepared_skips_without_approval_or_send(self):
         from cli.commands.client import migration as client_migration
 
         target = SimpleNamespace(deal=SimpleNamespace(
@@ -646,7 +646,7 @@ class MigrationTests(unittest.TestCase):
                 patch.object(
                     client_migration,
                     "_validate_prepared_rail",
-                    side_effect=[SimpleNamespace(), MigrationError("refreshed rail identity changed")],
+                    return_value=SimpleNamespace(),
                 ), \
                 patch.object(client_migration, "_funding_by_token", return_value={}), \
                 patch.object(client_migration, "client_address", return_value=CLIENT_A), \
@@ -664,12 +664,13 @@ class MigrationTests(unittest.TestCase):
                 ), \
                 patch.object(client_migration, "DataCapEvidenceAdapter", adapter), \
                 patch.object(client_migration, "ValidatorFactory", factory), \
-                patch.object(client_migration.utils, "confirm", return_value=True):
+                patch.object(client_migration.utils, "confirm") as confirm:
             result = CliRunner().invoke(client_migration.prepare_migration)
 
         self.assertEqual(result.exit_code, 0, result.output)
-        self.assertIn("refreshed preflight failed: refreshed rail identity changed", result.output)
-        self.assertIn("completed=0, skipped=0, waiting=1", result.output)
+        self.assertIn("fully prepared, skipped", result.output)
+        self.assertIn("completed=0, skipped=1, waiting=0", result.output)
+        confirm.assert_not_called()
         approval.assert_not_called()
         adapter.assert_not_called()
         factory.assert_not_called()

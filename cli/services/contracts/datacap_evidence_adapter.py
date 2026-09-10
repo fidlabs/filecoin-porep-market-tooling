@@ -250,7 +250,7 @@ class DataCapEvidenceAdapter(ContractService):
     # @notice Getter for the evidence type
     # @return The evidence type as uint8
     def evidence_type(self) -> DataCapEvidenceType:
-        return DataCapEvidenceType.from_web3(self.call_contract(self.contract.functions.evidenceType()))
+        return DataCapEvidenceType.from_web3(self.call_contract(self.contract.functions.getEvidenceType()))
 
     # @notice custom getter to check if claim is terminated
     # @param claimId the id of the claim

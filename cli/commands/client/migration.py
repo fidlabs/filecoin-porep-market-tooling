@@ -145,8 +145,13 @@ def prepare_migration(deal_id: int | None, print_only: bool):
             skipped_count += 1
             continue
         try:
-            _validate_prepared_rail(pair.target, client_address())
-            plans.append((pair, service.adoption_plan(pair)))
+            existing_rail = _validate_prepared_rail(pair.target, client_address())
+            plan = service.adoption_plan(pair)
+            if existing_rail and plan.complete:
+                click.echo(f"V2 {pair.target.deal.deal_id}: fully prepared, skipped")
+                skipped_count += 1
+                continue
+            plans.append((pair, plan))
         except Exception as exc:  # pylint: disable=broad-exception-caught
             click.echo(f"V2 {pair.target.deal.deal_id}: preflight failed: {exc}", err=True)
             waiting_count += 1

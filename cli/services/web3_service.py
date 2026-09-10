@@ -18,7 +18,7 @@ class ActorId(int):
         VALID_PREFIX_PER_CHAIN_ID = {
             314: "f0",  # Filecoin Mainnet
             314159: "t0",  # Filecoin Calibration Testnet
-            31415926: "f0",  # Lotus devnet
+            31415926: "t0",  # Lotus devnet
         }
 
         chain_id = Web3Service().get_chain_id()

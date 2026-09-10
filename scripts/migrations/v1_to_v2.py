@@ -128,11 +128,12 @@ def propose(ctx, v1_deal_id: int, offer_id: int, print_only: bool):
     _confirm(ctx, "Create this V2 migration deal?")
     signer = _admin.admin_signer()
     Web3Service().ensure_no_pending_transactions(signer.address())
-    tx = PoRepMarket().propose_deal_with_specific_offer(offer_id, request, source.client, signer)
-    created = [event for event in tx.events if event.get("event") == "DealCreated"]
-    if len(created) != 1:
-        raise click.ClickException("Proposal succeeded but one authoritative DealCreated event was not decoded")
-    target_id = int(created[0]["args"]["dealId"])
+    with ContractService.batch_confirmation():
+        PoRepMarket().propose_deal_with_specific_offer(offer_id, request, source.client, signer)
+    targets = service.source_reference_targets(v1_deal_id)
+    if len(targets) != 1:
+        raise click.ClickException(f"Proposal succeeded but found {len(targets)} authoritative migration deals")
+    target_id = targets[0]
     pair = MigrationPair(marker, source, PoRepMarketViewHelper().get_deal_view(target_id))
     service.validate_pair(pair)
     service._validate_migration_policy(pair)
@@ -184,7 +185,7 @@ def close_v1_if_v2_active(ctx, v2_deal_id: int | None, step: str, print_only: bo
             rail = pay.get_rail(pair.source.rail_id)
         except Exception as exc:  # pylint: disable=broad-exception-caught
             if pay.is_rail_finalized(
-                    pair.source.rail_id, current_epoch, pair.source.proposed_at_epoch):
+                    pair.source.rail_id, pair.source.proposed_at_epoch, current_epoch):
                 click.echo(f"V1 {pair.source.deal_id}: rail already finalized, skipped")
                 continue
             click.echo(
@@ -260,8 +261,8 @@ def close_v1_if_v2_active(ctx, v2_deal_id: int | None, step: str, print_only: bo
                 pay.settle_rail(pair.source.rail_id, rail.end_epoch, signer)
                 if not pay.is_rail_finalized(
                         pair.source.rail_id,
-                        Web3Service().get_block_number(),
-                        pair.source.proposed_at_epoch):
+                        pair.source.proposed_at_epoch,
+                        Web3Service().get_block_number()):
                     raise click.ClickException("V1 settle receipt did not produce a RailFinalized event")
         click.echo(f"V1 {pair.source.deal_id}: requested close step {step} completed")
 

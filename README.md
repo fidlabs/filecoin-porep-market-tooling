@@ -61,7 +61,7 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
 These commands and `scripts/migrations/` are temporary migration tooling. Run the offline
 regressions with `uv run python -m unittest discover -s tests`.
 
-Configure `POREP_MARKET_V1`, `POREP_MARKET_V1_CHAIN_ID` and
+Configure `POREP_MARKET_V1`, `POREP_MARKET_V1_CHAIN_ID`, `POREP_MARKET_VIEW_HELPER` and
 `POREP_MARKET_SECTOR_STATUS_INSPECTOR` alongside the existing V2 contract and RPC settings.
 The source market must be a trusted address. Deal IDs below refer to V2.
 
