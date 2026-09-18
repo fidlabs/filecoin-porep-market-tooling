@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import cbor2
@@ -6,7 +7,6 @@ import multibase
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address, client_signer
 from cli.services.contracts.datacap_evidence_adapter import (
     DataCapEvidenceAdapter,
@@ -138,17 +138,64 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
             click.echo(f"Allocated size ({allocation_size}/{deal.terms.requested_size_bytes})")
 
     if not print_only:
-        client_utils.finish_datacap_posting(deal.deal)
+        _finish_datacap_posting(deal_id, manifest, exclude_dag)
 
     click.echo("\nAll done!")
 
 
-def _build_operator_data_batch(provider_id: ActorId, batch: list[tuple[str, int]], term_min: int, term_max: int, expiration: int) -> bytes:
+def _finish_datacap_posting(deal_id: int, manifest: list[dict], exclude_dag: bool):
+    Web3Service().wait_for_pending_transactions(client_address())
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
+
+    # verify deal status
+    if deal.deal.state != PoRepMarketDealState.ACCEPTED:
+        raise click.ClickException(f"Deal ID {deal.deal.deal_id} is not in ACCEPTED state, current state: {deal.deal.state}")
+
+    # verify all pieces are allocated
+    deal_allocations = commands_utils.get_deal_allocations(deal.deal)
+    deal_claims = commands_utils.get_deal_claims(deal.deal)
+    cids_allocated = [alloc.get("Data", {}).get("/") for alloc in [*deal_allocations.values(), *deal_claims.values()]]
+
+    pieces = manifest[0]["pieces"]
+
+    if exclude_dag:
+        pieces = [piece for piece in pieces if piece["pieceType"] != "dag"]
+
+    pieces_not_allocated = [piece for piece in pieces if piece["pieceCid"] not in cids_allocated]
+
+    if pieces_not_allocated:
+        raise click.ClickException(f"Cannot finish DataCap posting for deal ID {deal_id}: {len(pieces_not_allocated)} pieces not allocated yet. "
+                                   f"Run `{sys.argv[0]} client make-allocations {deal_id}` to allocate remaining pieces before finishing DataCap posting.")
+
+    # verify allocated size is within padding range
+    final_allocation_size = DataCapEvidenceAdapter(deal.deal.evidence_adapter_address).get_allocated_bytes(deal_id)
+    padding = PoRepMarket().get_deal_activation_padding()
+    proposed_size = deal.terms.requested_size_bytes
+    delta = abs(final_allocation_size - proposed_size)
+
+    if delta * 100 > proposed_size * padding:
+        raise click.ClickException(f"Allocated size {final_allocation_size} is not within padding range of "
+                                   f"proposed size {proposed_size} (padding: {padding * 100}%, delta: {delta})")
+
+    # finish DataCap posting
+    utils.confirm(f"Finishing DataCap posting for deal id {deal.deal.deal_id} (blocks further allocation batches)", default=True, abort=True)
+
+    tx_hash = DataCapEvidenceAdapter(deal.deal.evidence_adapter_address).finish_datacap_posting(deal.deal.deal_id, client_signer()).tx_hash
+    click.echo(f"DataCap posting for deal id {deal.deal.deal_id} finished: {tx_hash}")
+
+
+def _build_operator_data_batch(provider_id: ActorId,
+                               batch: list[tuple[str, int]],
+                               term_min: int,
+                               term_max: int,
+                               expiration: int) -> bytes:
+    #
     def format_cid_to_cbor_universal(cid_str: str) -> cbor2.CBORTag:
         try:
             cid_bytes = bytes(multibase.decode(cid_str))
         except Exception as e:
             raise click.ClickException(f"Invalid piece CID '{cid_str}': {e}") from e
+
         cid_with_prefix = b"\x00" + cid_bytes
         return cbor2.CBORTag(42, cid_with_prefix)
 

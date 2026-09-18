@@ -90,13 +90,13 @@ def _deposit_for_deals(deals: list[PoRepMarketDealView], months: int):
 
             else:
                 utils.confirm(f"Deal ID {deal.deal.deal_id} is in ACCEPTED state; "
-                              f"you might want to run `{sys.argv[0]} client make-allocations` {deal.deal.deal_id} first. Continue anyway?", abort=True)
+                              f"you might want to run `{sys.argv[0]} client make-allocations` {deal.deal.deal_id} first. Continue?", abort=True)
 
         elif deal.deal.state in [PoRepMarketDealState.REJECTED, PoRepMarketDealState.EARLY_TERMINATED, PoRepMarketDealState.EXPIRED]:
             raise click.ClickException("Cannot deposit for REJECTED, TERMINATED or EXPIRED deals")
 
         elif deal.deal.state != PoRepMarketDealState.ACTIVE:
-            utils.confirm(f"Deal ID {deal.deal.deal_id} is in state {deal.deal.state} != ACTIVE. Continue anyway?", abort=True)
+            utils.confirm(f"Deal ID {deal.deal.deal_id} is in state {deal.deal.state} != ACTIVE. Continue?", abort=True)
 
         deals_per_token.setdefault(deal.payment.payment_token, []).append(deal)
 
