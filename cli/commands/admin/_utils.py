@@ -40,7 +40,6 @@ def get_db_offers(db_url: str,
     def sla_class_to_sli_thresholds(sla_class: str) -> PoRepMarketSLIThresholds:
         sla_class = sla_class.lower()
 
-        # TODO ASAP
         if sla_class == "accessible_storage":
             # noinspection PyArgumentList
             return PoRepMarketSLIThresholds(
@@ -188,8 +187,8 @@ def get_db_offers(db_url: str,
                 result.append(SPRegistryOfferInput(
                     provider_id=offer_miner_id,
                     terms=SPRegistryOfferTerms(
-                        min_size_bytes=0,  # TODO ASAP
-                        max_size_bytes=0,  # TODO ASAP
+                        min_size_bytes=0,
+                        max_size_bytes=0,
                         min_duration_epochs=min_deal_duration_epochs,
                         max_duration_epochs=max_deal_duration_epochs
                     ),
