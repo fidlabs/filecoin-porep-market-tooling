@@ -28,9 +28,9 @@ def set_offer_active(offer_id: int, active: str):
     offer = SPRegistry().get_offer_view(offer_id)
 
     if offer.active == _active:
-        raise click.ClickException(f"Offer {offer_id} is already active={_active}")
+        raise click.ClickException(f"Offer ID {offer_id} is already active={_active}")
 
-    utils.confirm(f"Setting offer {offer_id} active={_active}: {offer}", abort=True)
+    utils.confirm(f"Setting offer ID {offer_id} active={_active}: {offer}", abort=True)
 
     tx_hash = SPRegistry().set_offer_active(offer_id, _active, sp_signer()).tx_hash
-    click.echo(f"Offer {offer_id} active set to {_active}: {tx_hash}")
+    click.echo(f"Offer ID {offer_id} active set to {_active}: {tx_hash}")

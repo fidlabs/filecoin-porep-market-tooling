@@ -655,7 +655,7 @@ def propose_deal(signer: TxSigner,
 
     total_max_cost = max_cost_per_month * deal_duration_months
     total_max_cost_str = utils.str_from_wei(total_max_cost, payment_token_decimals)
-    against_offer_str = f" against offer {offer_id}" if offer_id else ""
+    against_offer_str = f" against offer ID {offer_id}" if offer_id else ""
     against_offer_warn = "The admin account becomes the client of the resulting deal. " if offer_id else ""
 
     utils.confirm(f"\nProposing deal{against_offer_str}: {utils.json_pretty(deal_request)}\n\n"
@@ -674,7 +674,7 @@ def propose_deal(signer: TxSigner,
 
     if offer_id:
         tx = PoRepMarket().propose_deal_with_specific_offer(offer_id, deal_request, client_address, signer)
-        click.echo(f"Created deal from manifest {manifest_url} against offer {offer_id}: {tx.tx_hash}")
+        click.echo(f"Created deal from manifest {manifest_url} against offer ID {offer_id}: {tx.tx_hash}")
     else:
         tx = PoRepMarket().propose_deal(deal_request, signer)
         click.echo(f"Created deal from manifest {manifest_url}: {tx.tx_hash}")
