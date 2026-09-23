@@ -12,6 +12,7 @@ from cli.services.contracts.datacap_evidence_adapter import (
     DataCapEvidenceAdapter,
     DataCapTransferParams,
 )
+from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.self_update import SelfUpdateService
@@ -28,7 +29,7 @@ from cli.services.web3_service import ActorId, Web3Service
               help="Local manifest file to use instead of fetching from the deal proposal.")
 def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool = False, local_manifest: str | None = None):
     """
-    Interactively make DDO allocations for an accepted deal in batches (groups).
+    Interactively make DDO allocations for an ACCEPTED deal in batches (groups).
 
     DEAL_ID: ID of the deal to make DDO allocations for.
 
@@ -36,36 +37,54 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
     1. Fetch deal and manifest for the given DEAL_ID,
     2. prepare DataCap transfer parameters for each batch of pieces,
     3. make Direct Data Onboarding (DDO) allocation for each batch using the DataCap evidence adapter,
-    4. IMPORTANT: finish DataCap posting to allow SP to submit the proof and receive payment.
+    4. finish DataCap posting to allow SP to submit the proof and receive payment.
     """
 
-    # TODO LATER improve click.echo here
     SelfUpdateService.check_and_prompt(manual=False)
     Web3Service().wait_for_pending_transactions(client_address())
 
     deal = PoRepMarketViewHelper().get_deal_view(deal_id)
 
-    if deal.deal.state != PoRepMarketDealState.ACCEPTED:
-        raise click.ClickException(f"Deal ID {deal_id} is in state {deal.deal.state} != ACCEPTED")
-
-    if deal.deal.rail_id == 0:
-        raise click.ClickException(f"Deal ID {deal_id} does not have a FileCoinPay rail set")
-
-    if not deal.deal.validator_address:
-        raise click.ClickException(f"Deal ID {deal_id} does not have a validator set")
+    if deal.deal.state == PoRepMarketDealState.ACTIVE:
+        click.echo(f"Deal ID {deal_id} is already ACTIVE; no more allocations need to be made.")
+        return
 
     evidence_adapter = DataCapEvidenceAdapter(deal.deal.evidence_adapter_address)
 
     if evidence_adapter.is_datacap_posting_finished(deal_id):
-        raise click.ClickException(f"DataCap posting for deal ID {deal_id} is already finished; no more allocations can be made")
+        click.echo(f"DataCap posting for deal ID {deal_id} is already finished; no more allocations need to be made.")
+        return
+
+    if deal.deal.client_address != client_address():
+        raise click.ClickException(f"Deal ID {deal_id} client address {deal.deal.client_address} "
+                                   f"does not match with connected client address {client_address()}.")
+
+    if deal.deal.state != PoRepMarketDealState.ACCEPTED:
+        raise click.ClickException(f"Deal ID {deal_id} is in state {deal.deal.state} != ACCEPTED")
+
+    if deal.deal.rail_id == 0:
+        raise click.ClickException(f"Deal ID {deal_id} does not have a FileCoinPay rail set; "
+                                   f"run `{sys.argv[0]} client init-deal` {deal_id} first.")
+
+    if not deal.deal.validator_address:
+        raise click.ClickException(f"Deal ID {deal_id} does not have a validator set; "
+                                   f"run `{sys.argv[0]} client init-deal` {deal_id} first.")
+
+    operator_approval = FileCoinPay().get_operator_approval(deal.payment.payment_token,
+                                                            client_address(),
+                                                            deal.deal.validator_address)
+
+    if not operator_approval.is_approved:
+        raise click.ClickException(f"Deal ID {deal_id} operator is not approved; "
+                                   f"run `{sys.argv[0]} client init-deal` {deal_id} first.")
 
     deal_allocations = commands_utils.get_deal_allocations(deal.deal)
     deal_claims = commands_utils.get_deal_claims(deal.deal)
 
-    click.echo(f"Found {len(deal_allocations)} allocations already made and {len(deal_claims)} claims for deal ID {deal_id}")
+    click.echo(f"Found {len(deal_allocations)} allocations already made and {len(deal_claims)} claims for deal ID {deal_id}.")
 
     if deal_claims:
-        raise RuntimeError("Some allocations claimed but deal still in ACCEPTED state")
+        raise RuntimeError("Some allocations claimed but deal still in ACCEPTED state.")
 
     if local_manifest:
         manifest, _ = commands_utils.fetch_local_manifest(Path(local_manifest).resolve())
@@ -80,9 +99,6 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
     cids_allocated = [alloc.get("Data", {}).get("/") for alloc in [*deal_allocations.values(), *deal_claims.values()]]
     pieces_not_allocated = [piece for piece in pieces if piece["pieceCid"] not in cids_allocated]
     batches = _batch_pieces(pieces_not_allocated)
-
-    if not pieces_not_allocated:
-        raise RuntimeError("All pieces allocated but deal still in ACCEPTED state")
 
     utils.confirm(f"Continue with allocation of remaining {len(pieces_not_allocated)} pieces in {len(batches)} batches?", default=True, abort=True)
 
@@ -123,13 +139,14 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
         )
 
         if print_only:
-            click.echo(f"to={params.to[0].hex()}  amount={params.amount[0].hex()}  operator_data={params.operator_data.hex()}")
+            click.echo(f"to={params.to[0].hex()}\n"
+                       f"amount={params.amount[0].hex()}\n"
+                       f"operator_data={params.operator_data.hex()}")
         else:
             tx_hash = evidence_adapter.submit_datacap_batch(params, deal_id, client_signer()).tx_hash
-            click.echo(f"params: {params!r}, tx={tx_hash}")
 
             if tx_hash == Web3Service.ZERO_TX_HASH:
-                click.echo("Cannot continue with dry-run mode, exiting.")
+                click.echo("Cannot continue this command with dry-run mode, exiting.")
                 return
 
             allocation_size = evidence_adapter.get_allocated_bytes(deal_id)
@@ -137,9 +154,10 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
             click.echo(f"Allocated size ({allocation_size}/{deal.terms.requested_size_bytes})")
 
     if not print_only:
+        # pass deal_id to this function, since the deal object may be stale after each transaction
         _finish_datacap_posting(deal_id, manifest, exclude_dag)
 
-    click.echo("\nAll done!")
+    click.echo(f"\nAll done! Run `{sys.argv[0]} client deposit-for-deals {deal_id}` to deposit funds for this deal.")
 
 
 def _finish_datacap_posting(deal_id: int, manifest: list[dict], exclude_dag: bool):
@@ -148,7 +166,7 @@ def _finish_datacap_posting(deal_id: int, manifest: list[dict], exclude_dag: boo
 
     # verify deal status
     if deal.deal.state != PoRepMarketDealState.ACCEPTED:
-        raise click.ClickException(f"Deal ID {deal.deal.deal_id} is not in ACCEPTED state, current state: {deal.deal.state}")
+        raise click.ClickException(f"Deal ID {deal_id} is not in ACCEPTED state, current state: {deal.deal.state}")
 
     # verify all pieces are allocated
     deal_allocations = commands_utils.get_deal_allocations(deal.deal)
@@ -163,8 +181,8 @@ def _finish_datacap_posting(deal_id: int, manifest: list[dict], exclude_dag: boo
     pieces_not_allocated = [piece for piece in pieces if piece["pieceCid"] not in cids_allocated]
 
     if pieces_not_allocated:
-        raise click.ClickException(f"Cannot finish DataCap posting for deal ID {deal_id}: {len(pieces_not_allocated)} pieces not allocated yet. "
-                                   f"Run `{sys.argv[0]} client make-allocations {deal_id}` to allocate remaining pieces before finishing DataCap posting.")
+        raise click.ClickException(f"Cannot finish DataCap posting for deal ID {deal_id}: {len(pieces_not_allocated)} pieces not allocated yet; "
+                                   f"run `{sys.argv[0]} client make-allocations {deal_id}` again to allocate remaining pieces before finishing DataCap posting.")
 
     # verify allocated size is within padding range
     final_allocation_size = DataCapEvidenceAdapter(deal.deal.evidence_adapter_address).get_allocated_bytes(deal_id)
@@ -177,10 +195,10 @@ def _finish_datacap_posting(deal_id: int, manifest: list[dict], exclude_dag: boo
                                    f"proposed size {proposed_size} (padding: {padding * 100}%, delta: {delta})")
 
     # finish DataCap posting
-    utils.confirm(f"Finishing DataCap posting for deal id {deal.deal.deal_id} (blocks further allocation batches)", default=True, abort=True)
+    utils.confirm(f"Finishing DataCap posting for deal id {deal_id} (blocks further allocation batches)", default=True, abort=True)
 
-    tx_hash = DataCapEvidenceAdapter(deal.deal.evidence_adapter_address).finish_datacap_posting(deal.deal.deal_id, client_signer()).tx_hash
-    click.echo(f"DataCap posting for deal id {deal.deal.deal_id} finished: {tx_hash}")
+    tx_hash = DataCapEvidenceAdapter(deal.deal.evidence_adapter_address).finish_datacap_posting(deal_id, client_signer()).tx_hash
+    click.echo(f"DataCap posting for deal id {deal_id} finished: {tx_hash}")
 
 
 def _build_operator_data_batch(provider_id: ActorId,
