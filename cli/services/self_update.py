@@ -133,7 +133,7 @@ class SelfUpdateService:
             return f"{update_info.commits_ahead} local commit(s) detected ahead of {remote_ref_name}"
 
         if SelfUpdateService._has_local_changes(update_info.repo):
-            return "uncommitted local changes detected; commit or stash your changes (`git stash`) and try again"
+            return "uncommitted local changes detected; stash your changes (`git stash`) and try again or run `git pull` manually"
 
         branch = None if update_info.repo.head.is_detached else update_info.repo.active_branch.name
 
