@@ -36,12 +36,12 @@ def init_deal(deal_id: int):
     deal = PoRepMarketViewHelper().get_deal_view(deal_id)
 
     if deal.deal.state == PoRepMarketDealState.ACTIVE:
-        click.echo(f"Deal ID {deal.deal.deal_id} is already ACTIVE, no need to initialize")
+        click.echo(f"Deal ID {deal.deal.deal_id} is already ACTIVE, no need to initialize.")
         return
 
     if deal.deal.client_address != client_address():
         raise click.ClickException(f"Deal ID {deal.deal.deal_id} client address {deal.deal.client_address} "
-                                   f"does not match with connected client address {client_address()}")
+                                   f"does not match with connected client address {client_address()}.")
 
     if deal.deal.state != PoRepMarketDealState.ACCEPTED:
         raise click.ClickException(f"Deal ID {deal.deal.deal_id} is in state {deal.deal.state} != ACCEPTED")
