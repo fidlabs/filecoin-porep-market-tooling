@@ -17,12 +17,12 @@ from cli.services.web3_service import Web3Service
 
 
 @click.command()
-@click.argument("deal_id", type=click.IntRange(min=1), required=False)
-def init_deals(deal_id: int | None = None):
+@click.argument("deal_id", type=click.IntRange(min=1))
+def init_deal(deal_id: int):
     """
-    Interactively initialize ACCEPTED deals.
+    Interactively initialize an ACCEPTED deal.
 
-    DEAL_ID - Optional deal ID to initialize. If not provided, will initialize all ACCEPTED deals for the client address.
+    DEAL_ID - Deal ID to initialize.
 
     \b
     1. Deploy and initialize validator,
@@ -33,53 +33,37 @@ def init_deals(deal_id: int | None = None):
     SelfUpdateService.check_and_prompt(manual=False)
     Web3Service().wait_for_pending_transactions(client_address())
 
-    if deal_id is not None:
-        deal = PoRepMarketViewHelper().get_deal_view(deal_id)
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
 
-        if deal.deal.client_address != client_address():
-            raise click.ClickException(f"Deal ID {deal_id} client address {deal.deal.client_address} "
-                                       f"does not match with connected client address {client_address()}")
+    if deal.deal.state == PoRepMarketDealState.ACTIVE:
+        click.echo(f"Deal ID {deal.deal.deal_id} is already ACTIVE, no need to initialize")
+        return
 
-        if deal.deal.state != PoRepMarketDealState.ACCEPTED:
-            raise click.ClickException(f"Deal ID {deal_id} is in state {deal.deal.state} != ACCEPTED")
+    if deal.deal.client_address != client_address():
+        raise click.ClickException(f"Deal ID {deal.deal.deal_id} client address {deal.deal.client_address} "
+                                   f"does not match with connected client address {client_address()}")
 
-        accepted_deals = [deal.deal]
-    else:
-        accepted_deals = commands_utils.get_client_deals(client_address(), PoRepMarketDealState.ACCEPTED)
-        click.echo(f"Found {len(accepted_deals)} ACCEPTED deals for client address {client_address()}")
+    if deal.deal.state != PoRepMarketDealState.ACCEPTED:
+        raise click.ClickException(f"Deal ID {deal.deal.deal_id} is in state {deal.deal.state} != ACCEPTED")
 
-    for deal in accepted_deals:
-        assert deal.deal_id
-        click.echo(f"\nDeal ID {deal.deal_id}: {utils.json_pretty(deal)}")
+    click.echo(f"Initializing deal ID {deal.deal.deal_id}: {utils.json_pretty(deal)}")
 
-        try:
-            _deploy_and_set_validator(deal.deal_id)
-            Web3Service().wait_for_pending_transactions(client_address())
+    # pass deal_id in those functions, since the deal object may be stale after each transaction
 
-            _deposit_and_approve_operator(deal.deal_id)
-            Web3Service().wait_for_pending_transactions(client_address())
+    _deploy_and_set_validator(deal.deal.deal_id)
+    Web3Service().wait_for_pending_transactions(client_address())
 
-            _initialize_rail(deal.deal_id)
-            Web3Service().wait_for_pending_transactions(client_address())
-        except click.ClickException as e:
-            e.show()
-            continue
-        except click.Abort:
-            click.echo("\nSkipped this deal.")
-            continue
+    _deposit_and_approve_operator(deal.deal.deal_id)
+    Web3Service().wait_for_pending_transactions(client_address())
 
-    click.echo("\n\nAll done!")
-    click.echo(f"\nRun `{sys.argv[0]} client deposit-for-deals` to make sure you have enough FileCoinPay funds deposited for all your deals.")
+    _initialize_rail(deal.deal.deal_id)
+    Web3Service().wait_for_pending_transactions(client_address())
+
+    click.echo(f"\nAll done! Run `{sys.argv[0]} client make-allocations {deal.deal.deal_id}` to make DDO allocations for this deal.")
 
 
 def _deploy_and_set_validator(deal_id: int):
     deal = PoRepMarketViewHelper().get_deal_view(deal_id)
-
-    if deal.deal.client_address != client_address():
-        raise click.ClickException(f"Deal ID {deal_id} client address {deal.deal.client_address} does not match from address {client_address()}")
-
-    if deal.deal.state != PoRepMarketDealState.ACCEPTED:
-        raise click.ClickException(f"Deal ID {deal.deal.deal_id} is in state {deal.deal.state} != ACCEPTED")
 
     if __get_validator_address_for_deal(deal.deal):
         click.echo(f"\nValidator already set for deal ID {deal.deal.deal_id}: {deal.deal.validator_address}")
@@ -96,7 +80,8 @@ def _deposit_and_approve_operator(deal_id: int):
     payment_token = USDCToken(deal.payment.payment_token)
 
     if not __get_validator_address_for_deal(deal.deal):
-        raise click.ClickException(f"Validator not found for deal ID {deal.deal.deal_id}, cannot deposit and approve operator")
+        raise click.ClickException(f"Validator not found for deal ID {deal.deal.deal_id}, cannot deposit and approve operator; "
+                                   f"run `{sys.argv[0]} client init-deal` {deal.deal.deal_id} again.")
 
     operator_approval = FileCoinPay().get_operator_approval(payment_token.address(),
                                                             client_address(),
@@ -167,14 +152,16 @@ def _initialize_rail(deal_id: int):
     deal = PoRepMarketViewHelper().get_deal_view(deal_id)
 
     if not __get_validator_address_for_deal(deal.deal):
-        raise click.ClickException(f"Validator not found for deal ID {deal.deal.deal_id}, cannot initialize rail")
+        raise click.ClickException(f"Validator not found for deal ID {deal.deal.deal_id}, cannot initialize rail; "
+                                   f"run `{sys.argv[0]} client init-deal` {deal.deal.deal_id} again.")
 
     operator_approval = FileCoinPay().get_operator_approval(deal.payment.payment_token,
                                                             client_address(),
                                                             deal.deal.validator_address)
 
     if not operator_approval.is_approved:
-        raise click.ClickException(f"Operator not approved for deal ID {deal.deal.deal_id}, cannot initialize rail")
+        raise click.ClickException(f"Operator not approved for deal ID {deal.deal.deal_id}, cannot initialize rail; "
+                                   f"run `{sys.argv[0]} client init-deal` {deal.deal.deal_id} again.")
 
     if deal.deal.rail_id:
         click.echo(f"\nRail already initialized for deal ID {deal.deal.deal_id}: {deal.deal.rail_id}")
@@ -183,7 +170,6 @@ def _initialize_rail(deal_id: int):
     utils.confirm(f"\nInitialize FileCoinPay rail for deal ID {deal.deal.deal_id}?", default=True, abort=True)
 
     tx_hash = FileCoinPayValidator(deal.deal.validator_address).create_rail(client_signer()).tx_hash
-
     click.echo(f"FileCoinPay rail initialized for deal ID {deal.deal.deal_id}: {tx_hash}")
 
 

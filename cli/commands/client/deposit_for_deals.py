@@ -93,7 +93,7 @@ def _ensure_deal_is_eligible_for_deposit(deal: PoRepMarketDeal):
     if deal.state == PoRepMarketDealState.ACCEPTED:
         if deal.rail_id == 0 or not deal.validator_address:
             raise click.ClickException(f"Deal payment not initialized; "
-                                       f"run `{sys.argv[0]} client init-deals` {deal.deal_id} first.")
+                                       f"run `{sys.argv[0]} client init-deal` {deal.deal_id} first.")
 
         else:
             evidence_adapter = DataCapEvidenceAdapter(deal.evidence_adapter_address)
