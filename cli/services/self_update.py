@@ -132,6 +132,7 @@ class SelfUpdateService:
         if update_info.commits_ahead > 0:
             return f"{update_info.commits_ahead} local commit(s) detected ahead of {remote_ref_name}"
 
+        # TODO allow if fast forward possible
         if SelfUpdateService._has_local_changes(update_info.repo):
             return "uncommitted local changes detected; stash your changes (`git stash`) and try again or run `git pull` manually."
 
