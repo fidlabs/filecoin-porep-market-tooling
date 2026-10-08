@@ -97,6 +97,7 @@ class LegacyDeal:
     manifest_hash: bytes
 
     COMPLETED = 2
+    TERMINATED = 4
 
     @classmethod
     def from_web3(cls, data, expected_id: int) -> "LegacyDeal":

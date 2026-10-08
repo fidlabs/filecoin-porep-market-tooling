@@ -9,7 +9,8 @@ import click
 from click.testing import CliRunner
 
 from cli.commands.client.migration import adopt_v1_claims, close_v1_deal, finish_migration
-from cli.commands.sp.migration import default_target_epoch, extend_deal_sectors, sector_expirations
+from cli.commands.sp.migration import _run_sptool, extend_deal_sectors, sector_expirations
+from cli.services.contract_service import ContractService
 from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceType
 from cli.services.contracts.filecoinpay_validator import FileCoinPayRailStatus
 from cli.services.contracts.legacy_porep_market import LegacyDeal
@@ -29,6 +30,8 @@ from cli.services.migration import (
     build_adoption_plan,
     claim_extension_cbor,
     extension_term_max,
+    open_rail,
+    sector_target_epoch,
     size_within_padding,
 )
 from cli.services.web3_service import ActorId, EthAddress, Web3Service
@@ -54,8 +57,8 @@ def rpc_claim(**overrides):
     return data
 
 
-def make_source(state=LegacyDeal.COMPLETED, rail_id=5, size=64, client=CLIENT):
-    return LegacyDeal(deal_id=3, client=client, provider=ActorId(1234), requirements=(0, 0, 0, 0), size_bytes=size,
+def make_source(state=LegacyDeal.COMPLETED, rail_id=5, size=64, client=CLIENT, deal_id=3):
+    return LegacyDeal(deal_id=deal_id, client=client, provider=ActorId(1234), requirements=(0, 0, 0, 0), size_bytes=size,
                       price_per_32_gib_per_month=1, duration_days=180, validator=VALIDATOR, state=state, rail_id=rail_id,
                       proposed_at_epoch=1, manifest_location="loc", manifest_hash=b"\x00" * 32)
 
@@ -205,6 +208,32 @@ class AdapterIdTests(Web3Singleton):
             adapter_claim_ids(make_adapter(pending=[1, 2], confirmed=[2, 3]), 9)
 
 
+class OpenRailTests(Web3Singleton):
+    def test_open_rail(self):
+        rail = make_rail()
+        with patch("cli.services.migration.FileCoinPay") as pay:
+            pay.return_value.get_rail.return_value = rail
+            self.assertIs(open_rail(5), rail)
+            pay.return_value.get_rail.assert_called_once_with(5)
+
+    def test_open_rail_returns_none_for_finalized_rail(self):
+        with patch("cli.services.migration.FileCoinPay") as pay:
+            pay.return_value.get_rail.side_effect = click.ClickException("execution reverted: RailInactiveOrSettled(5)")
+            self.assertIsNone(open_rail(5))
+
+    def test_open_rail_reraises_other_errors(self):
+        with patch("cli.services.migration.FileCoinPay") as pay:
+            pay.return_value.get_rail.side_effect = click.ClickException("Web3 RPC error: timeout")
+            with self.assertRaisesRegex(click.ClickException, "timeout"):
+                open_rail(5)
+
+    def test_sector_target_epoch(self):
+        target = make_target(state=PoRepMarketDealState.ACTIVE)
+        self.assertEqual(sector_target_epoch(target, EPOCH), target.service.service_end_epoch + 30 * EPOCHS_IN_DAY)
+        target = make_target(state=PoRepMarketDealState.ACCEPTED)
+        self.assertEqual(sector_target_epoch(target, EPOCH), EPOCH + 180 * EPOCHS_IN_DAY + 60 * EPOCHS_IN_DAY)
+
+
 class ServiceTests(Web3Singleton):
     def make_service(self, source_chain_id=314, connected=314):
         web3 = MagicMock()
@@ -236,6 +265,36 @@ class ServiceTests(Web3Singleton):
         with patch.object(service, "source_rail", return_value=make_rail(payment_rate=0)), \
                 self.assertRaisesRegex(MigrationError, "not paying"):
             service.qualify_source(make_source())
+        with patch.object(service, "source_rail", return_value=None), self.assertRaisesRegex(MigrationError, "settled and finalized"):
+            service.qualify_source(make_source())
+
+    def test_source_rail_requires_rail_id(self):
+        with self.assertRaisesRegex(MigrationError, "has no payment rail"):
+            MigrationService.source_rail(make_source(rail_id=0))
+        with patch("cli.services.migration.open_rail", return_value=None) as opened:
+            self.assertIsNone(MigrationService.source_rail(make_source()))
+        opened.assert_called_once_with(5)
+
+    def test_open_source_deals_selects_paying_open_and_terminated_rails(self):
+        service = self.make_service()
+        deals = [
+            make_source(deal_id=1, rail_id=11),                                  # open, paying
+            make_source(deal_id=2, rail_id=12, state=LegacyDeal.TERMINATED),     # terminated, still paying
+            make_source(deal_id=3, rail_id=13),                                  # rate cut to zero
+            make_source(deal_id=4, rail_id=14),                                  # finalized
+            make_source(deal_id=5, rail_id=15, state=1),                         # other state
+            make_source(deal_id=6, rail_id=0),                                   # no rail
+            make_source(deal_id=7, rail_id=17, client=OTHER),                    # other client
+        ]
+        rails = {11: make_rail(), 12: make_rail(end_epoch=EPOCH), 13: make_rail(payment_rate=0), 14: None, 15: make_rail(), 17: make_rail()}
+        service.source_market.get_deals.return_value = deals
+        with patch("cli.services.migration.open_rail", side_effect=lambda rail_id: rails[rail_id]) as opened:
+            result = service.open_source_deals()
+            self.assertEqual([(deal.deal_id, rail) for deal, rail in result], [(1, rails[11]), (2, rails[12]), (7, rails[17])])
+            self.assertEqual([deal.deal_id for deal, _ in service.open_source_deals(CLIENT)], [1, 2])
+            self.assertEqual([deal.deal_id for deal, _ in service.open_source_deals(OTHER)], [7])
+            self.assertNotIn(15, [call.args[0] for call in opened.call_args_list])
+            self.assertNotIn(0, [call.args[0] for call in opened.call_args_list])
 
     def source_claims_fixture(self, rpc=None, ids=(10, 11), allocated=64, terminated=()):
         service = self.make_service()
@@ -258,17 +317,31 @@ class ServiceTests(Web3Singleton):
     def test_source_claims_rejections(self):
         source = make_source()
         cases = {
-            "exact full claimed size": self.source_claims_fixture(allocated=32),
+            "do not equal the 32 bytes recorded": self.source_claims_fixture(allocated=32),
             "missing from provider": self.source_claims_fixture(rpc={"10": rpc_claim()}),
             "marked terminated": self.source_claims_fixture(terminated=(11,)),
             "belongs to client actor": self.source_claims_fixture(rpc={"10": rpc_claim(), "11": rpc_claim(Client=999)}),
             "belongs to provider": self.source_claims_fixture(rpc={"10": rpc_claim(), "11": rpc_claim(Provider=999)}),
-            "do not equal the full deal size": self.source_claims_fixture(rpc={"10": rpc_claim(), "11": rpc_claim(Size=16)}),
+            "do not equal the 64 bytes recorded": self.source_claims_fixture(rpc={"10": rpc_claim(), "11": rpc_claim(Size=16)}),
             "no claims or duplicate": self.source_claims_fixture(ids=(10, 10)),
         }
         for message, service in cases.items():
             with self.subTest(message), self.assertRaisesRegex(MigrationError, message):
                 service.source_claims(source)
+
+    def test_source_claims_compares_with_recorded_allocation_not_deal_size(self):
+        # V1 accepted completion within a padding, so the recorded allocation may differ from the proposed size
+        claims = self.source_claims_fixture(allocated=64).source_claims(make_source(size=70))
+        self.assertEqual(sum(claim.size for claim in claims), 64)
+
+    def test_source_claim_ids_and_adoption_progress(self):
+        service = self.make_service()
+        service.source_market.get_client_contract.return_value.allocation_ids.return_value = [10, 11]
+        self.assertEqual(service.source_claim_ids(make_source()), [10, 11])
+        service.source_market.get_client_contract.return_value.allocation_ids.assert_called_with(3)
+        with patch("cli.services.migration.DataCapEvidenceAdapter", return_value=make_adapter(pending=[10], confirmed=[30])) as adapter_class:
+            self.assertEqual(service.adoption_progress(self.make_pair()), ({10, 11}, {10, 30}))
+        adapter_class.assert_called_once_with(ADAPTER)
 
     def test_pair_rejects_client_and_provider_mismatch(self):
         service = self.make_service()
@@ -288,6 +361,15 @@ class ServiceTests(Web3Singleton):
         with patch.object(service, "source_rail", return_value=rail):
             pair = service.pair(9, 3, require_paying=False)
         self.assertIs(pair.source_rail, rail)
+
+    def test_pair_without_requirement_allows_finalized_rail(self):
+        service = self.make_service()
+        service.source_deal = MagicMock(return_value=make_source())
+        service.view_helper.get_deal_view.return_value = make_target()
+        with patch.object(service, "source_rail", return_value=None):
+            self.assertIsNone(service.pair(9, 3, require_paying=False).source_rail)
+            with self.assertRaisesRegex(MigrationError, "settled and finalized"):
+                service.pair(9, 3)
 
     def adoption_service(self, adapter=None, claims=None, padding=1000):
         service = self.make_service()
@@ -409,10 +491,10 @@ class ClientCommandTests(Web3Singleton):
             patcher.start()
             self.addCleanup(patcher.stop)
 
-    def set_pair(self, target=None, source=None, rail=None):
-        pair = MigrationPair(source or make_source(), rail or make_rail(), target or make_target())
+    def set_pair(self, target=None, source=None, rail=None, finalized=False):
+        pair = MigrationPair(source or make_source(), None if finalized else rail or make_rail(), target or make_target())
         patcher = patch("cli.commands.client.migration.load_pair", return_value=pair)
-        patcher.start().side_effect = None
+        self.load_pair = patcher.start()
         self.addCleanup(patcher.stop)
         return pair
 
@@ -423,7 +505,7 @@ class ClientCommandTests(Web3Singleton):
         return mock
 
     def test_adopt_print_only_shows_plan_without_signer(self):
-        self.set_pair()
+        self.set_pair(target=make_target(rail_id=7))
         self.service.adoption_plan.return_value = make_plan(registered=[10])
         adapter = self.patch_module("DataCapEvidenceAdapter").return_value
         adapter.estimate_gas.return_value = 123
@@ -442,7 +524,28 @@ class ClientCommandTests(Web3Singleton):
         result = self.runner.invoke(adopt_v1_claims, ["9", "3"])
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertIn("All V1 claims are registered", result.output)
+        self.assertIn("finish-migration 9 3", result.output)
+        self.assertNotIn("init-deal", result.output)
         adapter_class.assert_not_called()
+        self.signer.assert_not_called()
+
+    def test_adopt_without_v2_rail_stops_before_preflight(self):
+        self.set_pair(target=make_target(rail_id=0))
+        self.service.adoption_plan.return_value = make_plan(registered=[10])
+        adapter_class = self.patch_module("DataCapEvidenceAdapter")
+        result = self.runner.invoke(adopt_v1_claims, ["9", "3", "--print-only"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("has no payment rail yet; run", result.output)
+        self.assertIn("init-deal 9", result.output)
+        adapter_class.return_value.call_contract.assert_not_called()
+        adapter_class.return_value.estimate_gas.assert_not_called()
+        self.signer.assert_not_called()
+
+        result = self.runner.invoke(adopt_v1_claims, ["9", "3"])
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("has no payment rail yet; run", result.output)
+        self.assertIn("init-deal 9", result.output)
+        adapter_class.return_value.call_contract.assert_not_called()
         self.signer.assert_not_called()
 
     def test_adopt_rejects_other_clients_deal(self):
@@ -485,33 +588,78 @@ class ClientCommandTests(Web3Singleton):
         result = self.runner.invoke(finish_migration, ["9", "3", "--print-only"])
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertIn("Ready to finish DataCap posting", result.output)
+        self.load_pair.assert_called_once_with(self.service, 9, 3, require_paying=False)
         adapter.finish_datacap_posting.assert_not_called()
         self.signer.assert_not_called()
 
-    def close_fixture(self, rail=None, rail_side_effect=None, target=None, source=None):
-        self.service.source_deal.return_value = source or make_source()
-        if target is not None:
-            self.set_pair(target=target)
-        pay = self.patch_module("FileCoinPay").return_value
-        if rail_side_effect is not None:
-            pay.get_rail.side_effect = rail_side_effect
-        else:
-            pay.get_rail.return_value = rail
-        return pay
+    def test_finish_dry_run_acts_as_print_only(self):
+        adapter = self.finish_fixture()
+        self.patch_module("is_dry_run", return_value=True)
+        result = self.runner.invoke(finish_migration, ["9", "3"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("Dry-run mode: acting as --print-only", result.output)
+        self.assertIn("Ready to finish DataCap posting", result.output)
+        adapter.finish_datacap_posting.assert_not_called()
+        self.signer.assert_not_called()
+
+    def close_fixture(self, rail=None, progress=None, target=None, finalized=False):
+        self.set_pair(target=target or make_target(state=PoRepMarketDealState.ACTIVE), rail=rail, finalized=finalized)
+        self.service.adoption_progress.return_value = progress or ({10, 11}, {10, 11})
+        return self.patch_module("FileCoinPay").return_value
+
+    def test_close_requires_v2_deal_id(self):
+        pay = self.close_fixture(rail=make_rail())
+        result = self.runner.invoke(close_v1_deal, ["3"])
+        self.assertEqual(result.exit_code, 2, result.output)
+        self.assertIn("--v2-deal-id", result.output)
+        pay.call_contract.assert_not_called()
+        self.signer.assert_not_called()
+
+    def test_close_refuses_when_v2_does_not_hold_all_claims(self):
+        pay = self.close_fixture(rail=make_rail(), progress=({10, 11}, {10}))
+        result = self.runner.invoke(close_v1_deal, ["3", "--v2-deal-id", "9"])
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("holds 1/2 claims", result.output)
+        self.assertIn("strand", result.output)
+        pay.call_contract.assert_not_called()
+        self.signer.assert_not_called()
 
     def test_close_terminates_open_rail(self):
         pay = self.close_fixture(rail=make_rail(end_epoch=0))
-        result = self.runner.invoke(close_v1_deal, ["3", "--print-only"])
+        result = self.runner.invoke(close_v1_deal, ["3", "--v2-deal-id", "9", "--print-only"])
         self.assertEqual(result.exit_code, 0, result.output)
+        self.load_pair.assert_called_once_with(self.service, 9, 3, require_paying=False)
         pay.contract.functions.terminateRail.assert_called_once_with(5)
         pay.contract.functions.settleTerminatedRailWithoutValidation.assert_not_called()
         pay.call_contract.assert_called_once()
+        self.assertIn("holds all 2 V1 claims", result.output)
         self.assertIn("Ready to terminate rail 5", result.output)
         self.signer.assert_not_called()
 
+    def test_close_dry_run_acts_as_print_only(self):
+        pay = self.close_fixture(rail=make_rail(end_epoch=0))
+        self.patch_module("is_dry_run", return_value=True)
+        result = self.runner.invoke(close_v1_deal, ["3", "--v2-deal-id", "9"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("Dry-run mode: acting as --print-only", result.output)
+        self.assertIn("Ready to terminate rail 5", result.output)
+        pay.terminate_rail.assert_not_called()
+        self.signer.assert_not_called()
+
+    def test_close_sends_termination_and_reads_back_end_epoch(self):
+        pay = self.close_fixture(rail=make_rail(end_epoch=0))
+        pay.terminate_rail.return_value.tx_hash = "0xabc"
+        self.patch_module("open_rail", return_value=make_rail(end_epoch=EPOCH + 30 * EPOCHS_IN_DAY))
+        self.patch_module("utils.confirm", return_value=True)
+        self.signer.side_effect = None
+        result = self.runner.invoke(close_v1_deal, ["3", "--v2-deal-id", "9"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        pay.terminate_rail.assert_called_once_with(5, self.signer.return_value)
+        self.assertIn(f"Payments stop at epoch {EPOCH + 30 * EPOCHS_IN_DAY}", result.output)
+
     def test_close_waits_while_terminated_rail_still_pays(self):
         pay = self.close_fixture(rail=make_rail(end_epoch=EPOCH + 100))
-        result = self.runner.invoke(close_v1_deal, ["3"])
+        result = self.runner.invoke(close_v1_deal, ["3", "--v2-deal-id", "9"])
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertIn("still paying until", result.output)
         pay.call_contract.assert_not_called()
@@ -519,17 +667,18 @@ class ClientCommandTests(Web3Singleton):
 
     def test_close_settles_after_end_epoch(self):
         pay = self.close_fixture(rail=make_rail(end_epoch=EPOCH - 100))
-        result = self.runner.invoke(close_v1_deal, ["3", "--print-only"])
+        result = self.runner.invoke(close_v1_deal, ["3", "--v2-deal-id", "9", "--print-only"])
         self.assertEqual(result.exit_code, 0, result.output)
         pay.contract.functions.settleTerminatedRailWithoutValidation.assert_called_once_with(5)
         pay.contract.functions.terminateRail.assert_not_called()
         self.assertIn("Ready to settle and finalize rail 5", result.output)
 
     def test_close_reports_already_settled_rail(self):
-        self.close_fixture(rail_side_effect=click.ClickException("execution reverted: RailInactiveOrSettled(5)"))
-        result = self.runner.invoke(close_v1_deal, ["3"])
+        pay = self.close_fixture(finalized=True)
+        result = self.runner.invoke(close_v1_deal, ["3", "--v2-deal-id", "9"])
         self.assertEqual(result.exit_code, 0, result.output)
-        self.assertIn("already settled and finalized", result.output)
+        self.assertIn("already settled and finalized; nothing to do", result.output)
+        pay.call_contract.assert_not_called()
         self.signer.assert_not_called()
 
     def test_close_refuses_when_v2_not_active(self):
@@ -537,16 +686,42 @@ class ClientCommandTests(Web3Singleton):
         result = self.runner.invoke(close_v1_deal, ["3", "--v2-deal-id", "9"])
         self.assertNotEqual(result.exit_code, 0)
         self.assertIn("not ACTIVE", result.output)
-        pay.get_rail.assert_not_called()
+        pay.call_contract.assert_not_called()
+        self.signer.assert_not_called()
+
+    def test_close_termination_shortfall_prints_exact_deposit(self):
+        pay = self.close_fixture(rail=make_rail(end_epoch=0))
+        pay.call_contract.side_effect = click.ClickException("execution reverted")
+        pay.get_account_info_if_settled.return_value = SimpleNamespace(current_funds=0, available_funds=0, funded_until_epoch=EPOCH - 10,
+                                                                       current_lockup_rate=11)
+        self.patch_module("token_info", return_value=("USDFC", 6))
+        result = self.runner.invoke(close_v1_deal, ["3", "--v2-deal-id", "9", "--print-only"])
+        self.assertNotEqual(result.exit_code, 0)
+        # 11 units/epoch * (10 epochs behind + one day) = 31790 units
+        self.assertEqual(11 * (10 + EPOCHS_IN_DAY), 31790)
+        self.assertIn("Deposit 0.03179 USDFC with", result.output)
+        self.assertIn("Cannot terminate rail 5 right now", result.output)
         self.signer.assert_not_called()
 
 
 class SpCommandTests(Web3Singleton):
-    def test_default_target_epoch(self):
-        target = make_target(state=PoRepMarketDealState.ACTIVE)
-        self.assertEqual(default_target_epoch(target, EPOCH), target.service.service_end_epoch + 30 * EPOCHS_IN_DAY)
-        target = make_target(state=PoRepMarketDealState.ACCEPTED)
-        self.assertEqual(default_target_epoch(target, EPOCH), EPOCH + 180 * EPOCHS_IN_DAY + 60 * EPOCHS_IN_DAY)
+    @staticmethod
+    def sptool_run(returncode=0, stdout="", stderr=""):
+        return patch("cli.commands.sp.migration.subprocess.run", return_value=SimpleNamespace(returncode=returncode, stdout=stdout, stderr=stderr))
+
+    def test_run_sptool_fails_when_every_sector_is_skipped(self):
+        output = "skipping sector 7: claim ends too early\nSkipping sector 8: claim ends too early\n"
+        with self.sptool_run(stdout=output), self.assertRaisesRegex(click.ClickException, "would skip every sector"):
+            _run_sptool(["sptool"], 2)
+
+    def test_run_sptool_returns_output_when_some_sectors_are_skipped(self):
+        output = "skipping sector 7: claim ends too early\nextended 1 sector\n"
+        with self.sptool_run(stdout=output):
+            self.assertEqual(_run_sptool(["sptool"], 2), output.strip())
+
+    def test_run_sptool_reports_failure(self):
+        with self.sptool_run(returncode=1, stderr="boom"), self.assertRaisesRegex(click.ClickException, r"sptool failed \(1\)"):
+            _run_sptool(["sptool"], 2)
 
     def test_sector_expirations(self):
         web3 = MagicMock()
@@ -585,6 +760,18 @@ class SpCommandTests(Web3Singleton):
                 self.assertEqual(file.read(), "7\n")
         self.assertIn("sptool command: sptool --actor f01234 sectors extend --sector-file", result.output)
         self.assertIn("--new-expiration 100000 --tolerance 0 --really-do-it", result.output)
+
+
+class ContractServiceBatchTests(unittest.TestCase):
+    def test_pending_transaction_in_batch_mode_is_a_click_exception(self):
+        service = object.__new__(ContractService)
+        service.web3 = MagicMock()
+        service.web3.ensure_no_pending_transactions.side_effect = RuntimeError("1 pending transaction")
+        signer = MagicMock()
+        with ContractService.batch_confirmation(), self.assertRaisesRegex(click.ClickException, "1 pending transaction"):
+            service.sign_and_send_tx(MagicMock(), signer)
+        service.web3.ensure_no_pending_transactions.assert_called_once_with(signer.address.return_value)
+        signer.sign_transaction.assert_not_called()
 
 
 if __name__ == "__main__":

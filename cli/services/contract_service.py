@@ -268,7 +268,10 @@ class ContractService:
         from_address = signer.address()
         confirmed = self._BATCH_CONFIRMED.get()
         if confirmed:
-            self.web3.ensure_no_pending_transactions(from_address)
+            try:
+                self.web3.ensure_no_pending_transactions(from_address)
+            except RuntimeError as e:
+                raise click.ClickException(f"{e}; wait for them to land and re-run") from e
             nonce = self.web3.get_address_nonce(from_address, block_identifier="latest")
         else:
             nonce = self.web3.get_address_nonce(from_address)

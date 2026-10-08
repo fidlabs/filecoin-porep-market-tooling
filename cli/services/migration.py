@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 import cbor2
+import click
 
 from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter, DataCapEvidenceType, DataCapTransferParams
 from cli.services.contracts.filecoin_pay import FileCoinPay, FileCoinPayRailView
@@ -19,6 +20,9 @@ DATACAP_PRECISION = 10 ** 18
 VERIFIED_REGISTRY_ACTOR_ADDRESS = (b"\x00\x06",)
 ADOPTION_BATCH_SIZE = 100
 MAX_BPS = 10_000
+# sectors must outlive the V2 service window by a margin so late activation or settlement never outruns them
+ACTIVE_DEAL_SECTOR_MARGIN_EPOCHS = 30 * EPOCHS_IN_DAY
+ACCEPTED_DEAL_SECTOR_MARGIN_EPOCHS = 60 * EPOCHS_IN_DAY
 
 
 class MigrationError(RuntimeError):
@@ -105,7 +109,7 @@ class AdoptionPlan:
 @dataclass(frozen=True)
 class MigrationPair:
     source: LegacyDeal
-    source_rail: FileCoinPayRailView
+    source_rail: FileCoinPayRailView | None  # None once the V1 rail is settled and finalized
     target: PoRepMarketDealView
 
 
@@ -156,6 +160,23 @@ def size_within_padding(allocated_bytes: int, requested_bytes: int, padding_bps:
             <= requested_bytes * (MAX_BPS + padding_bps))
 
 
+def sector_target_epoch(target: PoRepMarketDealView, current_epoch: int) -> int:
+    """Epoch the sectors holding the claims of a V2 deal must reach."""
+    if target.deal.state == PoRepMarketDealState.ACTIVE:
+        return target.service.service_end_epoch + ACTIVE_DEAL_SECTOR_MARGIN_EPOCHS
+    return current_epoch + target.terms.duration_epochs + ACCEPTED_DEAL_SECTOR_MARGIN_EPOCHS
+
+
+def open_rail(rail_id: int) -> FileCoinPayRailView | None:
+    """Rail view, or None once Filecoin Pay settled and finalized the rail (its storage is deleted)."""
+    try:
+        return FileCoinPay().get_rail(rail_id)
+    except click.ClickException as exc:
+        if "RailInactiveOrSettled" in str(exc):
+            return None
+        raise
+
+
 class MigrationService:
     def __init__(self,
                  source_market: EthAddress,
@@ -176,32 +197,41 @@ class MigrationService:
     def source_deal(self, deal_id: int) -> LegacyDeal:
         return self.source_market.get_deal(deal_id)
 
-    def source_rail(self, source: LegacyDeal) -> FileCoinPayRailView:
+    @staticmethod
+    def source_rail(source: LegacyDeal) -> FileCoinPayRailView | None:
         if not source.rail_id:
             raise MigrationError(f"V1 deal {source.deal_id} has no payment rail")
-        return FileCoinPay().get_rail(source.rail_id)
+        return open_rail(source.rail_id)
 
     def qualify_source(self, source: LegacyDeal) -> FileCoinPayRailView:
         if source.state != LegacyDeal.COMPLETED:
             raise MigrationError(f"V1 deal {source.deal_id} is not Completed (state {source.state})")
         rail = self.source_rail(source)
+        if rail is None:
+            raise MigrationError(f"V1 deal {source.deal_id} rail {source.rail_id} is already settled and finalized")
         if rail.end_epoch:
             raise MigrationError(f"V1 deal {source.deal_id} rail {source.rail_id} is already terminated")
         if rail.payment_rate <= 0:
             raise MigrationError(f"V1 deal {source.deal_id} rail {source.rail_id} is not paying")
         return rail
 
-    def paying_source_deals(self, client: EthAddress | None = None) -> list[LegacyDeal]:
+    def open_source_deals(self, client: EthAddress | None = None) -> list[tuple[LegacyDeal, FileCoinPayRailView]]:
+        """V1 deals whose rail is still paying: open ones and terminated ones waiting for the final settlement.
+
+        Rails whose rate was already cut to zero belong to the old shutdown process, not to the migration."""
         result = []
         for deal in self.source_market.get_deals():
             if client is not None and deal.client != client:
                 continue
-            if deal.state != LegacyDeal.COMPLETED or not deal.rail_id:
+            if deal.state not in (LegacyDeal.COMPLETED, LegacyDeal.TERMINATED) or not deal.rail_id:
                 continue
             rail = self.source_rail(deal)
-            if rail.end_epoch == 0 and rail.payment_rate > 0:
-                result.append(deal)
+            if rail is not None and rail.payment_rate > 0:
+                result.append((deal, rail))
         return result
+
+    def source_claim_ids(self, source: LegacyDeal) -> list[int]:
+        return self.source_market.get_client_contract().allocation_ids(source.deal_id)
 
     def source_claims(self, source: LegacyDeal, tipset_key: list[dict] | None = None) -> list[Claim]:
         tipset_key = tipset_key or self.web3.get_tipset_key()
@@ -209,8 +239,6 @@ class MigrationService:
         ids = legacy_client.allocation_ids(source.deal_id)
         if not ids or len(ids) != len(set(ids)):
             raise MigrationError(f"V1 deal {source.deal_id} has no claims or duplicate claim IDs")
-        if legacy_client.allocated_size(source.deal_id) != source.size_bytes:
-            raise MigrationError(f"V1 deal {source.deal_id} does not have the exact full claimed size")
         expected_client = legacy_client.address().to_actor_id()
         rpc_claims = self.web3.state_get_claims(source.provider, tipset_key=tipset_key)
         claims = []
@@ -228,8 +256,10 @@ class MigrationService:
             if not claim.data or claim.size <= 0 or claim.sector < 0:
                 raise MigrationError(f"V1 claim {claim_id} has invalid piece, size or sector data")
             claims.append(claim)
-        if sum(claim.size for claim in claims) != source.size_bytes:
-            raise MigrationError(f"V1 deal {source.deal_id} claim bytes do not equal the full deal size")
+        # V1 allowed completion within a padding of the proposed size, so compare with what the V1 client recorded
+        allocated = legacy_client.allocated_size(source.deal_id)
+        if sum(claim.size for claim in claims) != allocated:
+            raise MigrationError(f"V1 deal {source.deal_id} claim bytes do not equal the {allocated} bytes recorded by the V1 client")
         return claims
 
     # V1/V2 pair
@@ -259,6 +289,11 @@ class MigrationService:
     @staticmethod
     def registered_ids(adapter: DataCapEvidenceAdapter, deal_id: int) -> list[int]:
         return adapter_claim_ids(adapter, deal_id)
+
+    def adoption_progress(self, pair: MigrationPair) -> tuple[set[int], set[int]]:
+        """(V1 claim ids, ids the V2 adapter already holds) without touching the Filecoin state."""
+        adapter = DataCapEvidenceAdapter(pair.target.deal.evidence_adapter_address)
+        return set(self.source_claim_ids(pair.source)), set(self.registered_ids(adapter, pair.target.deal.deal_id))
 
     def check_target_size(self, pair: MigrationPair, claims: list[Claim]):
         claimed = sum(claim.size for claim in claims)
@@ -323,8 +358,7 @@ class MigrationService:
 
     def pair_by_claims(self, targets: list[PoRepMarketDealView], sources: list[LegacyDeal]) -> dict[int, int]:
         """Map V2 deal ID to V1 deal ID by the claim IDs the adapter already holds."""
-        legacy_client = self.source_market.get_client_contract()
-        source_ids = {source.deal_id: set(legacy_client.allocation_ids(source.deal_id)) for source in sources}
+        source_ids = {source.deal_id: set(self.source_claim_ids(source)) for source in sources}
         result = {}
         for target in targets:
             if not target.deal.evidence_adapter_address:

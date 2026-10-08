@@ -10,21 +10,10 @@ from cli._cli import is_dry_run
 from cli.commands.migration_utils import epochs_to_days
 from cli.commands.sp._sp import sp_organization_address
 from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter
-from cli.services.contracts.porep_market import PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketDealView, PoRepMarketViewHelper
 from cli.services.contracts.sp_registry import SPRegistry
-from cli.services.migration import EPOCHS_IN_DAY, Claim, MigrationError, adapter_claim_ids
+from cli.services.migration import Claim, MigrationError, adapter_claim_ids, sector_target_epoch
 from cli.services.web3_service import ActorId, Web3Service
-
-# sectors must outlive the V2 service window by a margin so late activation or settlement never outruns them
-ACTIVE_DEAL_MARGIN_EPOCHS = 30 * EPOCHS_IN_DAY
-ACCEPTED_DEAL_MARGIN_EPOCHS = 60 * EPOCHS_IN_DAY
-
-
-def default_target_epoch(target: PoRepMarketDealView, current_epoch: int) -> int:
-    if target.deal.state == PoRepMarketDealState.ACTIVE:
-        return target.service.service_end_epoch + ACTIVE_DEAL_MARGIN_EPOCHS
-    return current_epoch + target.terms.duration_epochs + ACCEPTED_DEAL_MARGIN_EPOCHS
 
 
 def deal_claims(target: PoRepMarketDealView) -> list[Claim]:
@@ -59,7 +48,7 @@ def _sptool_executable(sptool_path: str) -> str:
     return executable
 
 
-def _run_sptool(command: list[str]) -> str:
+def _run_sptool(command: list[str], sector_count: int) -> str:
     result = subprocess.run(command, check=False, text=True, capture_output=True)
     output = (result.stdout or "") + (("\n" + result.stderr) if result.stderr else "")
     if result.returncode != 0:
@@ -69,6 +58,9 @@ def _run_sptool(command: list[str]) -> str:
         click.echo(f"sptool skipped {len(skipped)} sector(s):")
         for line in skipped:
             click.echo(f"  {line.strip()}")
+    if skipped and len(skipped) >= sector_count:
+        raise click.ClickException("sptool would skip every sector, usually because another claim in the sector ends before the target; "
+                                   "pick a lower --target-epoch or ask the admin")
     return output.strip()
 
 
@@ -97,7 +89,7 @@ def extend_deal_sectors(v2_deal_id: int, print_only: bool, sptool_path: str, tar
         raise click.ClickException(f"V2 deal {v2_deal_id} provider {provider} does not belong to organization {sp_organization_address()}")
 
     current_epoch = Web3Service().get_block_number()
-    target_epoch = target_epoch or default_target_epoch(target, current_epoch)
+    target_epoch = target_epoch or sector_target_epoch(target, current_epoch)
     try:
         claims = deal_claims(target)
         expirations = sector_expirations(provider, {claim.sector for claim in claims})
@@ -134,7 +126,7 @@ def extend_deal_sectors(v2_deal_id: int, print_only: bool, sptool_path: str, tar
 
     command[0] = _sptool_executable(sptool_path)
     click.echo("\nsptool preview:")
-    click.echo(_run_sptool(command))
+    click.echo(_run_sptool(command, len(below)))
     utils.confirm(f"\nExtend {len(below)} sector(s) of {provider} to epoch {target_epoch}?", abort=True)
-    click.echo(_run_sptool(command + ["--really-do-it"]))
+    click.echo(_run_sptool(command + ["--really-do-it"], len(below)))
     click.echo(f"\nExtension message sent. Re-run `extend-deal-sectors {v2_deal_id}` after it lands to verify the new expirations.")

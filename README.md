@@ -65,7 +65,7 @@ the SP extends the sectors, and the client closes the V1 payment rail. Follow th
 - [SP runbook](runbooks/migration-v1-to-v2-sp.md)
 
 Set `POREP_MARKET_V1` and `POREP_MARKET_V1_CHAIN_ID` (both already in `.env.mainnet`) and, for SPs, `SP_ORGANIZATION`.
-Claims must be adopted before the NV29 network upgrade (epoch 6470279, 2026-10-19 12:59 UTC).
+The client must run `init-deal` and adopt the claims before the NV29 network upgrade (epoch 6470279, 2026-10-19 12:59 UTC).
 Anyone can check progress without a wallet with `migration-status`.
 
 ## Typical SP workflow
