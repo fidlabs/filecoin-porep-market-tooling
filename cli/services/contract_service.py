@@ -313,10 +313,20 @@ class ContractService:
         finally:
             cls._BATCH_CONFIRMED.reset(token)
 
-    def call_contract(self, call) -> T:
+    def call_contract(self, call, tx_params: dict | None = None) -> T:
         # noinspection PyBroadException
         try:
-            return call.call()
+            return call.call(tx_params)
+
+        # pylint: disable=broad-exception-caught
+        except Exception as e:
+            self._handle_contract_error(e, call, None)
+            assert False  # unreachable
+
+    def estimate_gas(self, call, tx_params: dict | None = None) -> int:
+        # noinspection PyBroadException
+        try:
+            return int(call.estimate_gas(tx_params))
 
         # pylint: disable=broad-exception-caught
         except Exception as e:

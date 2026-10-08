@@ -79,19 +79,6 @@ LEGACY_CLIENT_ABI = [
     },
 ]
 
-LEGACY_VALIDATOR_ABI = [{
-    "type": "event",
-    "name": "DealEndEpochUpdated",
-    "anonymous": False,
-    "inputs": [
-        {"name": "dealId", "type": "uint256", "indexed": True},
-        {"name": "endEpoch", "type": "int64", "indexed": False},
-    ],
-}, {
-    "type": "function", "name": "getMinEpochsBetweenSettlements", "stateMutability": "view",
-    "inputs": [], "outputs": [{"name": "", "type": "uint256"}],
-}]
-
 
 @dataclass(frozen=True)
 class LegacyDeal:
@@ -162,31 +149,3 @@ class LegacyClient(ContractService):
 
     def is_claim_terminated(self, claim_id: int) -> bool:
         return bool(self.call_contract(self.contract.functions.terminatedClaims(claim_id)))
-
-
-class LegacyValidator(ContractService):
-    def __init__(self, address: EthAddress):
-        self.web3 = Web3Service()
-        self.contract = self.web3.contract(EthAddress(address), LEGACY_VALIDATOR_ABI)
-
-    def deal_end_epoch(self, deal_id: int, from_block: int, to_block: int, chunk_size: int = 2_000) -> int:
-        end = to_block
-        while end >= from_block:
-            start = max(from_block, end - chunk_size + 1)
-            try:
-                logs = self.contract.events.DealEndEpochUpdated().get_logs(
-                    from_block=start,
-                    to_block=end,
-                    argument_filters={"dealId": deal_id},
-                )
-            except Exception as exc:
-                raise RuntimeError(
-                    f"Cannot recover V1 deal {deal_id} end epoch from validator logs {start}..{end}: {exc}"
-                ) from exc
-            if logs:
-                return int(logs[-1]["args"]["endEpoch"])
-            end = start - 1
-        raise RuntimeError(f"V1 validator has no DealEndEpochUpdated event for deal {deal_id}")
-
-    def min_epochs_between_settlements(self) -> int:
-        return int(self.call_contract(self.contract.functions.getMinEpochsBetweenSettlements()))

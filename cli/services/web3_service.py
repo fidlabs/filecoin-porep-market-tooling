@@ -476,61 +476,6 @@ class Web3Service:
             )
         return result
 
-    def state_sector_partition(self,
-                               provider: ActorId,
-                               sector_number: int,
-                               tipset_key: list[dict] | None = None) -> dict:
-        response = self._w3.provider.make_request(
-            RPCEndpoint("Filecoin.StateSectorPartition"),
-            [str(provider), int(sector_number), tipset_key],
-        )
-        if "error" in response:
-            raise RuntimeError(
-                f"Filecoin.StateSectorPartition({provider}, {sector_number}) failed: {response['error']}"
-            )
-        result = response.get("result")
-        if not isinstance(result, dict):
-            raise TypeError(
-                f"Filecoin.StateSectorPartition({provider}, {sector_number}) failed: invalid result {result!r}"
-            )
-        return result
-
-    def state_miner_active_sectors(self,
-                                   provider: ActorId,
-                                   tipset_key: list[dict] | None = None) -> list[dict]:
-        response = self._w3.provider.make_request(
-            RPCEndpoint("Filecoin.StateMinerActiveSectors"),
-            [str(provider), tipset_key],
-        )
-        if "error" in response:
-            raise RuntimeError(
-                "Filecoin.StateMinerActiveSectors is required for pre-proposal migration qualification "
-                f"and this RPC does not provide it: {response['error']}"
-            )
-        result = response.get("result")
-        if not isinstance(result, list):
-            raise TypeError(f"Filecoin.StateMinerActiveSectors failed: invalid result {result!r}")
-        return result
-
-    def mpool_pending_method(self, to: FilAddress | EthAddress | ActorId, method: int) -> list[dict]:
-        filecoin_address = str(to) if isinstance(to, ActorId) else FilAddress.from_any(to)
-        expected_actor = int(to) if isinstance(to, ActorId) else None
-        response = self._w3.provider.make_request(RPCEndpoint("Filecoin.MpoolPending"), [None])
-        if "error" in response:
-            raise RuntimeError(f"Filecoin.MpoolPending failed: {response['error']}")
-        result = response.get("result")
-        if not isinstance(result, list):
-            raise TypeError(f"Filecoin.MpoolPending failed: invalid result {result!r}")
-        return [
-            message for message in result
-            if (message.get("Message", {}).get("To") == filecoin_address
-                or (expected_actor is not None
-                    and str(message.get("Message", {}).get("To", ""))[:2] in ("f0", "t0")
-                    and str(message.get("Message", {}).get("To", ""))[2:].isdigit()
-                    and int(str(message.get("Message", {}).get("To", ""))[2:]) == expected_actor))
-            and int(message.get("Message", {}).get("Method", -1)) == int(method)
-        ]
-
     def wait_for_pending_transactions(self, from_address: EthAddress):
         _ = self.get_address_nonce(from_address, block_identifier="pending")
 
