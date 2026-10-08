@@ -237,7 +237,7 @@ SLI for unavailable manifests are separate integration work.
 5. Initialize payment (validator, deposit, rail):
 
    ```bash
-   python3 ./porep_tooling_cli.py client init-deals
+   python3 ./porep_tooling_cli.py client init-deal <deal-id>
    ```
 
 6. Make DataCap allocations:

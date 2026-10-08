@@ -58,7 +58,7 @@ def client_address() -> EthAddress:
 
         if CLIENT_ADDRESS and CLIENT_ETH_ADDRESS != CLIENT_ADDRESS:
             click.echo(f"Converted client address {CLIENT_ADDRESS} to EVM 0x-address {CLIENT_ETH_ADDRESS}.")
-            click.echo(f"Set client address to {CLIENT_ETH_ADDRESS} to avoid this prompt next time")
+            click.echo(f"Set client address to {CLIENT_ETH_ADDRESS} to avoid this prompt next time.")
             click.echo("\n")
 
     assert CLIENT_ETH_ADDRESS

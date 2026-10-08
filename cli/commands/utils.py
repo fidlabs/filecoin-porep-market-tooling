@@ -626,23 +626,23 @@ def propose_deal(signer: TxSigner,
 
     client_address = client_address or signer.address()
     Web3Service().wait_for_pending_transactions(signer.address())
-    existing_deals = get_client_deals(client_address)
 
     # warn if any of existing client deals looks similar to the new deal proposal
-    for existing_deal in existing_deals:
-        is_active = existing_deal.state in [PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE]
-        existing_deal_view = PoRepMarketViewHelper().get_deal_view(existing_deal.deal_id)
-
-        if deal_request.requested_size_bytes == existing_deal_view.terms.requested_size_bytes:
-            utils.confirm(f"\nWARNING: Client deal with the same deal size "
-                          f"already exists in PoRep Market: {utils.json_pretty(existing_deal)} "
-                          "Continue?", default=not is_active, abort=True)
-
-        if deal_request.manifest_location == existing_deal_view.data.manifest_location:
-            utils.confirm(
-                f"\nWARNING: Client deal with the same manifest location "
-                f"already exists in PoRep Market: {utils.json_pretty(existing_deal)} "
-                "Continue?", default=not is_active, abort=True)
+    # existing_deals = get_client_deals(client_address)
+    # for existing_deal in existing_deals:
+    #     is_active = existing_deal.state in [PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE]
+    #     existing_deal_view = PoRepMarketViewHelper().get_deal_view(existing_deal.deal_id)
+    #
+    #     if deal_request.requested_size_bytes == existing_deal_view.terms.requested_size_bytes:
+    #         utils.confirm(f"\nWARNING: Client deal with the same deal size "
+    #                       f"already exists in PoRep Market: {utils.json_pretty(existing_deal)} "
+    #                       "Continue?", default=not is_active, abort=True)
+    #
+    #     if deal_request.manifest_location == existing_deal_view.data.manifest_location:
+    #         utils.confirm(
+    #             f"\nWARNING: Client deal with the same manifest location "
+    #             f"already exists in PoRep Market: {utils.json_pretty(existing_deal)} "
+    #             "Continue?", default=not is_active, abort=True)
 
     payment_token_symbol = payment_token.symbol()
     deal_duration_months = deal_request.duration_days // 30  # PoRep Market smart contracts assumes month == 30 days
@@ -655,7 +655,7 @@ def propose_deal(signer: TxSigner,
 
     total_max_cost = max_cost_per_month * deal_duration_months
     total_max_cost_str = utils.str_from_wei(total_max_cost, payment_token_decimals)
-    against_offer_str = f" against offer {offer_id}" if offer_id else ""
+    against_offer_str = f" against offer ID {offer_id}" if offer_id else ""
     against_offer_warn = "The admin account becomes the client of the resulting deal. " if offer_id else ""
 
     utils.confirm(f"\nProposing deal{against_offer_str}: {utils.json_pretty(deal_request)}\n\n"
@@ -674,7 +674,7 @@ def propose_deal(signer: TxSigner,
 
     if offer_id:
         tx = PoRepMarket().propose_deal_with_specific_offer(offer_id, deal_request, client_address, signer)
-        click.echo(f"Created deal from manifest {manifest_url} against offer {offer_id}: {tx.tx_hash}")
+        click.echo(f"Created deal from manifest {manifest_url} against offer ID {offer_id}: {tx.tx_hash}")
     else:
         tx = PoRepMarket().propose_deal(deal_request, signer)
         click.echo(f"Created deal from manifest {manifest_url}: {tx.tx_hash}")
@@ -682,6 +682,6 @@ def propose_deal(signer: TxSigner,
     deal_id = find_deal_id(tx)
     if deal_id is not None:
         click.echo(PoRepMarketViewHelper().get_deal_view(deal_id))
-        click.echo(f"Run `{sys.argv[0]} client init-deals {deal_id}` to initialize this deal")
+        click.echo(f"Run `{sys.argv[0]} client init-deal {deal_id}` to initialize this deal.")
 
     return tx.tx_hash

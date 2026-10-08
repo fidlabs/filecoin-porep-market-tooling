@@ -72,7 +72,7 @@ def propose_deal_for_offer(offer_id: int,
 
     _client_address = EthAddress.from_any(client_address)
     offer = SPRegistry().get_offer_view(offer_id)
-    utils.confirm(f"\nReserving offer for client {_client_address} and deal: {utils.json_pretty(offer)} "
+    utils.confirm(f"\nReserving offer for client {_client_address}: {utils.json_pretty(offer)} "
                   "This bypasses automatic Storage Provider matching. Continue?", abort=True)
 
     commands_utils.propose_deal(admin_signer(),

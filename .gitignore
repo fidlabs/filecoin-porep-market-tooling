@@ -9,6 +9,8 @@ mypy.ini
 .env
 .env.devnet
 .env.secrets
+.env.v1
+.env.backup
 
 # logs and downloads
 logs/
@@ -18,7 +20,3 @@ data/
 curio.sh
 curio.bat
 aria2-*/
-
-# others
-
-.env.backup
