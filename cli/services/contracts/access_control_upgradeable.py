@@ -5,7 +5,7 @@ from cli.services.web3_service import EthAddress, FilAddress
 
 class AccessControlUpgradeable(ContractService):
     def __init__(self, contract_address: EthAddress | FilAddress):
-        super().__init__(contract_address, self.abi_dir() / "AccessControlUpgradeable.json")
+        super().__init__(contract_address, self.abi_dir() / "AccessControlledUpgradeable.json")
 
     # @dev Grants `role` to `account`.
     # If `account` had not been already granted `role`, emits a {RoleGranted} event.
