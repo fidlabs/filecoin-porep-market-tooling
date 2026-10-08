@@ -58,61 +58,15 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
 
 ## V1 to V2 migration
 
-These commands and `scripts/migrations/` are temporary migration tooling. Run the offline
-regressions with `uv run python -m unittest discover -s tests`.
+Existing V1 deals move to V2 without resealing: the client attaches the V1 DataCap claims to a new V2 deal,
+the SP extends the sectors, and the client closes the V1 payment rail. Follow the runbooks:
 
-Configure `POREP_MARKET_V1`, `POREP_MARKET_V1_CHAIN_ID`, `POREP_MARKET_VIEW_HELPER` and
-`POREP_MARKET_SECTOR_STATUS_INSPECTOR` alongside the existing V2 contract and RPC settings.
-The source market must be a trusted address. Deal IDs below refer to V2.
+- [Client runbook](runbooks/migration-v1-to-v2-client.md)
+- [SP runbook](runbooks/migration-v1-to-v2-sp.md)
 
-Anyone can inspect a deal without a signing wallet:
-
-```bash
-uv run python porep_tooling_cli.py migration-status --deal-id <v2-deal-id>
-```
-
-The client runs these commands at separate stages:
-
-```bash
-uv run python porep_tooling_cli.py client --address <client-address> migration-status
-uv run python porep_tooling_cli.py client --address <client-address> prepare-migration --print-only
-uv run python porep_tooling_cli.py client --address <client-address> prepare-migration
-# Run after the SP has extended the sectors:
-uv run python porep_tooling_cli.py client --address <client-address> finish-migration
-```
-
-Prepare and finish default to all applicable client deals. An optional positional deal ID
-limits execution to one deal. Re-running skips completed work and reports deals that need
-another participant. `--print-only` checks the plan without loading a signer.
-Prepare adopts the full V1 claim set and calculates the funding shortfall in each deal's configured token.
-The quote includes 30 days of payments and the additional activation lockup for prepared rails.
-Lockup is reserved account balance, not an extra fee.
-A USDFC deal requires USDFC funds; an axlUSD balance does not fund it.
-
-The SP uses an installed, configured `sptool` and runs:
-
-```bash
-uv run python porep_tooling_cli.py sp --organization <organization-address> migration-status
-uv run python porep_tooling_cli.py sp --organization <organization-address> extend-deal-sectors <v2-deal-id>
-```
-
-The extension command reads the claim and sector IDs from chain, previews the operation,
-and asks for confirmation. It does not drop claims or require exchanging sector files.
-Sector expiration readback determines completion; a pending message is not confirmation.
-If this provider has a pending sector extension, wait for it before retrying.
-The SP RPC endpoint must expose `Filecoin.MpoolPending`.
-Set `SPTOOL_PATH` if `sptool` is not on `PATH`. Pending or incomplete extensions exit
-with an error; rerun the command after the message lands to verify completion.
-
-Migration discovery and resume use the source reference stored in the fragment of V2's
-`manifestLocation`. No local mapping file is required. The original manifest URL and hash
-are preserved, including when the file is unavailable. Only whole, verified source deals
-qualify. An expired preparation window requires operator intervention.
-
-Operators propose V2 and close V1 using the [separate migration scripts](scripts/migrations/README.md). V2 activates before
-V1 closes, so a short period of overlapping payments is expected. Deployment still requires
-verification of V2 evidence, payment and retrieval services. URL Finder fragment handling and
-SLI for unavailable manifests are separate integration work.
+Set `POREP_MARKET_V1` and `POREP_MARKET_V1_CHAIN_ID` (both already in `.env.mainnet`) and, for SPs, `SP_ORGANIZATION`.
+Claims must be adopted before the NV29 network upgrade (epoch 6470279, 2026-10-19 12:59 UTC).
+Anyone can check progress without a wallet with `migration-status`.
 
 ## Typical SP workflow
 

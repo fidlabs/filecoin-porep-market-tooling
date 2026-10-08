@@ -277,7 +277,7 @@ class MigrationService:
         if adapter.is_datacap_posting_finished(pair.target.deal.deal_id):
             raise MigrationError(f"V2 deal {pair.target.deal.deal_id} DataCap posting is already finished")
         if require_operational and not adapter.is_operational():
-            raise MigrationError("V2 evidence adapter is not operational (DataCap transfers are disabled after NV29)")
+            raise MigrationError("V2 evidence adapter is not operational (switched off by the admin)")
         claims = self.source_claims(pair.source)
         self.check_target_size(pair, claims)
         registered = self.registered_ids(adapter, pair.target.deal.deal_id)
