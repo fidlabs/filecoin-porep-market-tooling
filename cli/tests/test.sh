@@ -34,6 +34,7 @@ set +a
   python3 "${CLI_PATH}" admin register-db-sps --help     >/dev/null   &&
   python3 "${CLI_PATH}" admin terminate-deal --help      >/dev/null   &&
   python3 "${CLI_PATH}" admin finalize-deal --help       >/dev/null   &&
+  python3 "${CLI_PATH}" admin set-global-evidence-adapter --help >/dev/null &&
   ! (python3 "${CLI_PATH}" admin get-deal        4242 >/dev/null 2>&1) &&
   ! (python3 "${CLI_PATH}" admin terminate-deal  4242 >/dev/null 2>&1) &&
   ! (python3 "${CLI_PATH}" admin finalize-deal   4242 >/dev/null 2>&1) &&
@@ -49,6 +50,7 @@ set +a
 
   # sp tests
   python3 "${CLI_PATH}" sp get-deals accepted           >/dev/null &&
+  python3 "${CLI_PATH}" sp get-piece-notifications --help >/dev/null &&
   ! (python3 "${CLI_PATH}" sp get-deal    4242 >/dev/null 2>&1)    &&
 
   # test keys

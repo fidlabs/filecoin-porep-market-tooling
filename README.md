@@ -144,7 +144,15 @@ Anyone can check progress without a wallet with `migration-status`.
       python3 ./porep_tooling_cli.py sp claim-allocations {curio|boost} <deal-id> 
       ```
 
-9. To get the full list of commands for the tooling:
+9. For deals using the `SECTOR_PLACEMENT` evidence adapter there are no allocations to claim. Instead, each deal piece must be sealed
+   with a FIP-0109 notification sent to the deal's evidence adapter, with `require_notification_success` set to `true`.
+   Get the notification address and payload for each piece with:
+
+   ```bash
+   python3 ./porep_tooling_cli.py sp get-piece-notifications <deal-id>
+   ```
+
+10. To get the full list of commands for the tooling:
 
     ```bash
     python3 ./porep_tooling_cli.py sp --help
@@ -200,6 +208,11 @@ Anyone can check progress without a wallet with `migration-status`.
    ```bash
    python3 ./porep_tooling_cli.py client make-allocations <deal-id>
    ```
+
+   This step applies only to DataCap evidence deals. New deals use the PoRep Market global evidence adapter,
+   check it with `client info`. When it is `SECTOR_PLACEMENT`, `client propose-deal` commits to the manifest
+   piece set instead of hashing the manifest file, no DataCap allocations are needed and the Storage Provider proves
+   the data placement directly when sealing (see `sp get-piece-notifications`). Go straight to `client deposit-for-deals <deal-id>`.
 
 7. Optional - for a **private** deal, sign an EIP-712 retrieval voucher so a third-party wallet can retrieve the data (used
    with [large-paid-retrievals](https://github.com/fidlabs/large-paid-retrievals)):
