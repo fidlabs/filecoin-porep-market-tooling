@@ -12,6 +12,7 @@ from cli.services.contracts.datacap_evidence_adapter import (
     DataCapEvidenceAdapter,
     DataCapTransferParams,
 )
+from cli.services.contracts.evidence_adapter import EvidenceType
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
@@ -55,6 +56,7 @@ def make_allocations(deal_id: int,
         click.echo(f"Deal ID {deal_id} is already ACTIVE; no more allocations need to be made.")
         return
 
+    commands_utils.ensure_deal_evidence_type(deal.deal, EvidenceType.VERIF_REG_CLAIMS)
     evidence_adapter = DataCapEvidenceAdapter(deal.deal.evidence_adapter_address)
 
     if evidence_adapter.is_datacap_posting_finished(deal_id):

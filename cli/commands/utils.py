@@ -17,6 +17,7 @@ from cli import utils
 from cli._cli import is_dry_run
 from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter
 from cli.services.contracts.erc20_contract import ERC20Contract
+from cli.services.contracts.evidence_adapter import EvidenceType
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import (
     PoRepMarket,
@@ -24,8 +25,10 @@ from cli.services.contracts.porep_market import (
     PoRepMarketDealState, PoRepMarketDealType, PoRepMarketDealRequest, PoRepMarketSLIThresholds,
 )
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
+from cli.services.contracts.sector_evidence_adapter import SectorEvidenceAdapter
 from cli.services.contracts.sp_registry import SPRegistry, SPRegistryProviderInput, SPRegistryProviderView, SPRegistryOfferInput
 from cli.services.contracts.validator_factory import ValidatorFactory
+from cli.services.piece_set_commitment import PieceSet
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import ActorId, EthAddress, FilAddress, Web3Service
 
@@ -80,7 +83,20 @@ def get_sp_deals(state: PoRepMarketDealState | None = None,
     return result
 
 
+def get_evidence_type(evidence_adapter_address: EthAddress) -> EvidenceType:
+    return SectorEvidenceAdapter(evidence_adapter_address).get_evidence_type()
+
+
+def ensure_deal_evidence_type(deal: PoRepMarketDeal, evidence_type: EvidenceType):
+    deal_evidence_type = get_evidence_type(deal.evidence_adapter_address)
+
+    if deal_evidence_type != evidence_type:
+        raise click.ClickException(f"Deal ID {deal.deal_id} uses {deal_evidence_type} evidence adapter {deal.evidence_adapter_address}, "
+                                   f"this operation requires {evidence_type} evidence adapter")
+
+
 def get_deal_allocation_ids(deal: PoRepMarketDeal) -> list[int]:
+    ensure_deal_evidence_type(deal, EvidenceType.VERIF_REG_CLAIMS)
     adapter = DataCapEvidenceAdapter(deal.evidence_adapter_address)
 
     all_ids: list[int] = []
@@ -96,6 +112,7 @@ def get_deal_allocation_ids(deal: PoRepMarketDeal) -> list[int]:
 
 
 def get_deal_claim_ids(deal: PoRepMarketDeal) -> list[int]:
+    ensure_deal_evidence_type(deal, EvidenceType.VERIF_REG_CLAIMS)
     adapter = DataCapEvidenceAdapter(deal.evidence_adapter_address)
 
     ids: list[int] = []
@@ -173,7 +190,8 @@ def print_info(account_address: EthAddress | None = None, account_name: str = "A
         click.echo(f"Error fetching Validator Factory address: {e}")
 
     try:
-        click.echo(f"EVIDENCE_ADAPTER={DataCapEvidenceAdapter().address()}")
+        evidence_adapter_address = PoRepMarket().get_global_evidence_adapter_address()
+        click.echo(f"EVIDENCE_ADAPTER={evidence_adapter_address} ({get_evidence_type(evidence_adapter_address)})")
     except Exception as e:
         click.echo(f"Error fetching Evidence Adapter address: {e}")
 
@@ -553,6 +571,13 @@ def hash_manifest(raw_manifest: bytes) -> HexBytes:
     return Web3.keccak(text=raw_manifest.decode("utf-8"))
 
 
+def get_manifest_hash(manifest: list[dict], raw_manifest: bytes, evidence_type: EvidenceType) -> HexBytes:
+    if evidence_type == EvidenceType.SECTOR_PLACEMENT:
+        return PieceSet(manifest[0]["pieces"]).commitment()
+
+    return hash_manifest(raw_manifest)
+
+
 def calculate_deposit_amount(size_bytes: int,
                              price_per_sector_per_month: int,
                              sector_size_bytes: int,
@@ -607,9 +632,12 @@ def propose_deal(signer: TxSigner,
         SECTOR_SIZE_BYTES
     )
 
+    evidence_adapter_address = PoRepMarket().get_global_evidence_adapter_address()
+    evidence_type = get_evidence_type(evidence_adapter_address)
+
     # noinspection PyArgumentList
     deal_request = PoRepMarketDealRequest(
-        manifest_hash=hash_manifest(raw_manifest),
+        manifest_hash=get_manifest_hash(manifest, raw_manifest, evidence_type),
         requested_size_bytes=pieces_size_bytes,
         max_price_per_32_gib_per_month=price_per_sector_per_month_wei,
         manifest_location=manifest_url,
@@ -662,6 +690,7 @@ def propose_deal(signer: TxSigner,
                   f"This will cost you maximum of {max_cost_per_month_str} {payment_token_symbol} per month. "
                   f"This is a total of {total_max_cost_str} {payment_token_symbol} for {duration_months} months. "
                   f"{against_offer_warn}"
+                  f"The deal will use {evidence_type} evidence adapter {evidence_adapter_address}. "
                   f"Continue?", abort=True)
 
     # noinspection PyShadowingNames
@@ -681,7 +710,13 @@ def propose_deal(signer: TxSigner,
 
     deal_id = find_deal_id(tx)
     if deal_id is not None:
-        click.echo(PoRepMarketViewHelper().get_deal_view(deal_id))
+        deal_view = PoRepMarketViewHelper().get_deal_view(deal_id)
+        click.echo(deal_view)
+
+        if deal_view.deal.evidence_adapter_address != evidence_adapter_address:
+            raise click.ClickException(f"Deal ID {deal_id} was created with evidence adapter {deal_view.deal.evidence_adapter_address} "
+                                       f"instead of {evidence_adapter_address}, its manifest hash may not match the adapter; contact the admin.")
+
         click.echo(f"Run `{sys.argv[0]} client init-deal {deal_id}` to initialize this deal.")
 
     return tx.tx_hash
