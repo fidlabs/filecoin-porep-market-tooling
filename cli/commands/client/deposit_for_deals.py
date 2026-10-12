@@ -8,6 +8,7 @@ from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address
 from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter
 from cli.services.contracts.erc20_contract import ERC20Contract
+from cli.services.contracts.evidence_adapter import EvidenceType
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import (
     PoRepMarket,
@@ -29,9 +30,12 @@ from cli.services.web3_service import EthAddress, Web3Service
               help="Number of months to calculate required deposit amount for.")
 def deposit_for_deals(deal_id: int | None = None, months: int = 1):
     """
-    Deposit funds to FileCoinPay account for all ACCEPTED/ACTIVE deals with finished DataCap posting or a given deal ID.
+    Deposit funds to FileCoinPay account for all ACCEPTED/ACTIVE deals ready for deposit or a given deal ID.
 
-    DEAL_ID - Optional deal ID to deposit funds for. If not provided, deposits for all ACCEPTED/ACTIVE deals with finished DataCap posting.
+    \b
+    ACCEPTED deal is ready for deposit when its payment is initialized and, for DataCap deals, DataCap posting is finished.
+
+    DEAL_ID - Optional deal ID to deposit funds for. If not provided, deposits for all ACCEPTED/ACTIVE deals ready for deposit.
     """
 
     Web3Service().wait_for_pending_transactions(client_address())
@@ -43,7 +47,7 @@ def deposit_for_deals(deal_id: int | None = None, months: int = 1):
         deals_to_deposit_for = [deal]
     else:
         deals_to_deposit_for = [deal for deal in commands_utils.get_client_deals(client_address()) if _is_deal_eligible_for_deposit(deal)]
-        click.echo(f"Found {len(deals_to_deposit_for)} ACCEPTED/ACTIVE deal(s) with finished DataCap posting for client address {client_address()}")
+        click.echo(f"Found {len(deals_to_deposit_for)} ACCEPTED/ACTIVE deal(s) ready for deposit for client address {client_address()}")
 
         if not deals_to_deposit_for:
             return
@@ -95,7 +99,7 @@ def _ensure_deal_is_eligible_for_deposit(deal: PoRepMarketDeal):
             raise click.ClickException(f"Deal payment not initialized; "
                                        f"run `{sys.argv[0]} client init-deal` {deal.deal_id} first.")
 
-        else:
+        elif commands_utils.get_evidence_type(deal.evidence_adapter_address) == EvidenceType.VERIF_REG_CLAIMS:
             evidence_adapter = DataCapEvidenceAdapter(deal.evidence_adapter_address)
 
             if not evidence_adapter.is_datacap_posting_finished(deal.deal_id):

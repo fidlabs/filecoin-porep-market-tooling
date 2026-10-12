@@ -5,6 +5,7 @@ from .get_claims import get_claims
 from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals
 from .get_filecoinpay_account import get_filecoinpay_account
 from .get_offers import get_offers, get_offer
+from .get_piece_notifications import get_piece_notifications
 from .get_sps import get_sps
 from .is_authorized import is_authorized
 from .onboard_data import onboard_data
@@ -33,5 +34,6 @@ sp.add_command(onboard_data)
 sp.add_command(get_deals)
 sp.add_command(get_sps)
 sp.add_command(get_allocations)
+sp.add_command(get_piece_notifications)
 sp.add_command(withdraw_from_filecoinpay)
 sp.add_command(get_filecoinpay_account)
