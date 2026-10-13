@@ -1,3 +1,5 @@
+import itertools
+
 import click
 import multibase
 from eth_abi import encode
@@ -36,7 +38,7 @@ class PieceSet:
         if len(rows) > _MAX_UINT32:
             raise click.ClickException(f"Piece set is too large: {len(rows)} pieces")
 
-        for previous, current in zip(rows, rows[1:]):
+        for previous, current in itertools.pairwise(rows):
             if previous[1:] == current[1:]:
                 raise click.ClickException(f"Duplicate piece in manifest: {current[0]} with pieceSize {current[2]}")
 
