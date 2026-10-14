@@ -39,6 +39,13 @@ def _require_client(pair: MigrationPair):
         raise click.ClickException(f"V1 deal {pair.source.deal_id} belongs to client {pair.source.client}, not {client_address()}")
 
 
+def _sent(tx_hash: str) -> str:
+    # sign_and_send_tx falls back to a dry run when the final confirmation is declined
+    if tx_hash == Web3Service.ZERO_TX_HASH:
+        raise click.ClickException("Transaction not sent: the final confirmation was declined; nothing changed on chain")
+    return tx_hash
+
+
 def _plan(service: MigrationService, pair: MigrationPair, require_operational: bool) -> AdoptionPlan:
     try:
         return service.adoption_plan(pair, require_operational=require_operational)
@@ -211,7 +218,7 @@ def finish_migration(v2_deal_id: int, v1_deal_id: int, print_only: bool):
         return
 
     utils.confirm(f"\nFinish DataCap posting for V2 deal {v2_deal_id}?", abort=True)
-    tx_hash = adapter.finish_datacap_posting(v2_deal_id, client_signer()).tx_hash
+    tx_hash = _sent(adapter.finish_datacap_posting(v2_deal_id, client_signer()).tx_hash)
     click.echo(f"DataCap posting finished: {tx_hash}")
     click.echo(f"The service activates the deal next; check with `{sys.argv[0]} migration-status --client {client_address()}`. "
                f"Once ACTIVE run `{sys.argv[0]} client close-v1-deal {v1_deal_id} --v2-deal-id {v2_deal_id}`.")
@@ -246,6 +253,21 @@ def _print_termination_preflight_help(rail: FileCoinPayRailView, current_epoch: 
                    f"Deposit {amount} {symbol} with `{sys.argv[0]} client deposit-amount {amount} {rail.token}` and re-run.")
 
 
+def _require_v2_replaces_v1(service: MigrationService, pair: MigrationPair, current_epoch: int):
+    # terminating the V1 rail flips the V1 deal to Terminated and its claims can never be adopted afterwards;
+    # a rail that is already terminated (by the admin, or by an earlier run) is settled without these checks
+    v1_deal_id, v2_deal_id = pair.source.deal_id, pair.target.deal.deal_id
+    source_ids, registered = service.adoption_progress(pair)
+    missing = source_ids - registered
+    if missing:
+        raise click.ClickException(f"V2 deal {v2_deal_id} holds {len(source_ids - missing)}/{len(source_ids)} claims of V1 deal {v1_deal_id}; "
+                                   f"closing V1 now would strand the rest forever")
+    if pair.target.deal.state != PoRepMarketDealState.ACTIVE:
+        raise click.ClickException(f"V2 deal {v2_deal_id} is {pair.target.deal.state}, not ACTIVE; closing V1 now would leave a payment gap")
+    click.echo(f"V2 deal {v2_deal_id} is ACTIVE since epoch {pair.target.service.service_start_epoch} "
+               f"({epochs_to_days(current_epoch - pair.target.service.service_start_epoch)} ago) and holds all {len(source_ids)} V1 claims")
+
+
 @click.command("close-v1-deal")
 @click.argument("v1_deal_id", type=click.IntRange(min=1))
 @click.option("--v2-deal-id", type=click.IntRange(min=1), required=True,
@@ -275,17 +297,6 @@ def close_v1_deal(v1_deal_id: int, v2_deal_id: int, print_only: bool, force: boo
     source = pair.source
     current_epoch = service.web3.get_block_number()
 
-    # terminating the V1 rail flips the V1 deal to Terminated and its claims can never be adopted afterwards
-    source_ids, registered = service.adoption_progress(pair)
-    missing = source_ids - registered
-    if missing:
-        raise click.ClickException(f"V2 deal {v2_deal_id} holds {len(source_ids - missing)}/{len(source_ids)} claims of V1 deal {v1_deal_id}; "
-                                   f"closing V1 now would strand the rest forever")
-    if pair.target.deal.state != PoRepMarketDealState.ACTIVE:
-        raise click.ClickException(f"V2 deal {v2_deal_id} is {pair.target.deal.state}, not ACTIVE; closing V1 now would leave a payment gap")
-    click.echo(f"V2 deal {v2_deal_id} is ACTIVE since epoch {pair.target.service.service_start_epoch} "
-               f"({epochs_to_days(current_epoch - pair.target.service.service_start_epoch)} ago) and holds all {len(source_ids)} V1 claims")
-
     rail = pair.source_rail
     if rail is None:
         click.echo(f"V1 deal {v1_deal_id} rail {source.rail_id} is already settled and finalized; nothing to do.")
@@ -293,6 +304,7 @@ def close_v1_deal(v1_deal_id: int, v2_deal_id: int, print_only: bool, force: boo
     click.echo(f"V1 deal {v1_deal_id}: {describe_rail(source.rail_id, rail, current_epoch)}")
 
     if rail.end_epoch == 0:
+        _require_v2_replaces_v1(service, pair, current_epoch)
         if rail.lockup_period > MAX_V1_NOTICE_EPOCHS and not force:
             raise click.ClickException(
                 f"V1 rail {source.rail_id} would keep paying for {epochs_to_days(rail.lockup_period)} after termination "
@@ -326,7 +338,7 @@ def close_v1_deal(v1_deal_id: int, v2_deal_id: int, print_only: bool, force: boo
     utils.confirm(f"\n{action.capitalize()} V1 rail {source.rail_id} of deal {v1_deal_id}?", abort=True)
     signer = client_signer()
     if action == "terminate":
-        tx_hash = FileCoinPay().terminate_rail(source.rail_id, signer).tx_hash
+        tx_hash = _sent(FileCoinPay().terminate_rail(source.rail_id, signer).tx_hash)
         click.echo(f"Rail terminated: {tx_hash}")
         rail = open_rail(source.rail_id)
         if rail is None or not rail.end_epoch:
@@ -336,5 +348,5 @@ def close_v1_deal(v1_deal_id: int, v2_deal_id: int, print_only: bool, force: boo
                        f"--v2-deal-id {v2_deal_id}` after that to settle and finalize.")
             return
         _wait_past_epoch(service.web3, rail.end_epoch)
-    tx_hash = FileCoinPay().settle_terminated_rail_without_validation(source.rail_id, signer).tx_hash
+    tx_hash = _sent(FileCoinPay().settle_terminated_rail_without_validation(source.rail_id, signer).tx_hash)
     click.echo(f"Rail settled and finalized: {tx_hash}")
