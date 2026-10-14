@@ -56,6 +56,7 @@ class MakeAllocationsExistingPiecesTests(unittest.TestCase):
                               ("FileCoinPay", MagicMock(return_value=MagicMock(
                                   get_operator_approval=MagicMock(return_value=SimpleNamespace(is_approved=True))))),
                               ("PoRepMarket", MagicMock(return_value=MagicMock(get_epochs_in_month=MagicMock(return_value=86_400)))),
+                              ("commands_utils.ensure_deal_evidence_type", MagicMock()),
                               ("commands_utils.get_deal_allocations", MagicMock(return_value={})),
                               ("commands_utils.get_deal_claims", MagicMock(return_value={})),
                               ("commands_utils.fetch_manifest", MagicMock(return_value=(manifest, b"")))):
