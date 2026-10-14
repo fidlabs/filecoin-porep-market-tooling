@@ -200,7 +200,8 @@ def _ensure_pieces_not_stored_by_provider(provider_id: ActorId, pieces: list[dic
                f"allocating them again makes the provider seal a second copy.")
 
     if allow_existing_pieces:
-        utils.confirm(f"Warning: {message}. Continue?", default=True, abort=True)
+        utils.confirm(f"Warning: {message} Continue?", default=True, abort=True)
+        return
 
     raise click.ClickException(f"{message} Pass --allow-existing-pieces if a second copy is intended.")
 

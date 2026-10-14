@@ -64,9 +64,9 @@ class MakeAllocationsExistingPiecesTests(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
 
-    def invoke(self, *args):
+    def invoke(self, *args, answers="n\n"):
         # declining the batch prompt stops the command right after the existing-pieces check
-        return CliRunner().invoke(make_allocations, ["9", "--print-only", *args], input="n\n")
+        return CliRunner().invoke(make_allocations, ["9", "--print-only", *args], input=answers)
 
     def test_refuses_pieces_in_live_claims_of_the_provider(self):
         self.web3.state_get_claims.return_value = {"77": claim("baga-one"), "78": claim("baga-other")}
@@ -85,9 +85,16 @@ class MakeAllocationsExistingPiecesTests(unittest.TestCase):
 
     def test_flag_allows_a_second_copy(self):
         self.web3.state_get_claims.return_value = {"77": claim("baga-one"), "79": claim("baga-two")}
-        result = self.invoke("--allow-existing-pieces")
+        result = self.invoke("--allow-existing-pieces", answers="y\nn\n")
         self.assertIn("Warning: 2/2 pieces are already stored", result.output)
         self.assertIn("Continue with allocation of remaining 2 pieces", result.output)
+
+    def test_flag_still_asks_before_a_second_copy(self):
+        self.web3.state_get_claims.return_value = {"77": claim("baga-one"), "79": claim("baga-two")}
+        result = self.invoke("--allow-existing-pieces")
+        self.assertEqual(result.exit_code, 1, result.output)
+        self.assertIn("Warning: 2/2 pieces are already stored", result.output)
+        self.assertNotIn("Continue with allocation", result.output)
 
 
 if __name__ == "__main__":
