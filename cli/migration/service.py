@@ -5,7 +5,7 @@ import click
 
 from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter, DataCapEvidenceType, DataCapTransferParams
 from cli.services.contracts.filecoin_pay import FileCoinPay, FileCoinPayRailView
-from cli.services.contracts.legacy_porep_market import LegacyDeal, LegacyPoRepMarket
+from cli.migration.legacy_porep_market import LegacyDeal, LegacyPoRepMarket
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketDealView, PoRepMarketViewHelper
 from cli.services.web3_service import ActorId, EthAddress, Web3Service

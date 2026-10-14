@@ -7,12 +7,12 @@ import click
 
 from cli import utils
 from cli._cli import is_dry_run
-from cli.commands.migration_utils import epochs_to_days
+from cli.migration.utils import epochs_to_days
 from cli.commands.sp._sp import sp_organization_address
 from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter
 from cli.services.contracts.porep_market_view_helper import PoRepMarketDealView, PoRepMarketViewHelper
 from cli.services.contracts.sp_registry import SPRegistry
-from cli.services.migration import Claim, MigrationError, adapter_claim_ids, sector_target_epoch
+from cli.migration.service import Claim, MigrationError, adapter_claim_ids, sector_target_epoch
 from cli.services.web3_service import ActorId, Web3Service
 
 

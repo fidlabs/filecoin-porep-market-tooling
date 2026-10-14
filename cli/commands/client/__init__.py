@@ -5,7 +5,7 @@ from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals
 from .get_filecoinpay_account import get_filecoinpay_account
 from .init_deal import init_deal
 from .make_allocations import make_allocations
-from .migration import adopt_v1_claims, close_v1_deal, finish_migration
+from cli.migration.client import adopt_v1_claims, close_v1_deal, finish_migration
 from .propose_deal import propose_deal, propose_deal_mocked
 from .sign_retrieval_voucher import sign_retrieval_voucher
 from .validate_manifest import validate_manifest

@@ -7,7 +7,7 @@ from .get_filecoinpay_account import get_filecoinpay_account
 from .get_offers import get_offers, get_offer
 from .get_sps import get_sps
 from .is_authorized import is_authorized
-from .migration import extend_deal_sectors
+from cli.migration.sp import extend_deal_sectors
 from .onboard_data import onboard_data
 from .pause_sp import pause_sp, unpause_sp
 from .register_offer import register_offer

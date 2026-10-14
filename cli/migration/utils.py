@@ -3,7 +3,7 @@ import click
 from cli import utils
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.filecoin_pay import FileCoinPayRailView
-from cli.services.migration import EPOCHS_IN_DAY, MigrationError, MigrationPair, MigrationService
+from cli.migration.service import EPOCHS_IN_DAY, MigrationError, MigrationPair, MigrationService
 from cli.services.web3_service import EthAddress
 
 _TOKEN_INFO: dict[EthAddress, tuple[str, int]] = {}
