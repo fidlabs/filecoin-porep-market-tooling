@@ -46,14 +46,27 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
 
 ## Security considerations
 
-- All blockchain transactions **require manual user confirmation** before sending. There is no option to override this. \
-  If you decline the final confirmation, the command falls back to dry-run behavior without broadcasting the transaction.
+- Blockchain writes require confirmation. Migration commands confirm the displayed batch once;
+  other commands retain their per-transaction confirmation.
+  Use migration `--print-only` to inspect a plan without a signer. The general CLI dry-run path may sign transactions.
 - The app runs locally and does not transmit any data to external servers besides blockchain.
   All interactions are between the user's machine and the provided `RPC_URL` blockchain.
 - The app does not log any sensitive information to the console or to the log files.
   All transaction logs are stored without any sensitive information.
 - When using Lotus wallet for blockchain transaction signing, the **private key never leaves the Lotus wallet** and is not exposed to the CLI app. \
   This is the recommended way of using the app.
+
+## V1 to V2 migration
+
+Existing V1 deals move to V2 without resealing: the client attaches the V1 DataCap claims to a new V2 deal,
+the SP extends the sectors, and the client closes the V1 payment rail. Follow the runbooks:
+
+- [Client runbook](runbooks/migration-v1-to-v2-client.md)
+- [SP runbook](runbooks/migration-v1-to-v2-sp.md)
+
+Set `POREP_MARKET_V1` and `POREP_MARKET_V1_CHAIN_ID` (both already in `.env.mainnet`) and, for SPs, `SP_ORGANIZATION`.
+The client must run `init-deal` and adopt the claims before the NV29 network upgrade (epoch 6470279, 2026-10-19 12:59 UTC).
+Anyone can check progress without a wallet with `migration-status`.
 
 ## Typical SP workflow
 

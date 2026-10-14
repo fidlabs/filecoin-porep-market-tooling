@@ -18,7 +18,7 @@ class ActorId(int):
         VALID_PREFIX_PER_CHAIN_ID = {
             314: "f0",  # Filecoin Mainnet
             314159: "t0",  # Filecoin Calibration Testnet
-            31415926: "f0",  # Lotus devnet
+            31415926: "t0",  # Lotus devnet
         }
 
         chain_id = Web3Service().get_chain_id()
@@ -427,10 +427,23 @@ class Web3Service:
 
         return response["result"]
 
-    def state_get_claims(self, actor_id: ActorId, client: ActorId | None = None) -> dict[str, dict]:
+    def get_tipset_key(self) -> list[dict]:
+        response = self._w3.provider.make_request(RPCEndpoint("Filecoin.ChainHead"), [])
+        if "error" in response:
+            raise RuntimeError(f"Filecoin.ChainHead failed: {response['error']}")
+        result = response.get("result")
+        cids = result.get("Cids") if isinstance(result, dict) else None
+        if not isinstance(cids, list) or not cids:
+            raise RuntimeError(f"Filecoin.ChainHead failed: invalid result {result!r}")
+        return cids
+
+    def state_get_claims(self,
+                         actor_id: ActorId,
+                         client: ActorId | None = None,
+                         tipset_key: list[dict] | None = None) -> dict[str, dict]:
         response = self._w3.provider.make_request(
             RPCEndpoint("Filecoin.StateGetClaims"),
-            [str(actor_id), None]
+            [str(actor_id), tipset_key]
         )
 
         if "error" in response:
@@ -444,8 +457,36 @@ class Web3Service:
 
         return response["result"]
 
+    def state_sector_get_info(self,
+                              provider: ActorId,
+                              sector_number: int,
+                              tipset_key: list[dict] | None = None) -> dict | None:
+        response = self._w3.provider.make_request(
+            RPCEndpoint("Filecoin.StateSectorGetInfo"),
+            [str(provider), int(sector_number), tipset_key],
+        )
+        if "error" in response:
+            raise RuntimeError(
+                f"Filecoin.StateSectorGetInfo({provider}, {sector_number}) failed: {response['error']}"
+            )
+        result = response.get("result")
+        if result is not None and not isinstance(result, dict):
+            raise RuntimeError(
+                f"Filecoin.StateSectorGetInfo({provider}, {sector_number}) failed: invalid result {result!r}"
+            )
+        return result
+
     def wait_for_pending_transactions(self, from_address: EthAddress):
         _ = self.get_address_nonce(from_address, block_identifier="pending")
+
+    def ensure_no_pending_transactions(self, from_address: EthAddress):
+        latest_nonce = self.get_transaction_count(from_address, "latest")
+        pending_nonce = self.get_transaction_count(from_address, "pending")
+        if pending_nonce != latest_nonce:
+            raise RuntimeError(
+                f"Address {from_address} has {pending_nonce - latest_nonce} pending transaction(s); "
+                "migration writes stopped"
+            )
 
     def get_address_nonce(self, from_address: EthAddress, block_identifier: str = "pending") -> int:
         try:
