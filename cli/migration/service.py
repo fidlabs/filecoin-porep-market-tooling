@@ -201,7 +201,12 @@ class MigrationService:
     def source_rail(source: LegacyDeal) -> FileCoinPayRailView | None:
         if not source.rail_id:
             raise MigrationError(f"V1 deal {source.deal_id} has no payment rail")
-        return open_rail(source.rail_id)
+        rail = open_rail(source.rail_id)
+        # rail ids are per Filecoin Pay deployment; a wrong FILECOIN_PAY would otherwise point at someone else's rail
+        if rail is not None and (rail.from_address != source.client or rail.validator != source.validator):
+            raise MigrationError(f"Rail {source.rail_id} does not belong to V1 deal {source.deal_id} "
+                                 f"(payer {rail.from_address}, validator {rail.validator}); check FILECOIN_PAY")
+        return rail
 
     def qualify_source(self, source: LegacyDeal) -> FileCoinPayRailView:
         if source.state != LegacyDeal.COMPLETED:
