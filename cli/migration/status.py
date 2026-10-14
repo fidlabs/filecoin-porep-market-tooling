@@ -2,8 +2,8 @@ import click
 
 from cli.migration.utils import describe_rail, epochs_to_days, gib, migration_service, rail_daily_cost
 from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter
-from cli.services.contracts.filecoinpay_validator import FileCoinPayRailStatus, FileCoinPayValidator
 from cli.services.contracts.filecoin_pay import FileCoinPayRailView
+from cli.services.contracts.filecoinpay_validator import FileCoinPayRailStatus, FileCoinPayValidator
 from cli.migration.legacy_porep_market import LegacyDeal
 from cli.services.contracts.porep_market import PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketDealView, PoRepMarketViewHelper
@@ -28,6 +28,7 @@ def _target_line(service: MigrationService, source: LegacyDeal, source_rail: Fil
         if target.deal.validator_address and target.deal.rail_id:
             status = FileCoinPayValidator(target.deal.validator_address).get_rail_status()
             rail = f"rail {target.deal.rail_id} {status}" + ("" if status == FileCoinPayRailStatus.PREPARED else " (expected PREPARED)")
+
         posting = "finished, waiting for activation" if adapter.is_datacap_posting_finished(target.deal.deal_id) else "open"
         lines.append(f"    V2 rail: {rail}; DataCap posting: {posting}")
     else:
@@ -50,6 +51,7 @@ def _target_line(service: MigrationService, source: LegacyDeal, source_rail: Fil
             needed = sector_required_epoch(target, current_epoch)
             verdict = "ok" if earliest >= needed else "too early, SP must run sp extend-deal-sectors"
             lines.append(f"    sectors: {len(sectors)}, earliest expiration epoch {earliest} vs needed {needed}: {verdict}")
+
     return lines
 
 
@@ -81,6 +83,7 @@ def migration_status(client_filter: str | None, provider_filter: str | None, che
         pairs = service.pair_by_claims(targets, sources)
     except MigrationError as exc:
         raise click.ClickException(str(exc)) from exc
+
     target_by_source = {source_id: next(view for view in targets if view.deal.deal_id == target_id) for target_id, source_id in pairs.items()}
 
     click.echo(f"Current epoch {current_epoch}; {len(sources)} open V1 deal(s), {len(pairs)} with a V2 replacement in progress\n")
@@ -96,6 +99,7 @@ def migration_status(client_filter: str | None, provider_filter: str | None, che
         else:
             for line in _target_line(service, source, rail, target, current_epoch, check_sectors):
                 click.echo(line)
+
         click.echo()
 
     candidates = [view for view in targets if view.deal.deal_id not in pairs and view.deal.state == PoRepMarketDealState.ACCEPTED]

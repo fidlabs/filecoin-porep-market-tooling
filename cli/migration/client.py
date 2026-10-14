@@ -88,8 +88,8 @@ def adopt_v1_claims(v2_deal_id: int, v1_deal_id: int, print_only: bool, batch_si
 
     Only works before the NV29 network upgrade, after which DataCap transfers are disabled on chain.
 
+    \b
     V2_DEAL_ID - The V2 deal proposed as the replacement.
-
     V1_DEAL_ID - The V1 deal whose claims are adopted.
     """
 
@@ -114,6 +114,7 @@ def adopt_v1_claims(v2_deal_id: int, v1_deal_id: int, print_only: bool, batch_si
         if print_only:
             click.echo(f"\n{message}")
             return
+
         raise click.ClickException(message)
 
     batches = plan.batches(batch_size)
@@ -132,6 +133,7 @@ def adopt_v1_claims(v2_deal_id: int, v1_deal_id: int, print_only: bool, batch_si
 
     utils.confirm(f"\nSend {len(batches)} transaction(s) adopting {len(plan.extensions)} V1 claim(s) into V2 deal {v2_deal_id}?", abort=True)
     signer = client_signer()
+
     try:
         Web3Service().ensure_no_pending_transactions(signer.address())
     except RuntimeError as exc:
@@ -141,6 +143,7 @@ def adopt_v1_claims(v2_deal_id: int, v1_deal_id: int, print_only: bool, batch_si
         for number, batch in enumerate(batches, start=1):
             tx_hash = adapter.submit_datacap_batch(service.transfer_params(batch), v2_deal_id, signer).tx_hash
             click.echo(f"Batch {number}/{len(batches)} landed: {tx_hash}")
+
             try:
                 service.validate_batch_receipt(pair, plan, batch)
             except MigrationError as exc:
@@ -166,8 +169,8 @@ def finish_migration(v2_deal_id: int, v1_deal_id: int, print_only: bool):
     Requires `client init-deal` done for the V2 deal (validator and rail prepared) and every V1 claim
     registered on the V2 adapter. After this the PoRep Market service activates the deal.
 
+    \b
     V2_DEAL_ID - The V2 deal to finish.
-
     V1_DEAL_ID - The V1 deal whose claims were adopted.
     """
 
@@ -184,6 +187,7 @@ def finish_migration(v2_deal_id: int, v1_deal_id: int, print_only: bool):
     if target.deal.state == PoRepMarketDealState.ACTIVE:
         click.echo(f"\nV2 deal {v2_deal_id} is already ACTIVE. Next: `{sys.argv[0]} client close-v1-deal {v1_deal_id} --v2-deal-id {v2_deal_id}`.")
         return
+
     if target.deal.state != PoRepMarketDealState.ACCEPTED:
         raise click.ClickException(f"V2 deal {v2_deal_id} is {target.deal.state}, expected ACCEPTED")
 
@@ -194,6 +198,7 @@ def finish_migration(v2_deal_id: int, v1_deal_id: int, print_only: bool):
 
     if not target.deal.validator_address or not target.deal.rail_id:
         raise click.ClickException(f"V2 deal {v2_deal_id} has no payment rail yet; run `{sys.argv[0]} client init-deal {v2_deal_id}` first")
+
     rail_status = FileCoinPayValidator(target.deal.validator_address).get_rail_status()
     if rail_status != FileCoinPayRailStatus.PREPARED:
         raise click.ClickException(f"V2 deal {v2_deal_id} rail status is {rail_status}, expected PREPARED; "
@@ -238,6 +243,7 @@ def _wait_past_epoch(web3: Web3Service, epoch: int) -> int:
         click.echo(f"Waiting for epoch {epoch + 1} (now {current_epoch})...")
         time.sleep(BLOCK_POLL_SECONDS)
         current_epoch = web3.get_block_number()
+
     return current_epoch
 
 
@@ -260,12 +266,17 @@ def _require_v2_replaces_v1(service: MigrationService, pair: MigrationPair, curr
     source_ids, registered = service.adoption_progress(pair)
     missing = source_ids - registered
     if missing:
-        raise click.ClickException(f"V2 deal {v2_deal_id} holds {len(source_ids - missing)}/{len(source_ids)} claims of V1 deal {v1_deal_id}; "
+        raise click.ClickException(f"V2 deal {v2_deal_id} holds {len(source_ids - missing)}/{len(source_ids)} "
+                                   f"claims of V1 deal {v1_deal_id}; "
                                    f"closing V1 now would strand the rest forever")
+
     if pair.target.deal.state != PoRepMarketDealState.ACTIVE:
-        raise click.ClickException(f"V2 deal {v2_deal_id} is {pair.target.deal.state}, not ACTIVE; closing V1 now would leave a payment gap")
+        raise click.ClickException(f"V2 deal {v2_deal_id} is {pair.target.deal.state}, not ACTIVE; "
+                                   f"closing V1 now would leave a payment gap")
+
     click.echo(f"V2 deal {v2_deal_id} is ACTIVE since epoch {pair.target.service.service_start_epoch} "
-               f"({epochs_to_days(current_epoch - pair.target.service.service_start_epoch)} ago) and holds all {len(source_ids)} V1 claims")
+               f"({epochs_to_days(current_epoch - pair.target.service.service_start_epoch)} ago) "
+               f"and holds all {len(source_ids)} V1 claims")
 
 
 @click.command("close-v1-deal")
@@ -301,6 +312,7 @@ def close_v1_deal(v1_deal_id: int, v2_deal_id: int, print_only: bool, force: boo
     if rail is None:
         click.echo(f"V1 deal {v1_deal_id} rail {source.rail_id} is already settled and finalized; nothing to do.")
         return
+
     click.echo(f"V1 deal {v1_deal_id}: {describe_rail(source.rail_id, rail, current_epoch)}")
 
     if rail.end_epoch == 0:
@@ -310,14 +322,17 @@ def close_v1_deal(v1_deal_id: int, v2_deal_id: int, print_only: bool, force: boo
                 f"V1 rail {source.rail_id} would keep paying for {epochs_to_days(rail.lockup_period)} after termination "
                 f"(lockup period {rail.lockup_period} epochs, allowed up to {epochs_to_days(MAX_V1_NOTICE_EPOCHS)}). "
                 f"Ask the admin to shorten it, or re-run with --force to accept the longer double payment")
+
         operation = FileCoinPay().contract.functions.terminateRail(source.rail_id)
         action = "terminate"
         click.echo(f"Terminating now stops payments at about epoch {current_epoch + rail.lockup_period} "
                    f"({epochs_to_days(rail.lockup_period)} from now, {rail_daily_cost(rail)} until then).")
+
     elif current_epoch <= rail.end_epoch:
         click.echo(f"Rail is terminated and still paying until epoch {rail.end_epoch} "
                    f"({epochs_to_days(rail.end_epoch - current_epoch)} from now); re-run after that to settle and finalize it.")
         return
+
     else:
         operation = FileCoinPay().contract.functions.settleTerminatedRailWithoutValidation(source.rail_id)
         action = "settle and finalize"
@@ -329,6 +344,7 @@ def close_v1_deal(v1_deal_id: int, v2_deal_id: int, print_only: bool, force: boo
         click.echo(f"Preflight failed: {exc.message}")
         if action == "terminate":
             _print_termination_preflight_help(rail, current_epoch)
+
         raise click.ClickException(f"Cannot {action} rail {source.rail_id} right now") from exc
 
     if print_only:
@@ -337,16 +353,20 @@ def close_v1_deal(v1_deal_id: int, v2_deal_id: int, print_only: bool, force: boo
 
     utils.confirm(f"\n{action.capitalize()} V1 rail {source.rail_id} of deal {v1_deal_id}?", abort=True)
     signer = client_signer()
+
     if action == "terminate":
         tx_hash = _sent(FileCoinPay().terminate_rail(source.rail_id, signer).tx_hash)
         click.echo(f"Rail terminated: {tx_hash}")
         rail = open_rail(source.rail_id)
         if rail is None or not rail.end_epoch:
             return
+
         if rail.end_epoch - service.web3.get_block_number() > SAME_RUN_SETTLEMENT_EPOCHS:
             click.echo(f"Payments stop at epoch {rail.end_epoch}; re-run `{sys.argv[0]} client close-v1-deal {v1_deal_id} "
                        f"--v2-deal-id {v2_deal_id}` after that to settle and finalize.")
             return
+
         _wait_past_epoch(service.web3, rail.end_epoch)
+
     tx_hash = _sent(FileCoinPay().settle_terminated_rail_without_validation(source.rail_id, signer).tx_hash)
     click.echo(f"Rail settled and finalized: {tx_hash}")

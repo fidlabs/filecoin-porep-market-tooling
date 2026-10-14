@@ -168,7 +168,10 @@ def make_allocations(deal_id: int,
 
 
 def _pieces_claimed_by_provider(provider_id: ActorId, piece_cids: set[str], current_epoch: int) -> dict[str, str]:
-    """Piece CID -> ID of a live claim of that piece at the provider, for any client."""
+    """
+    Piece CID -> ID of a live claim of that piece at the provider, for any client.
+    """
+
     claimed: dict[str, str] = {}
 
     for claim_id, claim in Web3Service().state_get_claims(provider_id).items():
@@ -197,8 +200,7 @@ def _ensure_pieces_not_stored_by_provider(provider_id: ActorId, pieces: list[dic
                f"allocating them again makes the provider seal a second copy.")
 
     if allow_existing_pieces:
-        click.echo(f"Warning: {message}")
-        return
+        utils.confirm(f"Warning: {message}. Continue?", default=True, abort=True)
 
     raise click.ClickException(f"{message} Pass --allow-existing-pieces if a second copy is intended.")
 
