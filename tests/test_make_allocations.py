@@ -1,3 +1,4 @@
+import importlib
 import unittest
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -13,7 +14,9 @@ ADAPTER = EthAddress("0x4444444444444444444444444444444444444444")
 VALIDATOR = EthAddress("0x5555555555555555555555555555555555555555")
 TOKEN = EthAddress("0x6666666666666666666666666666666666666666")
 EPOCH = 1000
-MODULE = "cli.commands.client.make_allocations"
+# the click command of the same name shadows the module as an attribute of its package, which
+# patch("cli.commands.client.make_allocations.X") resolves to on Python 3.10
+MODULE = importlib.import_module("cli.commands.client.make_allocations")
 
 
 def claim(piece_cid, term_start=100, term_max=EPOCH):
@@ -56,7 +59,8 @@ class MakeAllocationsExistingPiecesTests(unittest.TestCase):
                               ("commands_utils.get_deal_allocations", MagicMock(return_value={})),
                               ("commands_utils.get_deal_claims", MagicMock(return_value={})),
                               ("commands_utils.fetch_manifest", MagicMock(return_value=(manifest, b"")))):
-            patcher = patch(f"{MODULE}.{target}", value)
+            owner, _, name = target.rpartition(".")
+            patcher = patch.object(getattr(MODULE, owner) if owner else MODULE, name, value)
             patcher.start()
             self.addCleanup(patcher.stop)
 
