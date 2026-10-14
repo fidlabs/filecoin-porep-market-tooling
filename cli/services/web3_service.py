@@ -484,8 +484,7 @@ class Web3Service:
         pending_nonce = self.get_transaction_count(from_address, "pending")
         if pending_nonce != latest_nonce:
             raise RuntimeError(
-                f"Address {from_address} has {pending_nonce - latest_nonce} pending transaction(s); "
-                "migration writes stopped"
+                f"Address {from_address} has {pending_nonce - latest_nonce} pending transaction(s)"
             )
 
     def get_address_nonce(self, from_address: EthAddress, block_identifier: str = "pending") -> int:
