@@ -5,7 +5,9 @@ from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals
 from .get_filecoinpay_account import get_filecoinpay_account
 from .init_deal import init_deal
 from .make_allocations import make_allocations
+from .pay_repair_retrieval import pay_repair_retrieval
 from .propose_deal import propose_deal, propose_deal_mocked
+from .repair import repair
 from .sign_retrieval_voucher import sign_retrieval_voucher
 from .validate_manifest import validate_manifest
 from .withdraw_from_filecoinpay import withdraw_from_filecoinpay
@@ -27,3 +29,5 @@ client.add_command(deposit_for_whole_deal)
 client.add_command(make_allocations)
 client.add_command(withdraw_from_filecoinpay)
 client.add_command(sign_retrieval_voucher)
+client.add_command(repair)
+client.add_command(pay_repair_retrieval)

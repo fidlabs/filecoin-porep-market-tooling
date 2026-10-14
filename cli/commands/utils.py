@@ -580,7 +580,7 @@ def propose_deal(signer: TxSigner,
                  payment_token_address: EthAddress,
                  deal_type: PoRepMarketDealType,
                  offer_id: int | None = None,
-                 client_address: EthAddress | None = None) -> str:
+                 client_address: EthAddress | None = None) -> int | None:
     #
     if client_address and not offer_id:
         raise click.BadParameter("Client address can only be specified when proposing a deal against a specific offer.")
@@ -684,4 +684,4 @@ def propose_deal(signer: TxSigner,
         click.echo(PoRepMarketViewHelper().get_deal_view(deal_id))
         click.echo(f"Run `{sys.argv[0]} client init-deal {deal_id}` to initialize this deal.")
 
-    return tx.tx_hash
+    return deal_id

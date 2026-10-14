@@ -45,10 +45,12 @@ set +a
   python3 "${CLI_PATH}" client deposit-for-deals --help          >/dev/null &&
   python3 "${CLI_PATH}" client propose-deal --help               >/dev/null &&
   python3 "${CLI_PATH}" client deposit-amount --help             >/dev/null &&
+  python3 "${CLI_PATH}" client pay-repair-retrieval --help       >/dev/null &&
   ! (python3 "${CLI_PATH}" client get-deal    4242 >/dev/null 2>&1)         &&
 
   # sp tests
   python3 "${CLI_PATH}" sp get-deals accepted           >/dev/null &&
+  python3 "${CLI_PATH}" sp onboard-data --help         >/dev/null &&
   ! (python3 "${CLI_PATH}" sp get-deal    4242 >/dev/null 2>&1)    &&
 
   # test keys
