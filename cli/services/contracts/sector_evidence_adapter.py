@@ -12,7 +12,7 @@ from cli.services.web3_service import ActorId, EthAddress, FilAddress
 # @param acceptedBytes Sum of padded sizes for unique accepted indexes.
 @utils.json_dataclass()
 class SectorManifestReceipt:
-    provider_id: ActorId
+    provider_id: ActorId | None
     piece_count: int
     accepted_piece_count: int
     activated: bool
@@ -20,21 +20,22 @@ class SectorManifestReceipt:
     accepted_bytes: int
 
     def __post_init__(self):
-        self.provider_id = ActorId(self.provider_id)
+        if self.provider_id is not None:
+            self.provider_id = ActorId(self.provider_id)
 
     @staticmethod
     def from_web3(data) -> "SectorManifestReceipt":
-        if not data[0] or str(data[0]) == "0":
-            raise RuntimeError("Sector manifest receipt not found")
+        provider_id = int(data[0])
 
+        # empty object is useful here, so we return it instead of throwing "not found" error
         # noinspection PyArgumentList
         return SectorManifestReceipt(
-            provider_id=ActorId(data[0]),
+            provider_id=ActorId(provider_id) if provider_id else None,
             piece_count=int(data[1]),
             accepted_piece_count=int(data[2]),
             activated=bool(data[3]),
             minimum_commitment_epoch=int(data[4]),
-            accepted_bytes=int(data[5])
+            accepted_bytes=int(data[5]),
         )
 
 
