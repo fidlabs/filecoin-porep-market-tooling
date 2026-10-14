@@ -11,7 +11,7 @@ from click.testing import CliRunner
 from cli.migration.client import adopt_v1_claims, close_v1_deal, finish_migration
 from cli.migration.sp import _run_sptool, extend_deal_sectors, sector_expirations
 from cli.services.contract_service import ContractService
-from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceType
+from cli.services.contracts.evidence_adapter import EvidenceType
 from cli.services.contracts.filecoinpay_validator import FileCoinPayRailStatus
 from cli.migration.legacy_porep_market import LegacyDeal, LegacyPoRepMarket
 from cli.services.contracts.porep_market import PoRepMarketDealState
@@ -454,7 +454,7 @@ class ServiceTests(Web3Singleton):
             with self.assertRaisesRegex(MigrationError, "different PoRep Market"):
                 service.adapter(pair)
             service.view_helper.porep_market_contract.return_value = MARKET
-            adapter.evidence_type.return_value = DataCapEvidenceType.VERIF_REG_CLAIMS
+            adapter.get_evidence_type.return_value = EvidenceType.VERIF_REG_CLAIMS
             self.assertIs(service.adapter(pair), adapter)
 
     def receipt_fixture(self, registered, allocated, term_max):
