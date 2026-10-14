@@ -691,6 +691,25 @@ class ClientCommandTests(Web3Singleton):
         pay.call_contract.assert_not_called()
         self.signer.assert_not_called()
 
+    def test_close_settles_terminated_rail_without_checking_v2(self):
+        # the admin may terminate a V1 rail before its V2 replacement is ACTIVE; only the client can settle it
+        self.close_fixture(rail=make_rail(end_epoch=EPOCH - 100), progress=({10, 11}, set()),
+                           target=make_target(state=PoRepMarketDealState.ACCEPTED))
+        result = self.runner.invoke(close_v1_deal, ["3", "--v2-deal-id", "9", "--print-only"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("Ready to settle and finalize rail 5", result.output)
+        self.service.adoption_progress.assert_not_called()
+
+    def test_close_reports_declined_final_confirmation(self):
+        pay = self.close_fixture(rail=make_rail(end_epoch=EPOCH - 100))
+        pay.settle_terminated_rail_without_validation.return_value.tx_hash = Web3Service.ZERO_TX_HASH
+        self.patch_module("utils.confirm", return_value=True)
+        self.signer.side_effect = None
+        result = self.runner.invoke(close_v1_deal, ["3", "--v2-deal-id", "9"])
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("Transaction not sent", result.output)
+        self.assertNotIn("Rail settled and finalized", result.output)
+
     def test_close_settles_after_end_epoch(self):
         pay = self.close_fixture(rail=make_rail(end_epoch=EPOCH - 100))
         result = self.runner.invoke(close_v1_deal, ["3", "--v2-deal-id", "9", "--print-only"])
