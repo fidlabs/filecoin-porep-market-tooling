@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from cli.services.contract_service import ContractService
 from cli.services.web3_service import ActorId, EthAddress, Web3Service
 
-
 LEGACY_DEAL_COMPONENTS = [
     {"name": "id", "type": "uint256"},
     {"name": "client", "type": "address"},
@@ -104,6 +103,7 @@ class LegacyDeal:
     def from_web3(cls, data, expected_id: int) -> "LegacyDeal":
         if int(data[0]) != expected_id:
             raise ValueError(f"Expected V1 deal {expected_id}, got {data[0]}")
+
         return cls(
             deal_id=int(data[0]),
             client=EthAddress(data[1]),
