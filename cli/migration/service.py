@@ -3,7 +3,8 @@ from dataclasses import dataclass
 import cbor2
 import click
 
-from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter, DataCapEvidenceType, DataCapTransferParams
+from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter, DataCapTransferParams
+from cli.services.contracts.evidence_adapter import EvidenceType
 from cli.services.contracts.filecoin_pay import FileCoinPay, FileCoinPayRailView
 from cli.migration.legacy_porep_market import LegacyDeal, LegacyPoRepMarket
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
@@ -297,7 +298,7 @@ class MigrationService:
         adapter = DataCapEvidenceAdapter(pair.target.deal.evidence_adapter_address)
         if adapter.get_porep_market_contract_address() != self.view_helper.porep_market_contract():
             raise MigrationError("V2 evidence adapter belongs to a different PoRep Market")
-        if adapter.evidence_type() != DataCapEvidenceType.VERIF_REG_CLAIMS:
+        if adapter.get_evidence_type() != EvidenceType.VERIF_REG_CLAIMS:
             raise MigrationError("V2 deal does not use the VerifReg claims evidence adapter")
         return adapter
 
