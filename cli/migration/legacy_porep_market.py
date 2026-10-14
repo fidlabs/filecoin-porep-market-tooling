@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 
 from cli.services.contract_service import ContractService
@@ -120,10 +121,19 @@ class LegacyDeal:
         )
 
 
-class LegacyPoRepMarket(ContractService):
-    def __init__(self, address: EthAddress):
+class _LegacyContract(ContractService):
+    """V1 contract read through an inline ABI, since the repository ships no V1 ABI files."""
+
+    def __init__(self, address: EthAddress, abi: list[dict]):  # pylint: disable=super-init-not-called
+        # ContractService.__init__ loads the ABI from a file; the logger is still needed by its error handling
+        self.logger = logging.getLogger(self._get_class_name())
         self.web3 = Web3Service()
-        self.contract = self.web3.contract(EthAddress(address), LEGACY_MARKET_ABI)
+        self.contract = self.web3.contract(EthAddress(address), abi)
+
+
+class LegacyPoRepMarket(_LegacyContract):
+    def __init__(self, address: EthAddress):
+        super().__init__(address, LEGACY_MARKET_ABI)
 
     def get_deal(self, deal_id: int) -> LegacyDeal:
         data = self.call_contract(self.contract.functions.getDealProposal(deal_id))
@@ -137,10 +147,9 @@ class LegacyPoRepMarket(ContractService):
         return LegacyClient(address)
 
 
-class LegacyClient(ContractService):
+class LegacyClient(_LegacyContract):
     def __init__(self, address: EthAddress):
-        self.web3 = Web3Service()
-        self.contract = self.web3.contract(EthAddress(address), LEGACY_CLIENT_ABI)
+        super().__init__(address, LEGACY_CLIENT_ABI)
 
     def allocation_ids(self, deal_id: int) -> list[int]:
         return [int(value) for value in self.call_contract(self.contract.functions.getClientAllocationIdsPerDeal(deal_id))]

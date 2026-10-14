@@ -13,7 +13,7 @@ from cli.migration.sp import _run_sptool, extend_deal_sectors, sector_expiration
 from cli.services.contract_service import ContractService
 from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceType
 from cli.services.contracts.filecoinpay_validator import FileCoinPayRailStatus
-from cli.migration.legacy_porep_market import LegacyDeal
+from cli.migration.legacy_porep_market import LegacyDeal, LegacyPoRepMarket
 from cli.services.contracts.porep_market import PoRepMarketDealState
 from cli.migration.service import (
     CLAIM_TERM_RESERVE_EPOCHS,
@@ -64,8 +64,8 @@ def make_source(state=LegacyDeal.COMPLETED, rail_id=5, size=64, client=CLIENT, d
 
 
 def make_rail(end_epoch=0, payment_rate=10 ** 12, settled_up_to=EPOCH - 100, lockup_period=0):
-    return SimpleNamespace(token=TOKEN, payment_rate=payment_rate, lockup_period=lockup_period, settled_up_to=settled_up_to,
-                           end_epoch=end_epoch)
+    return SimpleNamespace(token=TOKEN, from_address=CLIENT, validator=VALIDATOR, payment_rate=payment_rate,
+                           lockup_period=lockup_period, settled_up_to=settled_up_to, end_epoch=end_epoch)
 
 
 def make_target(state=PoRepMarketDealState.ACCEPTED, client=CLIENT, provider=1234, rail_id=0, requested=64):
@@ -233,6 +233,21 @@ class OpenRailTests(Web3Singleton):
         target = make_target(state=PoRepMarketDealState.ACCEPTED)
         self.assertEqual(sector_target_epoch(target, EPOCH), EPOCH + 180 * EPOCHS_IN_DAY + 60 * EPOCHS_IN_DAY)
 
+    def test_source_rail_rejects_rail_of_another_payer_or_validator(self):
+        for rail in (SimpleNamespace(**{**make_rail().__dict__, "from_address": OTHER}),
+                     SimpleNamespace(**{**make_rail().__dict__, "validator": OTHER})):
+            with patch("cli.migration.service.open_rail", return_value=rail), \
+                    self.assertRaisesRegex(MigrationError, "does not belong to V1 deal 3"):
+                MigrationService.source_rail(make_source())
+
+    def test_legacy_contract_errors_are_click_exceptions(self):
+        with patch("cli.migration.legacy_porep_market.Web3Service"):
+            market = LegacyPoRepMarket(MARKET)
+        call = MagicMock(address=MARKET, signature="getDeals()")
+        call.call.side_effect = ValueError("execution reverted")
+        with self.assertRaisesRegex(click.ClickException, "execution reverted"):
+            market.call_contract(call)
+
 
 class ServiceTests(Web3Singleton):
     def make_service(self, source_chain_id=314, connected=314):
@@ -286,7 +301,8 @@ class ServiceTests(Web3Singleton):
             make_source(deal_id=6, rail_id=0),                                   # no rail
             make_source(deal_id=7, rail_id=17, client=OTHER),                    # other client
         ]
-        rails = {11: make_rail(), 12: make_rail(end_epoch=EPOCH), 13: make_rail(payment_rate=0), 14: None, 15: make_rail(), 17: make_rail()}
+        rails = {11: make_rail(), 12: make_rail(end_epoch=EPOCH), 13: make_rail(payment_rate=0), 14: None, 15: make_rail(),
+                 17: SimpleNamespace(**{**make_rail().__dict__, "from_address": OTHER})}
         service.source_market.get_deals.return_value = deals
         with patch("cli.migration.service.open_rail", side_effect=lambda rail_id: rails[rail_id]) as opened:
             result = service.open_source_deals()
