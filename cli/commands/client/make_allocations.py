@@ -27,7 +27,13 @@ from cli.services.web3_service import ActorId, Web3Service
               help="Exclude manifest DAG piece. Default is to include it.  [default: false]")
 @click.option("--local-manifest", type=click.Path(exists=True, dir_okay=False),
               help="Local manifest file to use instead of fetching from the deal proposal.")
-def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool = False, local_manifest: str | None = None):
+@click.option("--allow-existing-pieces", is_flag=True, default=False,
+              help="Allocate pieces the provider already stores in live claims, so it seals a second copy.  [default: false]")
+def make_allocations(deal_id: int,
+                     print_only: bool = False,
+                     exclude_dag: bool = False,
+                     local_manifest: str | None = None,
+                     allow_existing_pieces: bool = False):
     """
     Interactively make DDO allocations for an ACCEPTED deal in batches (groups).
 
@@ -98,6 +104,7 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
 
     cids_allocated = [alloc.get("Data", {}).get("/") for alloc in [*deal_allocations.values(), *deal_claims.values()]]
     pieces_not_allocated = [piece for piece in pieces if piece["pieceCid"] not in cids_allocated]
+    _ensure_pieces_not_stored_by_provider(deal.deal.provider_id, pieces_not_allocated, allow_existing_pieces)
     batches = _batch_pieces(pieces_not_allocated)
 
     utils.confirm(f"Continue with allocation of remaining {len(pieces_not_allocated)} pieces in {len(batches)} batches?", default=True, abort=True)
@@ -158,6 +165,42 @@ def make_allocations(deal_id: int, print_only: bool = False, exclude_dag: bool =
         _finish_datacap_posting(deal_id, manifest, exclude_dag)
 
     click.echo(f"\nAll done! Run `{sys.argv[0]} client deposit-for-deals {deal_id}` to deposit funds for this deal.")
+
+
+def _pieces_claimed_by_provider(provider_id: ActorId, piece_cids: set[str], current_epoch: int) -> dict[str, str]:
+    """Piece CID -> ID of a live claim of that piece at the provider, for any client."""
+    claimed: dict[str, str] = {}
+
+    for claim_id, claim in Web3Service().state_get_claims(provider_id).items():
+        piece_cid = claim.get("Data", {}).get("/")
+
+        if piece_cid in piece_cids and int(claim["TermStart"]) + int(claim["TermMax"]) >= current_epoch:
+            claimed.setdefault(piece_cid, claim_id)
+
+    return claimed
+
+
+def _ensure_pieces_not_stored_by_provider(provider_id: ActorId, pieces: list[dict], allow_existing_pieces: bool):
+    if not pieces:
+        return
+
+    claimed = _pieces_claimed_by_provider(provider_id,
+                                          {piece["pieceCid"] for piece in pieces},
+                                          Web3Service().get_block_number())
+
+    if not claimed:
+        return
+
+    piece_cid, claim_id = next(iter(claimed.items()))
+    message = (f"{len(claimed)}/{len(pieces)} pieces are already stored by provider {provider_id} in live claims "
+               f"(e.g. piece {piece_cid} in claim {claim_id}); "
+               f"allocating them again makes the provider seal a second copy.")
+
+    if allow_existing_pieces:
+        click.echo(f"Warning: {message}")
+        return
+
+    raise click.ClickException(f"{message} Pass --allow-existing-pieces if a second copy is intended.")
 
 
 def _finish_datacap_posting(deal_id: int, manifest: list[dict], exclude_dag: bool):
