@@ -12,21 +12,21 @@ from cli.services.web3_service import ActorId, EthAddress, FilAddress
 # @param acceptedBytes Sum of padded sizes for unique accepted indexes.
 @utils.json_dataclass()
 class SectorManifestReceipt:
-    provider_id: ActorId
+    provider_id: ActorId | None  # None until the first piece is accepted
     piece_count: int
-    accepted_piece_count: int
+    accepted_piece_count: int 
     activated: bool
     minimum_commitment_epoch: int
     accepted_bytes: int
 
     def __post_init__(self):
-        self.provider_id = ActorId(self.provider_id)
+        self.provider_id = ActorId(self.provider_id) if self.provider_id else None
 
     @staticmethod
     def from_web3(data) -> "SectorManifestReceipt":
         # noinspection PyArgumentList
         return SectorManifestReceipt(
-            provider_id=ActorId(data[0]),
+            provider_id=ActorId(data[0]) if data[0] else None,
             piece_count=int(data[1]),
             accepted_piece_count=int(data[2]),
             activated=bool(data[3]),
