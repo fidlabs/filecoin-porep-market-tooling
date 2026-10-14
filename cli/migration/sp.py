@@ -20,14 +20,18 @@ def deal_claims(target: PoRepMarketDealView) -> list[Claim]:
     adapter = DataCapEvidenceAdapter(target.deal.evidence_adapter_address)
     ids = adapter_claim_ids(adapter, target.deal.deal_id)
     if not ids:
-        raise MigrationError(f"V2 deal {target.deal.deal_id} has no claims on its adapter yet; the client has to run adopt-v1-claims first")
+        raise MigrationError(f"V2 deal {target.deal.deal_id} has no claims on its adapter yet; "
+                             f"the client has to run adopt-v1-claims first")
+
     rpc_claims = Web3Service().state_get_claims(target.deal.provider_id)
     claims = []
     for claim_id in ids:
         raw = rpc_claims.get(str(claim_id))
         if raw is None:
             raise MigrationError(f"Claim {claim_id} is not held by provider {target.deal.provider_id}")
+
         claims.append(Claim.from_rpc(claim_id, raw))
+
     return claims
 
 
@@ -37,7 +41,9 @@ def sector_expirations(provider: ActorId, sectors: set[int]) -> dict[int, int]:
         info = Web3Service().state_sector_get_info(provider, sector)
         if info is None:
             raise MigrationError(f"Sector {sector} of provider {provider} is not live on chain")
+
         result[sector] = int(info.get("Expiration", 0))
+
     return result
 
 
@@ -45,6 +51,7 @@ def _sptool_executable(sptool_path: str) -> str:
     executable = shutil.which(sptool_path) if os.path.sep not in sptool_path else sptool_path
     if not executable or not os.path.isfile(executable):
         raise click.ClickException(f"sptool executable not found: {sptool_path}; install lotus sptool or pass --sptool / SPTOOL_PATH")
+
     return executable
 
 
@@ -53,14 +60,17 @@ def _run_sptool(command: list[str], sector_count: int) -> str:
     output = (result.stdout or "") + (("\n" + result.stderr) if result.stderr else "")
     if result.returncode != 0:
         raise click.ClickException(f"sptool failed ({result.returncode}):\n{output.strip()}")
+
     skipped = [line for line in output.splitlines() if "skipping sector" in line.lower()]
     if skipped:
         click.echo(f"sptool skipped {len(skipped)} sector(s):")
         for line in skipped:
             click.echo(f"  {line.strip()}")
+
     if skipped and len(skipped) >= sector_count:
         raise click.ClickException("sptool would skip every sector, usually because another claim in the sector ends before the target; "
                                    "pick a lower --target-epoch or ask the admin")
+
     return output.strip()
 
 
@@ -101,6 +111,7 @@ def extend_deal_sectors(v2_deal_id: int, print_only: bool, sptool_path: str, tar
     click.echo(f"V2 deal {v2_deal_id}: {target.deal.state}, provider {provider}, {len(claims)} claim(s) in {len(expirations)} sector(s)")
     click.echo(f"Target sector expiration: epoch {target_epoch} ({epochs_to_days(target_epoch - current_epoch)} from now); "
                f"earliest claim end: epoch {earliest_claim_end}")
+
     if earliest_claim_end < target_epoch:
         click.echo("Warning: some claims end before the target epoch; sptool may clamp or skip those sectors")
 
@@ -108,6 +119,7 @@ def extend_deal_sectors(v2_deal_id: int, print_only: bool, sptool_path: str, tar
     for sector, expiration in expirations.items():
         marker = "extend" if sector in below else "ok"
         click.echo(f"  sector {sector}: expires at epoch {expiration} ({epochs_to_days(expiration - current_epoch)} from now) {marker}")
+
     if not below:
         click.echo(f"\nAll sectors already reach epoch {required_epoch}; nothing to extend.")
         return
@@ -115,12 +127,15 @@ def extend_deal_sectors(v2_deal_id: int, print_only: bool, sptool_path: str, tar
     if sector_file is None:
         handle, sector_file = tempfile.mkstemp(prefix=f"porep-v2-deal-{v2_deal_id}-sectors-", suffix=".txt")
         os.close(handle)
+
     with open(sector_file, "w", encoding="utf-8") as file:
         file.write("".join(f"{sector}\n" for sector in sorted(below)))
+
     click.echo(f"\n{len(below)} sector(s) to extend written to {sector_file}")
 
     command = [sptool_path, "--actor", str(provider), "sectors", "extend",
                "--sector-file", sector_file, "--new-expiration", str(target_epoch), "--tolerance", "0"]
+
     click.echo("sptool command: " + " ".join(command) + " --really-do-it")
     if print_only or is_dry_run():
         return
