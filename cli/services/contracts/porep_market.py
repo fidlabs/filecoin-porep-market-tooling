@@ -472,12 +472,13 @@ class PoRepMarket(ContractService):
 
         return result
 
-    # @notice Gets the deal activation padding (in percent)
+    # @notice Getter for deal activation padding
+    # @return padding Current padding value in bps
     def get_deal_activation_padding(self) -> int:
         return self.call_contract(self.contract.functions.getDealActivationPadding())
 
-    # @notice Sets the deal activation padding (in percent)
-    # @dev Only callable by the admin
+    # @notice Updates the deal activation padding
+    # @param padding The new padding value in bps
     def set_deal_activation_padding(self, padding: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.setDealActivationPadding(padding), signer)
 
