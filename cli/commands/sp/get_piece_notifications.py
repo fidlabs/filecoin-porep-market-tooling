@@ -26,6 +26,7 @@ def get_piece_notifications(deal_id: int, not_accepted: bool = False, local_mani
     Each deal piece must be sealed with a notification sent to the deal's evidence adapter address with given payload.
     ProveCommit or replica-update call must set `require_notification_success` to true.
 
+    \b
     DEAL_ID - The ID of the deal to get piece notifications for.
     """
 

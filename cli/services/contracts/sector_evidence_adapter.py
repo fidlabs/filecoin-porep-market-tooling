@@ -24,6 +24,9 @@ class SectorManifestReceipt:
 
     @staticmethod
     def from_web3(data) -> "SectorManifestReceipt":
+        if not data[0] or str(data[0]) == "0":
+            raise RuntimeError("Sector manifest receipt not found")
+
         # noinspection PyArgumentList
         return SectorManifestReceipt(
             provider_id=ActorId(data[0]),
