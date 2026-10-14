@@ -7,7 +7,7 @@ import click
 from cli import utils
 from cli._cli import is_dry_run
 from cli.commands.client._client import client_address, client_signer
-from cli.commands.migration_utils import (
+from cli.migration.utils import (
     describe_rail,
     epochs_to_days,
     gib,
@@ -21,7 +21,7 @@ from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapt
 from cli.services.contracts.filecoin_pay import FileCoinPay, FileCoinPayRailView
 from cli.services.contracts.filecoinpay_validator import FileCoinPayRailStatus, FileCoinPayValidator
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
-from cli.services.migration import (
+from cli.migration.service import (
     ADOPTION_BATCH_SIZE,
     EPOCHS_IN_DAY,
     AdoptionPlan,

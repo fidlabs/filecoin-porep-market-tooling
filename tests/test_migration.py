@@ -8,14 +8,14 @@ import cbor2
 import click
 from click.testing import CliRunner
 
-from cli.commands.client.migration import adopt_v1_claims, close_v1_deal, finish_migration
-from cli.commands.sp.migration import _run_sptool, extend_deal_sectors, sector_expirations
+from cli.migration.client import adopt_v1_claims, close_v1_deal, finish_migration
+from cli.migration.sp import _run_sptool, extend_deal_sectors, sector_expirations
 from cli.services.contract_service import ContractService
 from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceType
 from cli.services.contracts.filecoinpay_validator import FileCoinPayRailStatus
-from cli.services.contracts.legacy_porep_market import LegacyDeal
+from cli.migration.legacy_porep_market import LegacyDeal
 from cli.services.contracts.porep_market import PoRepMarketDealState
-from cli.services.migration import (
+from cli.migration.service import (
     CLAIM_TERM_RESERVE_EPOCHS,
     DATACAP_PRECISION,
     EPOCHS_IN_DAY,
@@ -211,18 +211,18 @@ class AdapterIdTests(Web3Singleton):
 class OpenRailTests(Web3Singleton):
     def test_open_rail(self):
         rail = make_rail()
-        with patch("cli.services.migration.FileCoinPay") as pay:
+        with patch("cli.migration.service.FileCoinPay") as pay:
             pay.return_value.get_rail.return_value = rail
             self.assertIs(open_rail(5), rail)
             pay.return_value.get_rail.assert_called_once_with(5)
 
     def test_open_rail_returns_none_for_finalized_rail(self):
-        with patch("cli.services.migration.FileCoinPay") as pay:
+        with patch("cli.migration.service.FileCoinPay") as pay:
             pay.return_value.get_rail.side_effect = click.ClickException("execution reverted: RailInactiveOrSettled(5)")
             self.assertIsNone(open_rail(5))
 
     def test_open_rail_reraises_other_errors(self):
-        with patch("cli.services.migration.FileCoinPay") as pay:
+        with patch("cli.migration.service.FileCoinPay") as pay:
             pay.return_value.get_rail.side_effect = click.ClickException("Web3 RPC error: timeout")
             with self.assertRaisesRegex(click.ClickException, "timeout"):
                 open_rail(5)
@@ -239,7 +239,7 @@ class ServiceTests(Web3Singleton):
         web3 = MagicMock()
         web3.get_chain_id.return_value = connected
         web3.get_block_number.return_value = EPOCH
-        with patch("cli.services.migration.LegacyPoRepMarket"):
+        with patch("cli.migration.service.LegacyPoRepMarket"):
             service = MigrationService(MARKET, source_chain_id, web3=web3, view_helper=MagicMock())
         service.source_market = MagicMock()
         return service
@@ -271,7 +271,7 @@ class ServiceTests(Web3Singleton):
     def test_source_rail_requires_rail_id(self):
         with self.assertRaisesRegex(MigrationError, "has no payment rail"):
             MigrationService.source_rail(make_source(rail_id=0))
-        with patch("cli.services.migration.open_rail", return_value=None) as opened:
+        with patch("cli.migration.service.open_rail", return_value=None) as opened:
             self.assertIsNone(MigrationService.source_rail(make_source()))
         opened.assert_called_once_with(5)
 
@@ -288,7 +288,7 @@ class ServiceTests(Web3Singleton):
         ]
         rails = {11: make_rail(), 12: make_rail(end_epoch=EPOCH), 13: make_rail(payment_rate=0), 14: None, 15: make_rail(), 17: make_rail()}
         service.source_market.get_deals.return_value = deals
-        with patch("cli.services.migration.open_rail", side_effect=lambda rail_id: rails[rail_id]) as opened:
+        with patch("cli.migration.service.open_rail", side_effect=lambda rail_id: rails[rail_id]) as opened:
             result = service.open_source_deals()
             self.assertEqual([(deal.deal_id, rail) for deal, rail in result], [(1, rails[11]), (2, rails[12]), (7, rails[17])])
             self.assertEqual([deal.deal_id for deal, _ in service.open_source_deals(CLIENT)], [1, 2])
@@ -339,7 +339,7 @@ class ServiceTests(Web3Singleton):
         service.source_market.get_client_contract.return_value.allocation_ids.return_value = [10, 11]
         self.assertEqual(service.source_claim_ids(make_source()), [10, 11])
         service.source_market.get_client_contract.return_value.allocation_ids.assert_called_with(3)
-        with patch("cli.services.migration.DataCapEvidenceAdapter", return_value=make_adapter(pending=[10], confirmed=[30])) as adapter_class:
+        with patch("cli.migration.service.DataCapEvidenceAdapter", return_value=make_adapter(pending=[10], confirmed=[30])) as adapter_class:
             self.assertEqual(service.adoption_progress(self.make_pair()), ({10, 11}, {10, 30}))
         adapter_class.assert_called_once_with(ADAPTER)
 
@@ -376,7 +376,7 @@ class ServiceTests(Web3Singleton):
         adapter = adapter or make_adapter(pending=[10], allocated=32)
         service.adapter = MagicMock(return_value=adapter)
         service.source_claims = MagicMock(return_value=claims or [make_claim(10), make_claim(11)])
-        patcher = patch("cli.services.migration.PoRepMarket")
+        patcher = patch("cli.migration.service.PoRepMarket")
         patcher.start().return_value.get_deal_activation_padding.return_value = padding
         self.addCleanup(patcher.stop)
         return service, adapter
@@ -422,7 +422,7 @@ class ServiceTests(Web3Singleton):
     def test_adapter_checks_market_and_evidence_type(self):
         service = self.make_service()
         pair = self.make_pair()
-        with patch("cli.services.migration.DataCapEvidenceAdapter") as adapter_class:
+        with patch("cli.migration.service.DataCapEvidenceAdapter") as adapter_class:
             adapter = adapter_class.return_value
             adapter.get_porep_market_contract_address.return_value = MARKET
             service.view_helper.porep_market_contract.return_value = OTHER
@@ -438,7 +438,7 @@ class ServiceTests(Web3Singleton):
         plan = make_plan(registered=[11])
         batch = AdoptionPlan(plan.source_claims, plan.registered_ids, plan.extensions[:0] + (
             ClaimExtension(ActorId(1234), 10, 700_000, 32),))
-        patcher = patch("cli.services.migration.DataCapEvidenceAdapter", return_value=make_adapter(pending=registered, allocated=allocated))
+        patcher = patch("cli.migration.service.DataCapEvidenceAdapter", return_value=make_adapter(pending=registered, allocated=allocated))
         patcher.start()
         self.addCleanup(patcher.stop)
         return service, plan, batch
@@ -472,7 +472,7 @@ class ServiceTests(Web3Singleton):
         targets = [view(101, addresses[0]), view(102, addresses[1]), view(103, addresses[2]), view(104, EthAddress(EthAddress.ZERO_ADDRESS))]
         first = make_source()
         sources = [first, LegacyDeal(**{**first.__dict__, "deal_id": 4})]
-        with patch("cli.services.migration.DataCapEvidenceAdapter", side_effect=lambda address: adapters[address]):
+        with patch("cli.migration.service.DataCapEvidenceAdapter", side_effect=lambda address: adapters[address]):
             self.assertEqual(service.pair_by_claims(targets, sources), {101: 4, 102: 3})
 
 
@@ -483,23 +483,23 @@ class ClientCommandTests(Web3Singleton):
         self.service = MagicMock()
         self.service.web3.get_block_number.return_value = EPOCH
         self.service.transfer_params = MigrationService.transfer_params
-        for target, value in (("cli.commands.client.migration.client_signer", self.signer),
-                              ("cli.commands.client.migration.client_address", MagicMock(return_value=CLIENT)),
-                              ("cli.commands.client.migration.migration_service", MagicMock(return_value=self.service)),
-                              ("cli.commands.migration_utils.token_info", MagicMock(return_value=("USDFC", 18)))):
+        for target, value in (("cli.migration.client.client_signer", self.signer),
+                              ("cli.migration.client.client_address", MagicMock(return_value=CLIENT)),
+                              ("cli.migration.client.migration_service", MagicMock(return_value=self.service)),
+                              ("cli.migration.utils.token_info", MagicMock(return_value=("USDFC", 18)))):
             patcher = patch(target, value)
             patcher.start()
             self.addCleanup(patcher.stop)
 
     def set_pair(self, target=None, source=None, rail=None, finalized=False):
         pair = MigrationPair(source or make_source(), None if finalized else rail or make_rail(), target or make_target())
-        patcher = patch("cli.commands.client.migration.load_pair", return_value=pair)
+        patcher = patch("cli.migration.client.load_pair", return_value=pair)
         self.load_pair = patcher.start()
         self.addCleanup(patcher.stop)
         return pair
 
     def patch_module(self, name, **kwargs):
-        patcher = patch(f"cli.commands.client.migration.{name}", **kwargs)
+        patcher = patch(f"cli.migration.client.{name}", **kwargs)
         mock = patcher.start()
         self.addCleanup(patcher.stop)
         return mock
@@ -733,7 +733,7 @@ class ClientCommandTests(Web3Singleton):
 class SpCommandTests(Web3Singleton):
     @staticmethod
     def sptool_run(returncode=0, stdout="", stderr=""):
-        return patch("cli.commands.sp.migration.subprocess.run", return_value=SimpleNamespace(returncode=returncode, stdout=stdout, stderr=stderr))
+        return patch("cli.migration.sp.subprocess.run", return_value=SimpleNamespace(returncode=returncode, stdout=stdout, stderr=stderr))
 
     def test_run_sptool_fails_when_every_sector_is_skipped(self):
         output = "skipping sector 7: claim ends too early\nSkipping sector 8: claim ends too early\n"
@@ -752,7 +752,7 @@ class SpCommandTests(Web3Singleton):
     def test_sector_expirations(self):
         web3 = MagicMock()
         web3.state_sector_get_info.side_effect = lambda provider, sector: None if sector == 9 else {"Expiration": sector * 10}
-        with patch("cli.commands.sp.migration.Web3Service", return_value=web3):
+        with patch("cli.migration.sp.Web3Service", return_value=web3):
             self.assertEqual(sector_expirations(ActorId(1234), {8, 7}), {7: 70, 8: 80})
             with self.assertRaisesRegex(MigrationError, "not live on chain"):
                 sector_expirations(ActorId(1234), {7, 9})
@@ -765,11 +765,11 @@ class SpCommandTests(Web3Singleton):
         target = make_target(state=PoRepMarketDealState.ACTIVE)
         for name, kwargs in (("Web3Service", {"return_value": web3}), ("adapter_claim_ids", {"return_value": [10, 11]}),
                              ("DataCapEvidenceAdapter", {}), ("sp_organization_address", {"return_value": CLIENT})):
-            patcher = patch(f"cli.commands.sp.migration.{name}", **kwargs)
+            patcher = patch(f"cli.migration.sp.{name}", **kwargs)
             patcher.start()
             self.addCleanup(patcher.stop)
         for name in ("PoRepMarketViewHelper", "SPRegistry"):
-            patcher = patch(f"cli.commands.sp.migration.{name}")
+            patcher = patch(f"cli.migration.sp.{name}")
             mock = patcher.start()
             self.addCleanup(patcher.stop)
             if name == "SPRegistry":
@@ -777,7 +777,7 @@ class SpCommandTests(Web3Singleton):
             else:
                 mock.return_value.get_deal_view.return_value = target
 
-        with tempfile.TemporaryDirectory() as directory, patch("cli.commands.sp.migration.subprocess.run") as run:
+        with tempfile.TemporaryDirectory() as directory, patch("cli.migration.sp.subprocess.run") as run:
             sector_file = os.path.join(directory, "sectors.txt")
             result = CliRunner().invoke(extend_deal_sectors, ["9", "--print-only", "--target-epoch", "100000", "--sector-file", sector_file])
             run.assert_not_called()

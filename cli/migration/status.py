@@ -1,13 +1,13 @@
 import click
 
-from cli.commands.migration_utils import describe_rail, epochs_to_days, gib, migration_service, rail_daily_cost
+from cli.migration.utils import describe_rail, epochs_to_days, gib, migration_service, rail_daily_cost
 from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter
 from cli.services.contracts.filecoinpay_validator import FileCoinPayRailStatus, FileCoinPayValidator
 from cli.services.contracts.filecoin_pay import FileCoinPayRailView
-from cli.services.contracts.legacy_porep_market import LegacyDeal
+from cli.migration.legacy_porep_market import LegacyDeal
 from cli.services.contracts.porep_market import PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketDealView, PoRepMarketViewHelper
-from cli.services.migration import Claim, MigrationError, MigrationService, adapter_claim_ids, sector_target_epoch
+from cli.migration.service import Claim, MigrationError, MigrationService, adapter_claim_ids, sector_target_epoch
 from cli.services.web3_service import ActorId, EthAddress, Web3Service
 
 _MIGRATION_STATES = (PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE)

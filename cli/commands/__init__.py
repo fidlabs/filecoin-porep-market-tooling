@@ -6,4 +6,3 @@ from .config import config
 from .convert import convert
 from .self_update import self_update
 from .sp import *
-from .migration_status import migration_status
