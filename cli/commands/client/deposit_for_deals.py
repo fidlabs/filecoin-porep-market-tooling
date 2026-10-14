@@ -34,7 +34,6 @@ def deposit_for_deals(deal_id: int | None = None, months: int = 1):
 
     \b
     ACCEPTED deal is ready for deposit when its payment is initialized and, for DataCap deals, DataCap posting is finished.
-
     DEAL_ID - Optional deal ID to deposit funds for. If not provided, deposits for all ACCEPTED/ACTIVE deals ready for deposit.
     """
 
