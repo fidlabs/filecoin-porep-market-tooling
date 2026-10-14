@@ -234,13 +234,18 @@ def _finish_datacap_posting(deal_id: int, manifest: list[dict], exclude_dag: boo
 
     # verify allocated size is within padding range
     final_allocation_size = DataCapEvidenceAdapter(deal.deal.evidence_adapter_address).get_allocated_bytes(deal_id)
-    padding = PoRepMarket().get_deal_activation_padding()
-    proposed_size = deal.terms.requested_size_bytes
-    delta = abs(final_allocation_size - proposed_size)
 
-    if delta * 100 > proposed_size * padding:
-        raise click.ClickException(f"Allocated size {final_allocation_size} is not within padding range of "
-                                   f"proposed size {proposed_size} (padding: {padding * 100}%, delta: {delta})")
+    padding_bps = PoRepMarket().get_deal_activation_padding()
+
+    min_size = deal.terms.requested_size_bytes * (10_000 - padding_bps) // 10_000
+    max_size = deal.terms.requested_size_bytes * (10_000 + padding_bps) // 10_000
+
+    if not min_size <= final_allocation_size <= max_size:
+        raise click.ClickException(
+            f"Allocated size {final_allocation_size} is not within padding range "
+            f"[{min_size}, {max_size}] of proposed size {deal.terms.requested_size_bytes} "
+            f"(padding: {padding_bps / 100}%)"
+        )
 
     # finish DataCap posting
     utils.confirm(f"Finishing DataCap posting for deal id {deal_id}", default=True, abort=True)
