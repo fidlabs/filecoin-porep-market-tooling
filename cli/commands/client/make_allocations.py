@@ -195,7 +195,7 @@ def _finish_datacap_posting(deal_id: int, manifest: list[dict], exclude_dag: boo
                                    f"proposed size {proposed_size} (padding: {padding * 100}%, delta: {delta})")
 
     # finish DataCap posting
-    utils.confirm(f"Finishing DataCap posting for deal id {deal_id} (blocks further allocation batches)", default=True, abort=True)
+    utils.confirm(f"Finishing DataCap posting for deal id {deal_id}", default=True, abort=True)
 
     tx_hash = DataCapEvidenceAdapter(deal.deal.evidence_adapter_address).finish_datacap_posting(deal_id, client_signer()).tx_hash
     click.echo(f"DataCap posting for deal id {deal_id} finished: {tx_hash}")
