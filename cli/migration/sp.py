@@ -12,7 +12,7 @@ from cli.commands.sp._sp import sp_organization_address
 from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter
 from cli.services.contracts.porep_market_view_helper import PoRepMarketDealView, PoRepMarketViewHelper
 from cli.services.contracts.sp_registry import SPRegistry
-from cli.migration.service import Claim, MigrationError, adapter_claim_ids, sector_target_epoch
+from cli.migration.service import Claim, MigrationError, adapter_claim_ids, sector_required_epoch, sector_target_epoch
 from cli.services.web3_service import ActorId, Web3Service
 
 
@@ -89,6 +89,7 @@ def extend_deal_sectors(v2_deal_id: int, print_only: bool, sptool_path: str, tar
         raise click.ClickException(f"V2 deal {v2_deal_id} provider {provider} does not belong to organization {sp_organization_address()}")
 
     current_epoch = Web3Service().get_block_number()
+    required_epoch = target_epoch or sector_required_epoch(target, current_epoch)
     target_epoch = target_epoch or sector_target_epoch(target, current_epoch)
     try:
         claims = deal_claims(target)
@@ -103,12 +104,12 @@ def extend_deal_sectors(v2_deal_id: int, print_only: bool, sptool_path: str, tar
     if earliest_claim_end < target_epoch:
         click.echo("Warning: some claims end before the target epoch; sptool may clamp or skip those sectors")
 
-    below = {sector: expiration for sector, expiration in expirations.items() if expiration < target_epoch}
+    below = {sector: expiration for sector, expiration in expirations.items() if expiration < required_epoch}
     for sector, expiration in expirations.items():
         marker = "extend" if sector in below else "ok"
         click.echo(f"  sector {sector}: expires at epoch {expiration} ({epochs_to_days(expiration - current_epoch)} from now) {marker}")
     if not below:
-        click.echo(f"\nAll sectors already reach epoch {target_epoch}; nothing to extend.")
+        click.echo(f"\nAll sectors already reach epoch {required_epoch}; nothing to extend.")
         return
 
     if sector_file is None:

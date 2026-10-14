@@ -167,6 +167,16 @@ def sector_target_epoch(target: PoRepMarketDealView, current_epoch: int) -> int:
     return current_epoch + target.terms.duration_epochs + ACCEPTED_DEAL_SECTOR_MARGIN_EPOCHS
 
 
+def sector_required_epoch(target: PoRepMarketDealView, current_epoch: int) -> int:
+    """Epoch below which a sector of a V2 deal still has to be extended.
+
+    The target of an ACCEPTED deal moves with the current epoch; checking against the smaller ACTIVE margin
+    keeps sectors extended to the target from showing up as too short again on the next run."""
+    if target.deal.state == PoRepMarketDealState.ACTIVE:
+        return sector_target_epoch(target, current_epoch)
+    return current_epoch + target.terms.duration_epochs + ACTIVE_DEAL_SECTOR_MARGIN_EPOCHS
+
+
 def open_rail(rail_id: int) -> FileCoinPayRailView | None:
     """Rail view, or None once Filecoin Pay settled and finalized the rail (its storage is deleted)."""
     try:
