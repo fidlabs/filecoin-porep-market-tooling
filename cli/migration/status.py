@@ -7,7 +7,7 @@ from cli.services.contracts.filecoin_pay import FileCoinPayRailView
 from cli.migration.legacy_porep_market import LegacyDeal
 from cli.services.contracts.porep_market import PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketDealView, PoRepMarketViewHelper
-from cli.migration.service import Claim, MigrationError, MigrationService, adapter_claim_ids, sector_target_epoch
+from cli.migration.service import Claim, MigrationError, MigrationService, adapter_claim_ids, sector_required_epoch
 from cli.services.web3_service import ActorId, EthAddress, Web3Service
 
 _MIGRATION_STATES = (PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE)
@@ -47,7 +47,7 @@ def _target_line(service: MigrationService, source: LegacyDeal, source_rail: Fil
         expirations = [int((Web3Service().state_sector_get_info(source.provider, sector) or {}).get("Expiration", 0)) for sector in sectors]
         if expirations:
             earliest = min(expirations)
-            needed = sector_target_epoch(target, current_epoch)
+            needed = sector_required_epoch(target, current_epoch)
             verdict = "ok" if earliest >= needed else "too early, SP must run sp extend-deal-sectors"
             lines.append(f"    sectors: {len(sectors)}, earliest expiration epoch {earliest} vs needed {needed}: {verdict}")
     return lines

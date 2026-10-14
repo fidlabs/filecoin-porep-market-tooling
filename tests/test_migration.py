@@ -31,6 +31,7 @@ from cli.migration.service import (
     claim_extension_cbor,
     extension_term_max,
     open_rail,
+    sector_required_epoch,
     sector_target_epoch,
     size_within_padding,
 )
@@ -232,6 +233,14 @@ class OpenRailTests(Web3Singleton):
         self.assertEqual(sector_target_epoch(target, EPOCH), target.service.service_end_epoch + 30 * EPOCHS_IN_DAY)
         target = make_target(state=PoRepMarketDealState.ACCEPTED)
         self.assertEqual(sector_target_epoch(target, EPOCH), EPOCH + 180 * EPOCHS_IN_DAY + 60 * EPOCHS_IN_DAY)
+
+    def test_sector_required_epoch_leaves_room_below_the_moving_accepted_target(self):
+        target = make_target(state=PoRepMarketDealState.ACTIVE)
+        self.assertEqual(sector_required_epoch(target, EPOCH), sector_target_epoch(target, EPOCH))
+        target = make_target(state=PoRepMarketDealState.ACCEPTED)
+        extended_to = sector_target_epoch(target, EPOCH)
+        self.assertLessEqual(sector_required_epoch(target, EPOCH + 30 * EPOCHS_IN_DAY), extended_to)
+        self.assertGreater(sector_required_epoch(target, EPOCH + 30 * EPOCHS_IN_DAY + 1), extended_to)
 
     def test_source_rail_rejects_rail_of_another_payer_or_validator(self):
         for rail in (SimpleNamespace(**{**make_rail().__dict__, "from_address": OTHER}),
@@ -792,12 +801,11 @@ class SpCommandTests(Web3Singleton):
             with self.assertRaisesRegex(MigrationError, "not live on chain"):
                 sector_expirations(ActorId(1234), {7, 9})
 
-    def test_extend_deal_sectors_print_only_writes_below_target_sectors(self):
+    def patch_sp_command(self, target, expirations: dict[int, int], current_epoch=EPOCH):
         web3 = MagicMock()
-        web3.get_block_number.return_value = EPOCH
+        web3.get_block_number.return_value = current_epoch
         web3.state_get_claims.return_value = {"10": rpc_claim(Sector=7), "11": rpc_claim(Sector=8)}
-        web3.state_sector_get_info.side_effect = lambda provider, sector: {"Expiration": 2_000 if sector == 7 else 9_000_000}
-        target = make_target(state=PoRepMarketDealState.ACTIVE)
+        web3.state_sector_get_info.side_effect = lambda provider, sector: {"Expiration": expirations[sector]}
         for name, kwargs in (("Web3Service", {"return_value": web3}), ("adapter_claim_ids", {"return_value": [10, 11]}),
                              ("DataCapEvidenceAdapter", {}), ("sp_organization_address", {"return_value": CLIENT})):
             patcher = patch(f"cli.migration.sp.{name}", **kwargs)
@@ -812,6 +820,8 @@ class SpCommandTests(Web3Singleton):
             else:
                 mock.return_value.get_deal_view.return_value = target
 
+    def test_extend_deal_sectors_print_only_writes_below_target_sectors(self):
+        self.patch_sp_command(make_target(state=PoRepMarketDealState.ACTIVE), {7: 2_000, 8: 9_000_000})
         with tempfile.TemporaryDirectory() as directory, patch("cli.migration.sp.subprocess.run") as run:
             sector_file = os.path.join(directory, "sectors.txt")
             result = CliRunner().invoke(extend_deal_sectors, ["9", "--print-only", "--target-epoch", "100000", "--sector-file", sector_file])
@@ -821,6 +831,14 @@ class SpCommandTests(Web3Singleton):
                 self.assertEqual(file.read(), "7\n")
         self.assertIn("sptool command: sptool --actor f01234 sectors extend --sector-file", result.output)
         self.assertIn("--new-expiration 100000 --tolerance 0 --really-do-it", result.output)
+
+    def test_extend_deal_sectors_rerun_on_accepted_deal_finds_nothing_to_extend(self):
+        target = make_target(state=PoRepMarketDealState.ACCEPTED)
+        extended_to = sector_target_epoch(target, EPOCH)
+        self.patch_sp_command(target, {7: extended_to, 8: extended_to}, current_epoch=EPOCH + EPOCHS_IN_DAY)
+        result = CliRunner().invoke(extend_deal_sectors, ["9", "--print-only"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("nothing to extend", result.output)
 
 
 class ContractServiceBatchTests(unittest.TestCase):
