@@ -482,6 +482,15 @@ class ServiceTests(Web3Singleton):
         service, plan, batch = self.receipt_fixture([10, 11], 64, 700_000)
         service.validate_batch_receipt(pair, plan, batch)
 
+    def test_ensure_unregistered_rejects_claims_registered_meanwhile(self):
+        service = self.make_service()
+        batch = make_plan()
+        with patch("cli.migration.service.DataCapEvidenceAdapter", return_value=make_adapter(pending=[11])), \
+                self.assertRaisesRegex(MigrationError, r"\[11\] are already registered"):
+            service.ensure_unregistered(self.make_pair(), batch)
+        with patch("cli.migration.service.DataCapEvidenceAdapter", return_value=make_adapter(pending=[])):
+            service.ensure_unregistered(self.make_pair(), batch)
+
     def test_pair_by_claims_maps_v2_to_v1_by_intersection(self):
         service = self.make_service()
         client = service.source_market.get_client_contract.return_value
@@ -579,6 +588,35 @@ class ClientCommandTests(Web3Singleton):
         self.assertIn("init-deal 9", result.output)
         adapter_class.return_value.call_contract.assert_not_called()
         self.signer.assert_not_called()
+
+    def adopt_send_fixture(self):
+        self.set_pair(target=make_target(rail_id=7))
+        self.service.adoption_plan.return_value = make_plan()
+        self.service.adoption_progress.return_value = ({10, 11}, {10, 11})
+        adapter = self.patch_module("DataCapEvidenceAdapter").return_value
+        adapter.estimate_gas.return_value = 1
+        adapter.submit_datacap_batch.return_value = SimpleNamespace(tx_hash="0xabc")
+        for name in ("client_signer", "Web3Service", "utils"):
+            self.patch_module(name)
+        return adapter
+
+    def test_adopt_sends_each_batch_and_confirms_completion(self):
+        adapter = self.adopt_send_fixture()
+        result = self.runner.invoke(adopt_v1_claims, ["9", "3", "--batch-size", "1"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertEqual(adapter.submit_datacap_batch.call_count, 2)
+        self.assertEqual(self.service.ensure_unregistered.call_count, 2)
+        self.assertIn("re-run the same command", result.output)
+        self.assertIn("All 2 V1 claims are registered", result.output)
+        self.service.adoption_plan.assert_called_once()
+
+    def test_adopt_stops_when_another_run_registered_the_batch(self):
+        adapter = self.adopt_send_fixture()
+        self.service.ensure_unregistered.side_effect = [None, MigrationError("V1 claim(s) [11] are already registered")]
+        result = self.runner.invoke(adopt_v1_claims, ["9", "3", "--batch-size", "1"])
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("another run may be adopting this deal", result.output)
+        adapter.submit_datacap_batch.assert_called_once()
 
     def test_adopt_rejects_other_clients_deal(self):
         self.set_pair(source=make_source(client=OTHER))

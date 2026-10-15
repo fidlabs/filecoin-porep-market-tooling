@@ -34,6 +34,8 @@ porep client finish-migration <V2> <V1>                # 4 finish
 2. **Init.** Creates the payment rail and deposits the first month. It ends by suggesting `client make-allocations`:
    don't run it on a migration deal, it would make the SP seal the data again.
 3. **Adopt.** Attaches the V1 claims. Done when it prints `All N V1 claims are registered on V2 deal <V2>`.
+   Large deals take a while: about 5 minutes to check the claims, then 1-3 minutes per batch of 100 claims.
+   Run one adopt per deal at a time.
 4. **Finish.** Done when it prints `DataCap posting finished`. After this the V2 deal is activated and starts paying,
    so run it only once the SP has confirmed it will extend its sectors. It can wait until after NV29.
 
@@ -74,6 +76,8 @@ Send us the full output. These you can fix yourself:
 | --- | --- |
 | `has no payment rail yet` | `porep client init-deal <V2>`, then re-run |
 | pending transaction | `porep client wait`, then re-run |
+| `already registered on V2 deal` | another adopt run for this deal is still going; let it finish, then re-run |
+| `429 Too Many Requests` | the RPC is rate limiting, re-run |
 | `Deposit ... with` | run the printed `client deposit-amount` command, then re-run |
 
 ## Good to know

@@ -100,6 +100,7 @@ def adopt_v1_claims(v2_deal_id: int, v1_deal_id: int, print_only: bool, batch_si
     service = migration_service()
     pair = load_pair(service, v2_deal_id, v1_deal_id)
     _require_client(pair)
+    click.echo(f"Reading the claims of V1 deal {v1_deal_id} from chain; deals with 1000+ claims take a few minutes...")
     plan = _plan(service, pair, require_operational=True)
     _print_pair(pair, service.web3.get_block_number())
     _print_plan(plan)
@@ -137,10 +138,18 @@ def adopt_v1_claims(v2_deal_id: int, v1_deal_id: int, print_only: bool, batch_si
     try:
         Web3Service().ensure_no_pending_transactions(signer.address())
     except RuntimeError as exc:
-        raise click.ClickException(str(exc)) from exc
+        raise click.ClickException(f"{exc}; wait for them to land and re-run") from exc
 
+    click.echo("Each batch waits for its transaction to land, usually 1-3 minutes. If the run stops or is interrupted, "
+               "re-run the same command: claims already registered are skipped.")
     with ContractService.batch_confirmation():
         for number, batch in enumerate(batches, start=1):
+            try:
+                service.ensure_unregistered(pair, batch)
+            except MigrationError as exc:
+                raise click.ClickException(f"{exc}; another run may be adopting this deal, re-run once it is done") from exc
+
+            click.echo(f"Sending batch {number}/{len(batches)}...")
             tx_hash = adapter.submit_datacap_batch(service.transfer_params(batch), v2_deal_id, signer).tx_hash
             click.echo(f"Batch {number}/{len(batches)} landed: {tx_hash}")
 
@@ -150,11 +159,12 @@ def adopt_v1_claims(v2_deal_id: int, v1_deal_id: int, print_only: bool, batch_si
                 raise click.ClickException(f"Batch {number} landed but the chain readback does not match: {exc}; "
                                            f"stopping, re-run to continue") from exc
 
-    final = _plan(service, pair, require_operational=False)
-    if not final.complete:
-        raise click.ClickException(f"{len(final.extensions)} claim(s) are still not registered; re-run the command")
+    # every batch receipt was already validated, so only confirm that nothing is left
+    source_ids, registered = service.adoption_progress(pair)
+    if source_ids - registered:
+        raise click.ClickException(f"{len(source_ids - registered)} claim(s) are still not registered; re-run the command")
 
-    click.echo(f"\nAll {len(final.source_claims)} V1 claims are registered on V2 deal {v2_deal_id}.")
+    click.echo(f"\nAll {len(source_ids)} V1 claims are registered on V2 deal {v2_deal_id}.")
     click.echo(f"Next: `{sys.argv[0]} client finish-migration {v2_deal_id} {v1_deal_id}`.")
 
 
