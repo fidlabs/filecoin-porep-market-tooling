@@ -70,7 +70,13 @@ def migration_status(client_filter: str | None, provider_filter: str | None, che
     shows up under its V1 deal only after `client adopt-v1-claims` registered at least one claim.
     """
 
-    service = migration_service()
+    try:
+        _migration_status(migration_service(), client_filter, provider_filter, check_sectors)
+    except MigrationError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+
+def _migration_status(service: MigrationService, client_filter: str | None, provider_filter: str | None, check_sectors: bool):
     client = EthAddress.from_any(client_filter) if client_filter else None
     provider = ActorId(provider_filter) if provider_filter else None
     current_epoch = service.web3.get_block_number()
@@ -82,10 +88,7 @@ def migration_status(client_filter: str | None, provider_filter: str | None, che
                if view.deal.state in _MIGRATION_STATES
                and (client is None or view.deal.client_address == client)
                and (provider is None or view.deal.provider_id == provider)]
-    try:
-        pairs = service.pair_by_claims(targets, sources)
-    except MigrationError as exc:
-        raise click.ClickException(str(exc)) from exc
+    pairs = service.pair_by_claims(targets, sources)
 
     target_by_source = {source_id: next(view for view in targets if view.deal.deal_id == target_id) for target_id, source_id in pairs.items()}
 

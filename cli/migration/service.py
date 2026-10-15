@@ -1,3 +1,5 @@
+import sys
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 import cbor2
@@ -6,7 +8,7 @@ import click
 from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter, DataCapTransferParams
 from cli.services.contracts.evidence_adapter import EvidenceType
 from cli.services.contracts.filecoin_pay import FileCoinPay, FileCoinPayRailView
-from cli.migration.legacy_porep_market import LegacyDeal, LegacyPoRepMarket
+from cli.migration.legacy_porep_market import LegacyClient, LegacyDeal, LegacyPoRepMarket
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketDealView, PoRepMarketViewHelper
 from cli.services.web3_service import ActorId, EthAddress, Web3Service
@@ -24,6 +26,8 @@ MAX_BPS = 10_000
 # sectors must outlive the V2 service window by a margin so late activation or settlement never outruns them
 ACTIVE_DEAL_SECTOR_MARGIN_EPOCHS = 30 * EPOCHS_IN_DAY
 ACCEPTED_DEAL_SECTOR_MARGIN_EPOCHS = 60 * EPOCHS_IN_DAY
+# one V1 eth_call per claim dominates adoption time on 1000+ claim deals; a few parallel calls stay under public RPC limits
+TERMINATION_CHECK_WORKERS = 4
 
 
 class MigrationError(RuntimeError):
@@ -263,8 +267,6 @@ class MigrationService:
             if raw is None:
                 raise MigrationError(f"V1 claim {claim_id} is missing from provider {source.provider}")
             claim = Claim.from_rpc(claim_id, raw)
-            if legacy_client.is_claim_terminated(claim_id):
-                raise MigrationError(f"V1 claim {claim_id} is marked terminated in the V1 client contract")
             if claim.client != expected_client:
                 raise MigrationError(f"V1 claim {claim_id} belongs to client actor {claim.client}, expected {expected_client}")
             if claim.provider != source.provider:
@@ -272,11 +274,28 @@ class MigrationService:
             if not claim.data or claim.size <= 0 or claim.sector < 0:
                 raise MigrationError(f"V1 claim {claim_id} has invalid piece, size or sector data")
             claims.append(claim)
+        terminated = self._terminated_claim_ids(legacy_client, ids)
+        if terminated:
+            raise MigrationError(f"V1 claim(s) {terminated[:10]} are marked terminated in the V1 client contract")
         # V1 allowed completion within a padding of the proposed size, so compare with what the V1 client recorded
         allocated = legacy_client.allocated_size(source.deal_id)
         if sum(claim.size for claim in claims) != allocated:
             raise MigrationError(f"V1 deal {source.deal_id} claim bytes do not equal the {allocated} bytes recorded by the V1 client")
         return claims
+
+    @staticmethod
+    def _terminated_claim_ids(legacy_client: LegacyClient, ids: list[int]) -> list[int]:
+        terminated = []
+        executor = ThreadPoolExecutor(max_workers=TERMINATION_CHECK_WORKERS)
+        try:
+            with click.progressbar(length=len(ids), label=f"Checking {len(ids)} V1 claims", show_eta=True, file=sys.stderr) as progress:
+                for claim_id, is_terminated in zip(ids, executor.map(legacy_client.is_claim_terminated, ids)):
+                    progress.update(1)
+                    if is_terminated:
+                        terminated.append(claim_id)
+        finally:
+            executor.shutdown(cancel_futures=True)
+        return terminated
 
     # V1/V2 pair
 
@@ -305,6 +324,12 @@ class MigrationService:
     @staticmethod
     def registered_ids(adapter: DataCapEvidenceAdapter, deal_id: int) -> list[int]:
         return adapter_claim_ids(adapter, deal_id)
+
+    def ensure_unregistered(self, pair: MigrationPair, batch: AdoptionPlan):
+        adapter = DataCapEvidenceAdapter(pair.target.deal.evidence_adapter_address)
+        already = {extension.claim_id for extension in batch.extensions} & set(self.registered_ids(adapter, pair.target.deal.deal_id))
+        if already:
+            raise MigrationError(f"V1 claim(s) {sorted(already)[:10]} are already registered on V2 deal {pair.target.deal.deal_id}")
 
     def adoption_progress(self, pair: MigrationPair) -> tuple[set[int], set[int]]:
         """(V1 claim ids, ids the V2 adapter already holds) without touching the Filecoin state."""
