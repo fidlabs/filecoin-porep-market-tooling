@@ -10,6 +10,7 @@ from cli._cli import is_dry_run
 from cli.migration.utils import epochs_to_days
 from cli.commands.sp._sp import sp_organization_address
 from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter
+from cli.services.contracts.evidence_adapter import EvidenceType
 from cli.services.contracts.porep_market_view_helper import PoRepMarketDealView, PoRepMarketViewHelper
 from cli.services.contracts.sp_registry import SPRegistry
 from cli.migration.service import Claim, MigrationError, adapter_claim_ids, sector_required_epoch, sector_target_epoch
@@ -18,6 +19,9 @@ from cli.services.web3_service import ActorId, Web3Service
 
 def deal_claims(target: PoRepMarketDealView) -> list[Claim]:
     adapter = DataCapEvidenceAdapter(target.deal.evidence_adapter_address)
+    if adapter.get_evidence_type() != EvidenceType.VERIF_REG_CLAIMS:
+        raise MigrationError(f"V2 deal {target.deal.deal_id} does not use the VerifReg claims evidence adapter")
+
     ids = adapter_claim_ids(adapter, target.deal.deal_id)
     if not ids:
         raise MigrationError(f"V2 deal {target.deal.deal_id} has no claims on its adapter yet; "

@@ -9,6 +9,8 @@ import click
 from click.testing import CliRunner
 
 from cli.migration.client import adopt_v1_claims, close_v1_deal, finish_migration
+from cli.migration import sp as sp_module
+from cli.migration.status import _target_line
 from cli.migration.sp import _run_sptool, extend_deal_sectors, sector_expirations
 from cli.services.contract_service import ContractService
 from cli.services.contracts.evidence_adapter import EvidenceType
@@ -80,8 +82,9 @@ def paged(ids):
     return lambda deal_id, offset, limit: (ids[offset:offset + limit], len(ids))
 
 
-def make_adapter(pending=(), confirmed=(), allocated=0):
+def make_adapter(pending=(), confirmed=(), allocated=0, evidence_type=EvidenceType.VERIF_REG_CLAIMS):
     adapter = MagicMock()
+    adapter.get_evidence_type.return_value = evidence_type
     adapter.get_allocation_ids_per_deal.side_effect = paged(list(pending))
     adapter.get_claim_ids.side_effect = paged(list(confirmed))
     adapter.get_allocated_bytes.return_value = allocated
@@ -485,7 +488,10 @@ class ServiceTests(Web3Singleton):
         client.allocation_ids.side_effect = lambda deal_id: {3: [10, 11], 4: [20]}[deal_id]
         adapters = {EthAddress("0x7777777777777777777777777777777777777777"): make_adapter(pending=[20]),
                     EthAddress("0x8888888888888888888888888888888888888888"): make_adapter(pending=[10], confirmed=[30]),
-                    EthAddress("0x9999999999999999999999999999999999999999"): make_adapter()}
+                    EthAddress("0x9999999999999999999999999999999999999999"): make_adapter(),
+                    EthAddress("0x6666666666666666666666666666666666666666"): make_adapter(evidence_type=EvidenceType.SECTOR_PLACEMENT)}
+        sector_adapter = adapters[EthAddress("0x6666666666666666666666666666666666666666")]
+        sector_adapter.get_allocation_ids_per_deal.side_effect = AssertionError("sector adapter has no claim getters")
 
         def view(deal_id, adapter_address):
             target = make_target()
@@ -494,7 +500,8 @@ class ServiceTests(Web3Singleton):
             return target
 
         addresses = list(adapters)
-        targets = [view(101, addresses[0]), view(102, addresses[1]), view(103, addresses[2]), view(104, EthAddress(EthAddress.ZERO_ADDRESS))]
+        targets = [view(101, addresses[0]), view(102, addresses[1]), view(103, addresses[2]), view(104, EthAddress(EthAddress.ZERO_ADDRESS)),
+                   view(105, addresses[3])]
         first = make_source()
         sources = [first, LegacyDeal(**{**first.__dict__, "deal_id": 4})]
         with patch("cli.migration.service.DataCapEvidenceAdapter", side_effect=lambda address: adapters[address]):
@@ -579,12 +586,11 @@ class ClientCommandTests(Web3Singleton):
         self.assertNotEqual(result.exit_code, 0)
         self.assertIn("not " + CLIENT, result.output)
 
-    def finish_fixture(self, rail_id=7, rail_status=FileCoinPayRailStatus.PREPARED, plan=None):
+    def finish_fixture(self, rail_id=7, rail_status=FileCoinPayRailStatus.PREPARED, progress=None):
         self.set_pair(target=make_target(rail_id=rail_id))
-        self.service.adoption_plan.return_value = plan or make_plan(registered=[10, 11])
-        adapter = self.patch_module("DataCapEvidenceAdapter").return_value
-        adapter.is_datacap_posting_finished.return_value = False
-        adapter.get_allocated_bytes.return_value = 64
+        self.service.adoption_progress.return_value = progress or ({10, 11}, {10, 11})
+        adapter = make_adapter(allocated=64)
+        self.service.adapter.return_value = adapter
         self.patch_module("FileCoinPayValidator").return_value.get_rail_status.return_value = rail_status
         self.patch_module("PoRepMarket").return_value.get_deal_activation_padding.return_value = 1000
         return adapter
@@ -602,11 +608,25 @@ class ClientCommandTests(Web3Singleton):
         self.assertIn("expected PREPARED", result.output)
 
     def test_finish_refuses_incomplete_plan(self):
-        self.finish_fixture(plan=make_plan(registered=[10]))
+        self.finish_fixture(progress=({10, 11}, {10}))
         result = self.runner.invoke(finish_migration, ["9", "3"])
         self.assertNotEqual(result.exit_code, 0)
         self.assertIn("1 V1 claim(s) are not registered", result.output)
         self.signer.assert_not_called()
+
+    def test_finish_ignores_claims_dropped_from_v1_after_adoption(self):
+        self.finish_fixture(progress=({10}, {10, 11}))
+        result = self.runner.invoke(finish_migration, ["9", "3", "--print-only"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("Ready to finish DataCap posting", result.output)
+        self.service.adoption_plan.assert_not_called()
+
+    def test_finish_rejects_wrong_adapter(self):
+        self.finish_fixture()
+        self.service.adapter.side_effect = MigrationError("V2 deal does not use the VerifReg claims evidence adapter")
+        result = self.runner.invoke(finish_migration, ["9", "3", "--print-only"])
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("VerifReg claims evidence adapter", result.output)
 
     def test_finish_print_only_ready(self):
         adapter = self.finish_fixture()
@@ -774,6 +794,23 @@ class ClientCommandTests(Web3Singleton):
         self.signer.assert_not_called()
 
 
+class StatusTests(Web3Singleton):
+    def test_check_sectors_reports_adopted_claims_missing_on_chain(self):
+        service = MagicMock()
+        service.source_claim_ids.return_value = [10, 11]
+        web3 = MagicMock()
+        web3.state_get_claims.return_value = {"10": rpc_claim(Sector=7)}
+        web3.state_sector_get_info.return_value = {"Expiration": 10 ** 9}
+        with patch("cli.migration.status.DataCapEvidenceAdapter"), \
+                patch("cli.migration.status.adapter_claim_ids", return_value=[10, 11]), \
+                patch("cli.migration.status.Web3Service", return_value=web3), \
+                patch("cli.migration.utils.token_info", return_value=("USDFC", 18)):
+            lines = _target_line(service, make_source(), make_rail(), make_target(state=PoRepMarketDealState.ACTIVE), EPOCH, True)
+        output = "\n".join(lines)
+        self.assertIn("1 adopted claim(s) not held by provider", output)
+        self.assertNotIn(": ok", output)
+
+
 class SpCommandTests(Web3Singleton):
     @staticmethod
     def sptool_run(returncode=0, stdout="", stderr=""):
@@ -807,7 +844,7 @@ class SpCommandTests(Web3Singleton):
         web3.state_get_claims.return_value = {"10": rpc_claim(Sector=7), "11": rpc_claim(Sector=8)}
         web3.state_sector_get_info.side_effect = lambda provider, sector: {"Expiration": expirations[sector]}
         for name, kwargs in (("Web3Service", {"return_value": web3}), ("adapter_claim_ids", {"return_value": [10, 11]}),
-                             ("DataCapEvidenceAdapter", {}), ("sp_organization_address", {"return_value": CLIENT})):
+                             ("DataCapEvidenceAdapter", {"return_value": make_adapter()}), ("sp_organization_address", {"return_value": CLIENT})):
             patcher = patch(f"cli.migration.sp.{name}", **kwargs)
             patcher.start()
             self.addCleanup(patcher.stop)
@@ -831,6 +868,13 @@ class SpCommandTests(Web3Singleton):
                 self.assertEqual(file.read(), "7\n")
         self.assertIn("sptool command: sptool --actor f01234 sectors extend --sector-file", result.output)
         self.assertIn("--new-expiration 100000 --tolerance 0 --really-do-it", result.output)
+
+    def test_extend_deal_sectors_rejects_sector_placement_deal(self):
+        self.patch_sp_command(make_target(state=PoRepMarketDealState.ACTIVE), {7: 2_000, 8: 9_000_000})
+        sp_module.DataCapEvidenceAdapter.return_value.get_evidence_type.return_value = EvidenceType.SECTOR_PLACEMENT
+        result = CliRunner().invoke(extend_deal_sectors, ["9", "--print-only"])
+        self.assertNotEqual(result.exit_code, 0)
+        self.assertIn("does not use the VerifReg claims evidence adapter", result.output)
 
     def test_extend_deal_sectors_rerun_on_accepted_deal_finds_nothing_to_extend(self):
         target = make_target(state=PoRepMarketDealState.ACCEPTED)
