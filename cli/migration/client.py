@@ -191,7 +191,11 @@ def finish_migration(v2_deal_id: int, v1_deal_id: int, print_only: bool):
     if target.deal.state != PoRepMarketDealState.ACCEPTED:
         raise click.ClickException(f"V2 deal {v2_deal_id} is {target.deal.state}, expected ACCEPTED")
 
-    adapter = DataCapEvidenceAdapter(target.deal.evidence_adapter_address)
+    try:
+        adapter = service.adapter(pair)
+    except MigrationError as exc:
+        raise click.ClickException(str(exc)) from exc
+
     if adapter.is_datacap_posting_finished(v2_deal_id):
         click.echo(f"\nDataCap posting for V2 deal {v2_deal_id} is already finished; waiting for the service to activate the deal.")
         return
@@ -204,10 +208,13 @@ def finish_migration(v2_deal_id: int, v1_deal_id: int, print_only: bool):
         raise click.ClickException(f"V2 deal {v2_deal_id} rail status is {rail_status}, expected PREPARED; "
                                    f"run `{sys.argv[0]} client init-deal {v2_deal_id}` first")
 
-    plan = _plan(service, pair, require_operational=False)
-    _print_plan(plan)
-    if not plan.complete:
-        raise click.ClickException(f"{len(plan.extensions)} V1 claim(s) are not registered on V2 deal {v2_deal_id}; "
+    # V1 claim health is not rechecked here: once adopted, a V1 settlement may drop expired or terminated
+    # claim IDs from the V1 deal, which must not block finishing; the adapter bytes check below still applies
+    source_ids, registered = service.adoption_progress(pair)
+    click.echo(f"V1 claims: {len(source_ids)}, registered on the V2 adapter: {len(source_ids & registered)}")
+    missing = source_ids - registered
+    if missing:
+        raise click.ClickException(f"{len(missing)} V1 claim(s) are not registered on V2 deal {v2_deal_id}; "
                                    f"run `{sys.argv[0]} client adopt-v1-claims {v2_deal_id} {v1_deal_id}` first")
 
     allocated = adapter.get_allocated_bytes(v2_deal_id)

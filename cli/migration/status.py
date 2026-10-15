@@ -44,9 +44,12 @@ def _target_line(service: MigrationService, source: LegacyDeal, source_rail: Fil
 
     if check_sectors and registered:
         claims = Web3Service().state_get_claims(source.provider)
+        missing = sorted(claim_id for claim_id in registered if str(claim_id) not in claims)
         sectors = {Claim.from_rpc(claim_id, claims[str(claim_id)]).sector for claim_id in registered if str(claim_id) in claims}
         expirations = [int((Web3Service().state_sector_get_info(source.provider, sector) or {}).get("Expiration", 0)) for sector in sectors]
-        if expirations:
+        if missing:
+            lines.append(f"    sectors: {len(missing)} adopted claim(s) not held by provider {source.provider}: {missing[:10]}")
+        elif expirations:
             earliest = min(expirations)
             needed = sector_required_epoch(target, current_epoch)
             verdict = "ok" if earliest >= needed else "too early, SP must run sp extend-deal-sectors"

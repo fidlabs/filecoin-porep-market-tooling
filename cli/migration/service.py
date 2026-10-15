@@ -376,10 +376,17 @@ class MigrationService:
         """Map V2 deal ID to V1 deal ID by the claim IDs the adapter already holds."""
         source_ids = {source.deal_id: set(self.source_claim_ids(source)) for source in sources}
         result = {}
+        evidence_types: dict[EthAddress, EvidenceType] = {}
         for target in targets:
-            if not target.deal.evidence_adapter_address:
+            address = target.deal.evidence_adapter_address
+            if not address:
                 continue
-            adapter = DataCapEvidenceAdapter(target.deal.evidence_adapter_address)
+            adapter = DataCapEvidenceAdapter(address)
+            # other adapter types (sector placement) have no claim getters and cannot hold adopted V1 claims
+            if address not in evidence_types:
+                evidence_types[address] = adapter.get_evidence_type()
+            if evidence_types[address] != EvidenceType.VERIF_REG_CLAIMS:
+                continue
             registered = set(self.registered_ids(adapter, target.deal.deal_id))
             if not registered:
                 continue
