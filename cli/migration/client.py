@@ -7,6 +7,16 @@ import click
 from cli import utils
 from cli._cli import is_dry_run
 from cli.commands.client._client import client_address, client_signer
+from cli.migration.service import (
+    ADOPTION_BATCH_SIZE,
+    EPOCHS_IN_DAY,
+    AdoptionPlan,
+    MigrationError,
+    MigrationPair,
+    MigrationService,
+    open_rail,
+    size_within_padding,
+)
 from cli.migration.utils import (
     describe_rail,
     epochs_to_days,
@@ -21,16 +31,6 @@ from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapt
 from cli.services.contracts.filecoin_pay import FileCoinPay, FileCoinPayRailView
 from cli.services.contracts.filecoinpay_validator import FileCoinPayRailStatus, FileCoinPayValidator
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
-from cli.migration.service import (
-    ADOPTION_BATCH_SIZE,
-    EPOCHS_IN_DAY,
-    AdoptionPlan,
-    MigrationError,
-    MigrationPair,
-    MigrationService,
-    open_rail,
-    size_within_padding,
-)
 from cli.services.web3_service import Web3Service
 
 
@@ -379,8 +379,9 @@ def close_v1_deal(v1_deal_id: int, v2_deal_id: int, print_only: bool, force: boo
             return
 
         if rail.end_epoch - service.web3.get_block_number() > SAME_RUN_SETTLEMENT_EPOCHS:
-            click.echo(f"Payments stop at epoch {rail.end_epoch}; re-run `{sys.argv[0]} client close-v1-deal {v1_deal_id} "
-                       f"--v2-deal-id {v2_deal_id}` after that to settle and finalize.")
+            click.echo(f"Payments stop at epoch {rail.end_epoch}; "
+                       f"re-run `{sys.argv[0]} client close-v1-deal {v1_deal_id} --v2-deal-id {v2_deal_id}` "
+                       f"after that to settle and finalize.")
             return
 
         _wait_past_epoch(service.web3, rail.end_epoch)
