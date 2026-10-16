@@ -243,6 +243,16 @@ class CurioMarketClient:
     def get_deal_status(self, identifier: str) -> dict[str, Any]:
         return self._json(self._request("GET", f"/status/{identifier}"))
 
+    def get_deal_status_or_none(self, identifier: str) -> dict[str, Any] | None:
+        try:
+            return self.get_deal_status(identifier)
+
+        except CurioMarketError as e:
+            if e.status_code == 404:
+                return None
+
+            raise
+
     def preflight(self, market_address: EthAddress):
         products = self.get_products()
         sources = self.get_sources()
