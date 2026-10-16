@@ -1,3 +1,5 @@
+target-version = "py310"
+
 [lint]
 ignore = [
     "PLR2044", # Line with empty comment
@@ -6,6 +8,8 @@ ignore = [
     "SIM102", # Use a single if statement instead of nested if statements - hurts readability
     "PYI034", # __new__ methods usually return self at runtime
     "I001", # Already handled by other linters
+    "S110", # Already handled by other linters
+    "S112", # Already handled by other linters
 ]
 
 # flake8-only codes used in inline "# noqa: <code>" comments -- don't flag
