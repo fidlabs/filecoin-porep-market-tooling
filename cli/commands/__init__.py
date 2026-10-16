@@ -1,5 +1,6 @@
 # ruff: noqa
 
+from ._test import test
 from .admin import *
 from .client import *
 from .config import config
