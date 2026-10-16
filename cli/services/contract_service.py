@@ -111,7 +111,6 @@ class ContractService:
             # pylint: disable=broad-exception-caught
             except Exception:
                 # nop
-                # ruff: noqa: S112
                 continue
 
         return decoded_events

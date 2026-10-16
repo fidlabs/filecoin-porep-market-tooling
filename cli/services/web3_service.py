@@ -50,6 +50,8 @@ class ActorId(int):
 
         # noinspection PyTypeChecker
         self = super().__new__(cls, actor_id)
+
+        # noinspection unresolved-references
         self.prefix = expected_prefix
 
         # noinspection PyTypeChecker
