@@ -1,5 +1,4 @@
 import rlp
-
 # noinspection PyProtectedMember
 from eth_account._utils.legacy_transactions import (
     Transaction,
@@ -9,9 +8,7 @@ from eth_account._utils.legacy_transactions import (
 from eth_account.datastructures import SignedMessage, SignedTransaction
 from eth_account.messages import SignableMessage, encode_typed_data
 from eth_account.typed_transactions import TypedTransaction
-from eth_account.typed_transactions.dynamic_fee_transaction import (
-    transaction_rpc_to_rlp_structure,
-)
+from eth_account.typed_transactions.dynamic_fee_transaction import transaction_rpc_to_rlp_structure
 from eth_account.types import PrivateKeyType
 from eth_utils import keccak
 from eth_utils.toolz import dissoc
@@ -31,10 +28,23 @@ class TxSigner:
     def address(self) -> EthAddress:
         raise NotImplementedError
 
+    def filecoin_address(self) -> FilAddress:
+        raise NotImplementedError
+
     def sign_transaction(self, tx_params: dict) -> SignedTransaction:
         raise NotImplementedError
 
     def sign_typed_data(self, domain_data: dict, message_types: dict, message_data: dict) -> SignedMessage:
+        raise NotImplementedError
+
+    def sign_filecoin_message(self, message: bytes) -> bytes:
+        """
+        Sign arbitrary bytes using delegated Filecoin signature semantics.
+
+        Returns crypto.Signature.MarshalBinary():
+            0x03 + 65-byte delegated signature
+        """
+
         raise NotImplementedError
 
 
@@ -50,6 +60,9 @@ class PrivateKeyTxSigner(TxSigner):
     def address(self) -> EthAddress:
         return self._address
 
+    def filecoin_address(self) -> FilAddress:
+        return FilAddress.from_ethereum_address(self._address)
+
     def sign_transaction(self, tx_params: dict) -> SignedTransaction:
         return Web3Service().w3().eth.account.sign_transaction(tx_params, self.private_key)
 
@@ -60,6 +73,25 @@ class PrivateKeyTxSigner(TxSigner):
             message_data=message_data,
             private_key=self.private_key,
         )
+
+    def sign_filecoin_message(self, message: bytes) -> bytes:
+        signed = Web3Service().w3().eth.account.unsafe_sign_hash(
+            keccak(message),
+            self.private_key,
+        )
+
+        recovery_id = signed.v - 27
+
+        if recovery_id not in (0, 1):
+            raise RuntimeError(f"Unexpected recovery ID: {recovery_id}")
+
+        sig = (
+                signed.r.to_bytes(32, "big")
+                + signed.s.to_bytes(32, "big")
+                + bytes([recovery_id])
+        )
+
+        return b"\x03" + sig
 
 
 class LotusWalletTxSigner(TxSigner):
@@ -82,6 +114,9 @@ class LotusWalletTxSigner(TxSigner):
 
     def address(self) -> EthAddress:
         return self.eth_address
+
+    def filecoin_address(self) -> FilAddress:
+        return self.fil_address
 
     @staticmethod
     def _parse_rsv(sig: bytes) -> tuple[int, int, int]:
@@ -178,3 +213,12 @@ class LotusWalletTxSigner(TxSigner):
 
         self._validate_recovered_typed_data(signable, signed_message.signature)
         return signed_message
+
+    def sign_filecoin_message(self, message: bytes) -> bytes:
+        sig = Web3Service().wallet_sign(
+            self.fil_address,
+            message,
+            self.lotus_token,
+        )
+
+        return b"\x03" + sig

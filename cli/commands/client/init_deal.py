@@ -86,7 +86,7 @@ def _deposit_and_approve_operator(deal_id: int):
 
     if not __get_validator_address_for_deal(deal.deal):
         raise click.ClickException(f"Validator not found for deal ID {deal.deal.deal_id}, cannot deposit and approve operator; "
-                                   f"run `{sys.argv[0]} client init-deal` {deal.deal.deal_id} again.")
+                                   f"run `{sys.argv[0]} client init-deal {deal.deal.deal_id}` again.")
 
     operator_approval = FileCoinPay().get_operator_approval(payment_token.address(),
                                                             client_address(),
@@ -158,7 +158,7 @@ def _initialize_rail(deal_id: int):
 
     if not __get_validator_address_for_deal(deal.deal):
         raise click.ClickException(f"Validator not found for deal ID {deal.deal.deal_id}, cannot initialize rail; "
-                                   f"run `{sys.argv[0]} client init-deal` {deal.deal.deal_id} again.")
+                                   f"run `{sys.argv[0]} client init-deal {deal.deal.deal_id}` again.")
 
     operator_approval = FileCoinPay().get_operator_approval(deal.payment.payment_token,
                                                             client_address(),
@@ -166,7 +166,7 @@ def _initialize_rail(deal_id: int):
 
     if not operator_approval.is_approved:
         raise click.ClickException(f"Operator not approved for deal ID {deal.deal.deal_id}, cannot initialize rail; "
-                                   f"run `{sys.argv[0]} client init-deal` {deal.deal.deal_id} again.")
+                                   f"run `{sys.argv[0]} client init-deal {deal.deal.deal_id}` again.")
 
     if deal.deal.rail_id:
         click.echo(f"\nRail already initialized for deal ID {deal.deal.deal_id}: {deal.deal.rail_id}")

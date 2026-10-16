@@ -50,6 +50,8 @@ class ActorId(int):
 
         # noinspection PyTypeChecker
         self = super().__new__(cls, actor_id)
+
+        # noinspection unresolved-references
         self.prefix = expected_prefix
 
         # noinspection PyTypeChecker
@@ -381,7 +383,10 @@ class Web3Service:
             raise TypeError(f"Unsupported address type: {address!r}")
 
     def wallet_sign(self, from_address: FilAddress, raw_bytes: bytes, lotus_token: str) -> bytes:
-        _w3 = Web3(Web3.HTTPProvider(utils.get_env_required("RPC_URL"), request_kwargs={"headers": {"Authorization": f"Bearer {lotus_token}"}}))
+        _w3 = Web3(Web3.HTTPProvider(
+            utils.get_env_required("RPC_URL"),
+            request_kwargs={"headers": {"Authorization": f"Bearer {lotus_token}"}}
+        ))
 
         response = _w3.provider.make_request(
             RPCEndpoint("Filecoin.WalletSign"),
@@ -413,10 +418,27 @@ class Web3Service:
 
         return sig_bytes
 
-    def state_get_allocations(self, actor_id: ActorId) -> dict[str, dict]:
+    def get_tipset_key(self) -> list[dict]:
+        response = self._w3.provider.make_request(
+            RPCEndpoint("Filecoin.ChainHead"),
+            []
+        )
+
+        if "error" in response:
+            raise RuntimeError(f"Filecoin.ChainHead failed: {response['error']}")
+
+        result = response.get("result")
+        cids = result.get("Cids") if isinstance(result, dict) else None
+
+        if not isinstance(cids, list) or not cids:
+            raise RuntimeError(f"Filecoin.ChainHead failed: invalid result {result!r}")
+
+        return cids
+
+    def state_get_allocations(self, actor_id: ActorId, tipset_key: list[dict] | None = None) -> dict[str, dict]:
         response = self._w3.provider.make_request(
             RPCEndpoint("Filecoin.StateGetAllocations"),
-            [str(actor_id), None]
+            [str(actor_id), tipset_key]
         )
 
         if "error" in response:
@@ -427,20 +449,25 @@ class Web3Service:
 
         return response["result"]
 
-    def get_tipset_key(self) -> list[dict]:
-        response = self._w3.provider.make_request(RPCEndpoint("Filecoin.ChainHead"), [])
+    def state_miner_info(self, actor_id: ActorId, tipset_key: list[dict] | None = None) -> dict[str, dict]:
+        response = self._w3.provider.make_request(
+            RPCEndpoint("Filecoin.StateMinerInfo"),
+            [str(actor_id), tipset_key],
+        )
+
         if "error" in response:
-            raise RuntimeError(f"Filecoin.ChainHead failed: {response['error']}")
-        result = response.get("result")
-        cids = result.get("Cids") if isinstance(result, dict) else None
-        if not isinstance(cids, list) or not cids:
-            raise RuntimeError(f"Filecoin.ChainHead failed: invalid result {result!r}")
-        return cids
+            raise RuntimeError(f"Filecoin.StateMinerInfo({actor_id}) failed: {response['error']}")
+
+        if response.get("result") is None or not isinstance(response["result"], dict):
+            raise RuntimeError(f"Filecoin.StateMinerInfo({actor_id}) failed: invalid result {response['result']!r}")
+
+        return response["result"]
 
     def state_get_claims(self,
                          actor_id: ActorId,
                          client: ActorId | None = None,
                          tipset_key: list[dict] | None = None) -> dict[str, dict]:
+        #
         response = self._w3.provider.make_request(
             RPCEndpoint("Filecoin.StateGetClaims"),
             [str(actor_id), tipset_key]
@@ -461,19 +488,19 @@ class Web3Service:
                               provider: ActorId,
                               sector_number: int,
                               tipset_key: list[dict] | None = None) -> dict | None:
+        #
         response = self._w3.provider.make_request(
             RPCEndpoint("Filecoin.StateSectorGetInfo"),
             [str(provider), int(sector_number), tipset_key],
         )
+
         if "error" in response:
-            raise RuntimeError(
-                f"Filecoin.StateSectorGetInfo({provider}, {sector_number}) failed: {response['error']}"
-            )
+            raise RuntimeError(f"Filecoin.StateSectorGetInfo({provider}, {sector_number}) failed: {response['error']}")
+
         result = response.get("result")
         if result is not None and not isinstance(result, dict):
-            raise RuntimeError(
-                f"Filecoin.StateSectorGetInfo({provider}, {sector_number}) failed: invalid result {result!r}"
-            )
+            raise RuntimeError(f"Filecoin.StateSectorGetInfo({provider}, {sector_number}) failed: invalid result {result!r}")
+
         return result
 
     def wait_for_pending_transactions(self, from_address: EthAddress):
@@ -482,10 +509,9 @@ class Web3Service:
     def ensure_no_pending_transactions(self, from_address: EthAddress):
         latest_nonce = self.get_transaction_count(from_address, "latest")
         pending_nonce = self.get_transaction_count(from_address, "pending")
+
         if pending_nonce != latest_nonce:
-            raise RuntimeError(
-                f"Address {from_address} has {pending_nonce - latest_nonce} pending transaction(s)"
-            )
+            raise RuntimeError(f"Address {from_address} has {pending_nonce - latest_nonce} pending transaction(s)")
 
     def get_address_nonce(self, from_address: EthAddress, block_identifier: str = "pending") -> int:
         try:

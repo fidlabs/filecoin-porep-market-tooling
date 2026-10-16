@@ -72,11 +72,11 @@ def make_allocations(deal_id: int,
 
     if deal.deal.rail_id == 0:
         raise click.ClickException(f"Deal ID {deal_id} does not have a FileCoinPay rail set; "
-                                   f"run `{sys.argv[0]} client init-deal` {deal_id} first.")
+                                   f"run `{sys.argv[0]} client init-deal {deal_id}` first.")
 
     if not deal.deal.validator_address:
         raise click.ClickException(f"Deal ID {deal_id} does not have a validator set; "
-                                   f"run `{sys.argv[0]} client init-deal` {deal_id} first.")
+                                   f"run `{sys.argv[0]} client init-deal {deal_id}` first.")
 
     operator_approval = FileCoinPay().get_operator_approval(deal.payment.payment_token,
                                                             client_address(),
@@ -84,7 +84,7 @@ def make_allocations(deal_id: int,
 
     if not operator_approval.is_approved:
         raise click.ClickException(f"Deal ID {deal_id} operator is not approved; "
-                                   f"run `{sys.argv[0]} client init-deal` {deal_id} first.")
+                                   f"run `{sys.argv[0]} client init-deal {deal_id}` first.")
 
     deal_allocations = commands_utils.get_deal_allocations(deal.deal)
     deal_claims = commands_utils.get_deal_claims(deal.deal)
@@ -229,8 +229,10 @@ def _finish_datacap_posting(deal_id: int, manifest: list[dict], exclude_dag: boo
     pieces_not_allocated = [piece for piece in pieces if piece["pieceCid"] not in cids_allocated]
 
     if pieces_not_allocated:
-        raise click.ClickException(f"Cannot finish DataCap posting for deal ID {deal_id}: {len(pieces_not_allocated)} pieces not allocated yet; "
-                                   f"run `{sys.argv[0]} client make-allocations {deal_id}` again to allocate remaining pieces before finishing DataCap posting.")
+        raise click.ClickException(f"Cannot finish DataCap posting for deal ID {deal_id}: "
+                                   f"{len(pieces_not_allocated)} pieces not allocated yet; "
+                                   f"run `{sys.argv[0]} client make-allocations {deal_id}` "
+                                   f"again to allocate remaining pieces before finishing DataCap posting.")
 
     # verify allocated size is within padding range
     final_allocation_size = DataCapEvidenceAdapter(deal.deal.evidence_adapter_address).get_allocated_bytes(deal_id)
