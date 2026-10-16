@@ -1,7 +1,8 @@
 import base64
 import hashlib
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Any
 from urllib.parse import urlsplit
 
 import requests
@@ -47,6 +48,7 @@ class CurioMarketDiscovery:
 
             # pylint: disable=broad-exception-caught
             except Exception:
+                # nop
                 pass
 
         if host is None:
