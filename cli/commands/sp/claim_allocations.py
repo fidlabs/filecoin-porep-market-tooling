@@ -151,7 +151,7 @@ def claim_allocations(ctx, software: str, deal_id: int, cars_dir: str | None = N
         if not allocations_not_claimed:
             return
 
-        if click.confirm("Print allocations not claimed?", default=False):
+        if utils.confirm("Print allocations not claimed?", default=False):
             click.echo(utils.json_pretty(allocations_not_claimed))
     else:
         allocations_not_claimed = {allocation_id: alloc for allocation_id, alloc in allocations_not_claimed.items() if alloc.get("Data", {}).get("/") == cid}

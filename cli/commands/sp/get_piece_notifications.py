@@ -52,16 +52,16 @@ def get_piece_notifications(deal_id: int, not_accepted: bool = False, local_mani
     pieces = []
 
     for row in piece_set.rows:
-        accepted = evidence_adapter.is_piece_accepted(deal_id, row.index)
+        piece_accepted = evidence_adapter.is_piece_accepted(deal_id, row.index)
 
-        if not_accepted and accepted:
+        if not_accepted and piece_accepted:
             continue
 
         pieces.append({
             "pieceCid": row.piece_cid,
             "pieceSize": row.padded_size,
             "pieceIndex": row.index,
-            "accepted": accepted,
+            "accepted": piece_accepted,
             "payload": piece_set.notification_payload(deal_id, row.index).to_0x_hex()
         })
 

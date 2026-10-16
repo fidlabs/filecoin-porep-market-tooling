@@ -96,14 +96,14 @@ def _ensure_deal_is_eligible_for_deposit(deal: PoRepMarketDeal):
     if deal.state == PoRepMarketDealState.ACCEPTED:
         if deal.rail_id == 0 or not deal.validator_address:
             raise click.ClickException(f"Deal payment not initialized; "
-                                       f"run `{sys.argv[0]} client init-deal` {deal.deal_id} first.")
+                                       f"run `{sys.argv[0]} client init-deal {deal.deal_id}` first.")
 
         elif commands_utils.get_evidence_type(deal.evidence_adapter_address) == EvidenceType.VERIF_REG_CLAIMS:
             evidence_adapter = DataCapEvidenceAdapter(deal.evidence_adapter_address)
 
             if not evidence_adapter.is_datacap_posting_finished(deal.deal_id):
                 raise click.ClickException(f"DataCap posting for deal ID {deal.deal_id} not finished; "
-                                           f"run `{sys.argv[0]} client make-allocations` {deal.deal_id} first.")
+                                           f"run `{sys.argv[0]} client make-allocations {deal.deal_id}` first.")
 
     elif deal.state != PoRepMarketDealState.ACTIVE:
         raise click.ClickException(f"Deal ID {deal.deal_id} is in state {deal.state} != ACCEPTED/ACTIVE")
