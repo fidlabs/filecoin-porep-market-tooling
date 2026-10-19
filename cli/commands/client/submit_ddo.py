@@ -160,7 +160,7 @@ def submit_ddo(deal_id: int,
 
         # TODO ASAP
         # Deterministic identifier makes the command safe to rerun.
-        # Although it might cause problems when trying to cubmit failed deal with the same identifier
+        # Although it might cause problems when trying to submit failed deal with the same identifier
         existing_deal = curio.get_deal_status_or_none(identifier)
 
         if existing_deal is not None:
