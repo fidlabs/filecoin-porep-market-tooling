@@ -17,6 +17,21 @@ To set it: `alias porep='uv run python porep_tooling_cli.py'`.
   No PoRep wallet key is needed for these steps.
 - Lotus `sptool` configured for your miner, with FIL for the message. If it is not on `PATH`, pass `--sptool <path>` or set `SPTOOL_PATH`.
 - Your V2 deal IDs from us.
+- To make your life easy, set up an alias, so that you can use `porep` rather than `uv run python porep_tooling_cli.py` or `python3 porep_tooling_cli.py`, depending on the installation process you used see [Installation](../README.md#installation): 
+```bash
+alias porep='uv run python porep_tooling_cli.py' 
+```
+or 
+```bash
+alias porep='python3 porep_tooling_cli.py>'
+```
+
+## Update the .env file
+Add the following 2 lines to the .env file
+```bash
+POREP_MARKET_V1=0xBD669aBd1188F52e82aF114E17aCE2842DCc0Eb4
+POREP_MARKET_V1_CHAIN_ID=314
+```
 
 ## Extend the sectors
 
