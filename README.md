@@ -95,10 +95,10 @@ Anyone can check progress without a wallet with `migration-status`.
    must be this exported private key in 32-byte hex format with a `0x` prefix - **not** the wallet
    address you pass to `lotus wallet export`
 
-5. Alternatively, generate an auth token for your _controller address_ and use it instead of the private key:
+5. Alternatively, generate an auth token for your lotus wallet and use it instead of the private key:
 
     ```bash
-    lotus auth create-token --perm sign --wallet <your-controller-address>
+    lotus auth create-token --perm sign
     ```
 
    And set it as `SP_LOTUS_TOKEN` in your `.env` file alongside `SP_LOTUS_WALLET` with the address of your _controller wallet_. \
