@@ -13,16 +13,19 @@ from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import (
     PoRepMarketDealState,
     PoRepMarketDealType,
+    PoRepMarket,
 )
-from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
+from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper, PoRepMarketDealView
 from cli.services.contracts.sector_evidence_adapter import SectorEvidenceAdapter
 from cli.services.curio_market_client import (
     CurioMarketClient,
-    CurioMarketError, CurioMarketDiscovery,
+    CurioMarketError,
+    CurioMarketDiscovery,
 )
 from cli.services.piece_set_commitment import PieceSet
 from cli.services.self_update import SelfUpdateService
-from cli.services.web3_service import Web3Service
+from cli.services.txsigner import TxSigner
+from cli.services.web3_service import Web3Service, EthAddress, FilAddress
 
 
 @click.command("submit-ddo")
@@ -80,13 +83,9 @@ def submit_ddo(deal_id: int,
         for piece in manifest[0]["pieces"]
     }
 
-    # TODO ASAP
-    # For now the SectorEvidenceAdapter is also the intended Curio market
-    # verification contract.
-    #
-    # Once/if CurioDealViewV1 lives at a separate address, this is the only
-    # assignment that needs to change.
-    market_address = deal.deal.evidence_adapter_address
+    # Not using CurioDealViewV1 flow.
+    market_address = None
+    market_deal_id = None
 
     evidence_adapter = SectorEvidenceAdapter(deal.deal.evidence_adapter_address)
     notification_address = deal.deal.evidence_adapter_address.to_filecoin_address()
@@ -109,10 +108,7 @@ def submit_ddo(deal_id: int,
                                           int(manifest_piece["fileSize"]))
 
         notification_payload = bytes(piece_set.notification_payload(deal_id, row.index))
-
-        identifier = _piece_identifier(deal_id=deal_id,
-                                       market_address=market_address,
-                                       piece_cid_v2=piece_cid_v2)
+        identifier = _piece_identifier(deal_id, piece_cid_v2)
 
         pieces_to_submit.append({
             "row": row,
@@ -130,14 +126,14 @@ def submit_ddo(deal_id: int,
         return
 
     if print_only:
-        _print_plan(deal_id, deal, pieces_to_submit, notification_address, market_address)
+        _print_plan(deal, pieces_to_submit, notification_address, market_address)
         return
 
     _curio_url = [curio_url] if curio_url else CurioMarketDiscovery.get_market_urls(deal.deal.provider_id)
 
     curio = _find_curio_market_endpoint(
-        _curio_url,
         client_signer(),
+        _curio_url,
         market_address,
     )
 
@@ -158,7 +154,7 @@ def submit_ddo(deal_id: int,
         identifier = piece["identifier"]
         row = piece["row"]
 
-        # TODO ASAP
+        # TODO LATER
         # Deterministic identifier makes the command safe to rerun.
         # Although it might cause problems when trying to submit failed deal with the same identifier
         existing_deal = curio.get_deal_status_or_none(identifier)
@@ -185,7 +181,7 @@ def submit_ddo(deal_id: int,
             duration_epochs=deal.terms.duration_epochs,
 
             market_address=market_address,
-            market_deal_id=deal_id,
+            market_deal_id=market_deal_id,
 
             notification_address=notification_address,
             notification_payload=piece["notificationPayload"],
@@ -208,7 +204,7 @@ def submit_ddo(deal_id: int,
                f"already submitted: {already_submitted}.")
 
 
-def _validate_deal(deal):
+def _validate_deal(deal: PoRepMarketDealView):
     if deal.deal.client_address != client_address():
         raise click.ClickException(f"Deal ID {deal.deal.deal_id} belongs to client "
                                    f"{deal.deal.client_address}, not connected client "
@@ -236,7 +232,10 @@ def _validate_deal(deal):
     commands_utils.ensure_deal_evidence_type(deal.deal, EvidenceType.SECTOR_PLACEMENT)
 
 
-def _find_curio_market_endpoint(urls: list[str], signer, market_address) -> CurioMarketClient:
+def _find_curio_market_endpoint(signer: TxSigner,
+                                urls: list[str],
+                                market_address: EthAddress | None) -> CurioMarketClient:
+    #
     errors = []
 
     for url in urls:
@@ -253,41 +252,36 @@ def _find_curio_market_endpoint(urls: list[str], signer, market_address) -> Curi
                                + "\n".join(errors))
 
 
-def _piece_identifier(deal_id: int, market_address, piece_cid_v2: str) -> str:
-    seed = (
-        f"{Web3Service().get_chain_id()}:"
-        f"{str(market_address).lower()}:"
-        f"{deal_id}:"
-        f"{piece_cid_v2}"
-    ).encode()
+def _piece_identifier(deal_id: int, piece_cid_v2: str) -> str:
+    return CurioMarketClient.deterministic_ulid(
+        (
+            f"{Web3Service().get_chain_id()}:"
+            f"{str(PoRepMarket().address()).lower()}:"
+            f"{deal_id}:"
+            f"{piece_cid_v2}"
+        ).encode()
+    )
 
-    return CurioMarketClient.deterministic_ulid(seed)
 
-
-def _print_plan(deal_id,
-                deal,
-                pieces,
-                notification_address,
-                market_address):
+def _print_plan(deal: PoRepMarketDealView,
+                pieces: list[dict],
+                notification_address: FilAddress | None,
+                market_address: EthAddress | None):
     #
-    output = {
-        "dealId": deal_id,
+    click.echo(utils.json_pretty({
+        "dealId": deal.deal.deal_id,
         "providerId": deal.deal.provider_id,
         "marketAddress": market_address,
         "notificationAddress": notification_address,
-        "pieces": [],
-    }
-
-    for piece in pieces:
-        row = piece["row"]
-
-        output["pieces"].append({
-            "pieceCid": row.piece_cid,
-            "pieceCidV2": piece["pieceCidV2"],
-            "pieceSize": row.padded_size,
-            "pieceIndex": row.index,
-            "identifier": piece["identifier"],
-            "notificationPayload": HexBytes(piece["notificationPayload"]).to_0x_hex(),
-        })
-
-    click.echo(utils.json_pretty(output))
+        "pieces": [
+            {
+                "pieceCid": piece["row"].piece_cid,
+                "pieceCidV2": piece["pieceCidV2"],
+                "pieceSize": piece["row"].padded_size,
+                "pieceIndex": piece["row"].index,
+                "identifier": piece["identifier"],
+                "notificationPayload": HexBytes(piece["notificationPayload"]).to_0x_hex(),
+            }
+            for piece in pieces
+        ]
+    }))

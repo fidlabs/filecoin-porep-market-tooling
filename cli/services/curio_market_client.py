@@ -253,10 +253,9 @@ class CurioMarketClient:
 
             raise
 
-    def preflight(self, market_address: EthAddress):
+    def preflight(self, market_address: EthAddress | None = None):
         products = self.get_products()
         sources = self.get_sources()
-        contracts = self.get_contracts()
 
         if "ddo_v1" not in products:
             raise CurioMarketError("SP does not support ddo_v1")
@@ -267,20 +266,22 @@ class CurioMarketClient:
         if "offline" not in sources:
             raise CurioMarketError("SP does not support offline data source")
 
-        supported_contracts = {contract.lower() for contract in contracts}
+        if market_address is not None:
+            contracts = self.get_contracts()
+            supported_contracts = {contract.lower() for contract in contracts}
 
-        if str(market_address).lower() not in supported_contracts:
-            raise CurioMarketError(f"Market contract {market_address} is not enabled by the SP")
+            if str(market_address).lower() not in supported_contracts:
+                raise CurioMarketError(f"Market contract {market_address} is not enabled by the SP")
 
     def submit_offline_ddo(self,
                            provider: ActorId | FilAddress,
                            piece_cid_v2: str,
                            duration_epochs: int,
-                           market_address: EthAddress,
-                           market_deal_id: int,
                            identifier: str,
                            notification_address: FilAddress | None = None,
                            notification_payload: bytes | None = None,
+                           market_address: EthAddress | None = None,
+                           market_deal_id: int | None = None,
                            start_epoch: int | None = None,
                            indexing: bool = True,
                            announce_payload: bool = True):
@@ -288,7 +289,10 @@ class CurioMarketClient:
         if duration_epochs <= 0:
             raise ValueError("duration_epochs must be positive")
 
-        if market_deal_id <= 0:
+        if (market_address is None) != (market_deal_id is None):
+            raise ValueError("market_address and market_deal_id must be provided together")
+
+        if market_deal_id is not None and market_deal_id <= 0:
             raise ValueError("market_deal_id must be positive")
 
         if notification_address is None and notification_payload is not None:
@@ -300,9 +304,11 @@ class CurioMarketClient:
         ddo: dict[str, Any] = {
             "provider": str(provider),
             "duration": duration_epochs,
-            "market_address": str(market_address),
-            "market_deal_id": market_deal_id,
         }
+
+        if market_address is not None:
+            ddo["market_address"] = str(market_address)
+            ddo["market_deal_id"] = market_deal_id
 
         if start_epoch is not None:
             ddo["start_epoch"] = start_epoch
