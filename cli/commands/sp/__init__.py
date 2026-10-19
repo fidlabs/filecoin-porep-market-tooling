@@ -1,14 +1,14 @@
+from cli.migration.sp import extend_deal_sectors
 from ._sp import info, sp, wait
 from .claim_allocations import claim_allocations
 from .get_allocations import get_allocations
 from .get_claims import get_claims
-from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals
+from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals, get_deal_operator_approval
 from .get_filecoinpay_account import get_filecoinpay_account
 from .get_offers import get_offers, get_offer
 from .get_piece_notifications import get_piece_notifications
 from .get_sps import get_sps
 from .is_authorized import is_authorized
-from cli.migration.sp import extend_deal_sectors
 from .onboard_data import onboard_data
 from .pause_sp import pause_sp, unpause_sp
 from .register_offer import register_offer
@@ -16,6 +16,7 @@ from .register_sp import register_sp
 from .set_offer_active import set_offer_active
 from .withdraw_from_filecoinpay import withdraw_from_filecoinpay
 
+sp.add_command(get_deal_operator_approval)
 sp.add_command(register_offer)
 sp.add_command(register_sp)
 sp.add_command(get_offers)
