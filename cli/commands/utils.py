@@ -22,7 +22,10 @@ from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import (
     PoRepMarket,
     PoRepMarketDeal,
-    PoRepMarketDealState, PoRepMarketDealType, PoRepMarketDealRequest, PoRepMarketSLIThresholds,
+    PoRepMarketDealState,
+    PoRepMarketDealType,
+    PoRepMarketDealRequest,
+    PoRepMarketSLIThresholds,
 )
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.contracts.sector_evidence_adapter import SectorEvidenceAdapter
