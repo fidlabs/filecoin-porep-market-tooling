@@ -7,10 +7,6 @@ The SP has its own steps: [SP runbook](migration-v1-to-v2-sp.md).
 **Deadline: steps 1-3 of "Move a deal" must be done for every deal before NV29, 2026-10-19 12:59 UTC. Aim for 17 October.**
 After NV29 the claims can no longer be attached. Everything after step 3 has no deadline.
 
-`porep` below is an alias, not a separate tool. It means `uv run python porep_tooling_cli.py`, run from the
-repository root (or `python3 porep_tooling_cli.py` if you installed with pip, see [Installation](../README.md#installation)).
-To set it: `alias porep='uv run python porep_tooling_cli.py'`.
-
 ## Before you start
 
 - `.env` created from `.env.mainnet`, with the client wallet: `CLIENT_PRIVATE_KEY`, or `CLIENT_LOTUS_WALLET` and `CLIENT_LOTUS_TOKEN`.
@@ -18,6 +14,20 @@ To set it: `alias porep='uv run python porep_tooling_cli.py'`.
 - FIL for gas in the client wallet.
 - USDFC in the client wallet. `init-deal` deposits the first month of each V2 deal into Filecoin Pay.
 - The pair list from us, grouped by SP: V1 deal → V2 deal, the V1 end date, and which SPs confirmed the extension.
+- To make your life easy, set up an alias, so that you can use `porep` rather than `uv run python porep_tooling_cli.py` or `python3 porep_tooling_cli.py`, depending on the installation process you used see [Installation](../README.md#installation): 
+```bash
+alias porep='uv run python porep_tooling_cli.py' 
+```
+or 
+```bash
+alias porep='python3 porep_tooling_cli.py>'
+```
+## Update the .env file
+Add the following 2 lines to the .env file
+```bash
+POREP_MARKET_V1=0xBD669aBd1188F52e82aF114E17aCE2842DCc0Eb4
+POREP_MARKET_V1_CHAIN_ID=314
+```
 
 ## Move a deal
 
