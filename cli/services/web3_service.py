@@ -459,7 +459,7 @@ class Web3Service:
             raise RuntimeError(f"Filecoin.StateMinerInfo({actor_id}) failed: {response['error']}")
 
         if response.get("result") is None or not isinstance(response["result"], dict):
-            raise RuntimeError(f"Filecoin.StateMinerInfo({actor_id}) failed: invalid result {response['result']!r}")
+            raise RuntimeError(f"Filecoin.StateMinerInfo({actor_id}) failed: invalid result {response.get('result')!r}")
 
         return response["result"]
 
