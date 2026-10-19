@@ -15,6 +15,7 @@ To set it: `alias porep='uv run python porep_tooling_cli.py'`.
 
 - `.env` created from `.env.mainnet`, with `SP_ORGANIZATION` set to your V2 organization address. Check it with `porep sp info`.
   No PoRep wallet key is needed for these steps.
+  If you already had a `.env`, copy `POREP_MARKET_V1` and `POREP_MARKET_V1_CHAIN_ID` into it from `.env.mainnet`.
 - Lotus `sptool` configured for your miner, with FIL for the message. If it is not on `PATH`, pass `--sptool <path>` or set `SPTOOL_PATH`.
 - Your V2 deal IDs from us.
 
@@ -39,6 +40,7 @@ If `sptool` runs on another machine, step 2 writes the sector file: copy it ther
 
 | Output contains | Do |
 | --- | --- |
+| `Environment variable POREP_MARKET_V1` | Copy `POREP_MARKET_V1` and `POREP_MARKET_V1_CHAIN_ID` from `.env.mainnet` into your `.env` |
 | `does not belong to organization` | Set `SP_ORGANIZATION` to the V2 organization address |
 | `has no claims on its adapter yet` | The client has not attached the claims yet; wait |
 | `sptool executable not found` | Install `sptool`, or pass `--sptool` / set `SPTOOL_PATH` |

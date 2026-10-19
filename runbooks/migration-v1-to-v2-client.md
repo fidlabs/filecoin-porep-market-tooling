@@ -14,6 +14,7 @@ To set it: `alias porep='uv run python porep_tooling_cli.py'`.
 ## Before you start
 
 - `.env` created from `.env.mainnet`, with the client wallet: `CLIENT_PRIVATE_KEY`, or `CLIENT_LOTUS_WALLET` and `CLIENT_LOTUS_TOKEN`.
+  If you already had a `.env`, copy `POREP_MARKET_V1` and `POREP_MARKET_V1_CHAIN_ID` into it from `.env.mainnet`.
 - FIL for gas in the client wallet.
 - USDFC in the client wallet. `init-deal` deposits the first month of each V2 deal into Filecoin Pay.
 - The pair list from us, grouped by SP: V1 deal → V2 deal, the V1 end date, and which SPs confirmed the extension.
@@ -74,6 +75,7 @@ Send us the full output. These you can fix yourself:
 
 | Output contains | Do |
 | --- | --- |
+| `Environment variable POREP_MARKET_V1` | copy `POREP_MARKET_V1` and `POREP_MARKET_V1_CHAIN_ID` from `.env.mainnet` into your `.env` |
 | `has no payment rail yet` | `porep client init-deal <V2>`, then re-run |
 | pending transaction | `porep client wait`, then re-run |
 | `already registered on V2 deal` | another adopt run for this deal is still going; let it finish, then re-run |
