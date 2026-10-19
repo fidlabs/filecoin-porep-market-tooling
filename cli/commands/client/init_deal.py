@@ -89,7 +89,7 @@ def _deposit_and_approve_operator(deal_id: int):
                                    f"run `{sys.argv[0]} client init-deal {deal.deal.deal_id}` again.")
 
     operator_approval = FileCoinPay().get_operator_approval(payment_token.address(),
-                                                            client_address(),
+                                                            deal.deal.client_address,
                                                             deal.deal.validator_address)
 
     if operator_approval.is_approved:
@@ -161,7 +161,7 @@ def _initialize_rail(deal_id: int):
                                    f"run `{sys.argv[0]} client init-deal {deal.deal.deal_id}` again.")
 
     operator_approval = FileCoinPay().get_operator_approval(deal.payment.payment_token,
-                                                            client_address(),
+                                                            deal.deal.client_address,
                                                             deal.deal.validator_address)
 
     if not operator_approval.is_approved:

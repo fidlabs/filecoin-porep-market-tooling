@@ -6,7 +6,7 @@ from hexbytes import HexBytes
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.commands.client._client import client_address, client_signer
+from cli.commands.client._client import client_signer
 from cli.services.cid_converter import piece_cid_v1_to_v2
 from cli.services.contracts.evidence_adapter import EvidenceType
 from cli.services.contracts.filecoin_pay import FileCoinPay
@@ -222,7 +222,7 @@ def _validate_deal(deal: PoRepMarketDealView):
                                    f"run `{sys.argv[0]} client init-deal {deal.deal.deal_id}` first.")
 
     operator_approval = FileCoinPay().get_operator_approval(deal.payment.payment_token,
-                                                            client_address(),
+                                                            deal.deal.client_address,
                                                             deal.deal.validator_address)
 
     if not operator_approval.is_approved:

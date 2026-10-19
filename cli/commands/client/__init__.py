@@ -2,7 +2,7 @@ from cli.migration.client import adopt_v1_claims, close_v1_deal, finish_migratio
 from ._client import client, info, wait
 from .deposit_amount import deposit_amount
 from .deposit_for_deals import deposit_for_deals, deposit_for_whole_deal
-from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals
+from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals, get_deal_operator_approval
 from .get_filecoinpay_account import get_filecoinpay_account
 from .init_deal import init_deal
 from .make_allocations import make_allocations
@@ -12,6 +12,7 @@ from .submit_ddo import submit_ddo
 from .validate_manifest import validate_manifest
 from .withdraw_from_filecoinpay import withdraw_from_filecoinpay
 
+client.add_command(get_deal_operator_approval)
 client.add_command(submit_ddo)
 client.add_command(validate_manifest)
 client.add_command(get_deal_manifest)
