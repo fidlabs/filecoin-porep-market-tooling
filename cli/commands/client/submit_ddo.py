@@ -6,7 +6,7 @@ from hexbytes import HexBytes
 
 from cli import utils
 from cli.commands import utils as commands_utils
-from cli.commands.client._client import client_signer
+from cli.commands.client._client import client_signer, client_address
 from cli.services.cid_converter import piece_cid_v1_to_v2
 from cli.services.contracts.evidence_adapter import EvidenceType
 from cli.services.contracts.filecoin_pay import FileCoinPay

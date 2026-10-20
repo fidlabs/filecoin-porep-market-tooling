@@ -87,6 +87,7 @@ def sp_signer() -> TxSigner:
 
 
 def _info():
+    # noinspection PyBroadException
     try:
         _sp_address = sp_address() if SP_PRIVATE_KEY or SP_LOTUS_WALLET else None
 
