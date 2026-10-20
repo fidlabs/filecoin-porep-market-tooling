@@ -60,6 +60,7 @@ def admin_signer() -> TxSigner:
 
 
 def _info():
+    # noinspection PyBroadException
     try:
         _admin_address = admin_address() if ADMIN_PRIVATE_KEY or ADMIN_LOTUS_WALLET else None
 
