@@ -14,12 +14,20 @@ After NV29 the claims can no longer be attached. Everything after step 3 has no 
 - FIL for gas in the client wallet.
 - USDFC in the client wallet. `init-deal` deposits the first month of each V2 deal into Filecoin Pay.
 - The pair list from us, grouped by SP: V1 deal → V2 deal, the V1 end date, and which SPs confirmed the extension.
-- The `porep` alias, run from the repository root. Pick the line for how you installed, see [Installation](../README.md#installation):
-
-  ```bash
-  alias porep='uv run python porep_tooling_cli.py'   # uv
-  alias porep='python3 porep_tooling_cli.py'         # pip
-  ```
+- To make your life easy, set up an alias, so that you can use `porep` rather than `uv run python porep_tooling_cli.py` or `python3 porep_tooling_cli.py`, depending on the installation process you used see [Installation](../README.md#installation): 
+```bash
+alias porep='uv run python porep_tooling_cli.py' 
+```
+or 
+```bash
+alias porep='python3 porep_tooling_cli.py'
+```
+## Update the .env file
+Add the following 2 lines to the .env file
+```bash
+POREP_MARKET_V1=0xBD669aBd1188F52e82aF114E17aCE2842DCc0Eb4
+POREP_MARKET_V1_CHAIN_ID=314
+```
 
 ## Move a deal
 
