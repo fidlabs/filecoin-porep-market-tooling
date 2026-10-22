@@ -124,7 +124,7 @@ def submit_ddo(deal_id: int,
 
         piece_cid_v2 = piece_cid_v1_to_v2(row.piece_cid, int(manifest_piece["fileSize"]))
         notification_payload = bytes(piece_set.notification_payload(deal_id, row.index))
-        identifier = _piece_identifier(deal_id, piece_cid_v2)
+        identifier = _piece_identifier(deal_id, piece_cid_v2, client_signer())
 
         pieces_to_submit.append({
             "row": row,
@@ -272,13 +272,14 @@ def _find_curio_market_endpoint(signer: TxSigner,
                                + "\n".join(errors))
 
 
-def _piece_identifier(deal_id: int, piece_cid_v2: str) -> str:
+def _piece_identifier(deal_id: int, piece_cid_v2: str, signer: TxSigner) -> str:
     return CurioMarketClient.deterministic_ulid(
         (
             f"{Web3Service().get_chain_id()}:"
             f"{str(PoRepMarket().address()).lower()}:"
             f"{deal_id}:"
             f"{piece_cid_v2}"
+            f"{signer.filecoin_address()}"
         ).encode()
     )
 
