@@ -5,9 +5,10 @@ import click
 from hexbytes import HexBytes
 
 from cli import utils
+from cli._cli import is_dry_run
 from cli.commands import utils as commands_utils
 from cli.commands.client._client import client_signer, client_address
-from cli.services.cid_converter import piece_cid_v1_to_v2
+from cli.services.cid_converter import piece_cid_v1_to_v2, padded_piece_size_for_payload
 from cli.services.contracts.evidence_adapter import EvidenceType
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import (
@@ -51,8 +52,12 @@ def submit_ddo(deal_id: int,
     """
 
     SelfUpdateService.check_and_prompt(manual=False)
-    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
 
+    if is_dry_run() and not print_only:
+        click.echo("Dry-run mode: acting as --print-only")
+        print_only = True
+
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
     _validate_deal(deal)
 
     if local_manifest:
@@ -104,9 +109,17 @@ def submit_ddo(deal_id: int,
             raise click.ClickException(f"Cannot find manifest metadata for canonical piece "
                                        f"{row.piece_cid} with size {row.padded_size}")
 
-        piece_cid_v2 = piece_cid_v1_to_v2(row.piece_cid,
-                                          int(manifest_piece["fileSize"]))
+        file_size = int(manifest_piece["fileSize"])
+        implied_piece_size = padded_piece_size_for_payload(file_size)
 
+        if implied_piece_size != row.padded_size:
+            raise click.ClickException(
+                f"Piece {row.piece_cid}: fileSize {file_size} implies "
+                f"piece size {implied_piece_size}, but manifest pieceSize "
+                f"is {row.padded_size}"
+            )
+
+        piece_cid_v2 = piece_cid_v1_to_v2(row.piece_cid, int(manifest_piece["fileSize"]))
         notification_payload = bytes(piece_set.notification_payload(deal_id, row.index))
         identifier = _piece_identifier(deal_id, piece_cid_v2)
 
@@ -137,7 +150,7 @@ def submit_ddo(deal_id: int,
         market_address,
     )
 
-    click.echo(f"Provider: {deal.deal.provider_id}\n"
+    click.echo(f"Storage Provider: {deal.deal.provider_id}\n"
                f"Curio endpoint: {curio.base_url}\n"
                f"Market address: {market_address}\n"
                f"Notification address: {notification_address}")

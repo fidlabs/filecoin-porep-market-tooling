@@ -128,6 +128,11 @@ def _piece_tree_height_and_padding(payload_size: int) -> tuple[int, int]:
     return tree_height, padding
 
 
+def padded_piece_size_for_payload(payload_size: int) -> int:
+    tree_height, _ = _piece_tree_height_and_padding(payload_size)
+    return 32 << tree_height
+
+
 def cid_to_bytes(cid: str) -> bytes:
     return _decode_base32_cid(cid)
 
