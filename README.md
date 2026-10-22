@@ -55,6 +55,20 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
 - When using Lotus wallet for blockchain transaction signing, the **private key never leaves the Lotus wallet** and is not exposed to the CLI app. \
   This is the recommended way of using the app.
 
+## V1 to V2 migration
+
+Existing V1 deals move to V2 without resealing: the client attaches the V1 DataCap claims to a new V2 deal,
+the SP extends the sectors, and the client closes the V1 payment rail. Follow the runbooks:
+
+- [Client runbook](runbooks/migration-v1-to-v2-client.md)
+- [SP runbook](runbooks/migration-v1-to-v2-sp.md)
+
+Set `POREP_MARKET_V1` and `POREP_MARKET_V1_CHAIN_ID` (both already in `.env.mainnet`) and, for SPs, `SP_ORGANIZATION`.
+The client must run `init-deal` and adopt the claims before the NV29 network upgrade (epoch 6470279, 2026-10-19 12:59 UTC).
+Anyone can check progress without a wallet with `migration-status`.
+`client adopt-v1-claims` asks once for all the batches it lists instead of once per transaction;
+`--print-only` shows the plan without loading a signer.
+
 ## Typical SP workflow
 
 1. Follow the [Installation](#installation) steps.
@@ -130,7 +144,15 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
       python3 ./porep_tooling_cli.py sp claim-allocations {curio|boost} <deal-id> 
       ```
 
-9. To get the full list of commands for the tooling:
+9. For deals using the `SECTOR_PLACEMENT` evidence adapter there are no allocations to claim. Instead, each deal piece must be sealed
+   with a FIP-0109 notification sent to the deal's evidence adapter, with `require_notification_success` set to `true`.
+   Get the notification address and payload for each piece with:
+
+   ```bash
+   python3 ./porep_tooling_cli.py sp get-piece-notifications <deal-id>
+   ```
+
+10. To get the full list of commands for the tooling:
 
     ```bash
     python3 ./porep_tooling_cli.py sp --help
@@ -186,6 +208,11 @@ Run the script: `python3 ./porep_tooling_cli.py` and follow help prompts.
    ```bash
    python3 ./porep_tooling_cli.py client make-allocations <deal-id>
    ```
+
+   This step applies only to DataCap evidence deals. New deals use the PoRep Market global evidence adapter,
+   check it with `client info`. When it is `SECTOR_PLACEMENT`, `client propose-deal` commits to the manifest
+   piece set instead of hashing the manifest file, no DataCap allocations are needed and the Storage Provider proves
+   the data placement directly when sealing (see `sp get-piece-notifications`). Go straight to `client deposit-for-deals <deal-id>`.
 
 7. Optional - for a **private** deal, sign an EIP-712 retrieval voucher so a third-party wallet can retrieve the data (used
    with [large-paid-retrievals](https://github.com/fidlabs/large-paid-retrievals)):

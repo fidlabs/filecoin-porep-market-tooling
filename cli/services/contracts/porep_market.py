@@ -3,7 +3,7 @@ import re
 
 from cli import utils
 from cli.services.contract_service import ContractService, TxInfo
-from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceStatus
+from cli.services.contracts.evidence_adapter import EvidenceStatus
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import ActorId, EthAddress, FilAddress
 
@@ -472,12 +472,13 @@ class PoRepMarket(ContractService):
 
         return result
 
-    # @notice Gets the deal activation padding (in percent)
+    # @notice Getter for deal activation padding
+    # @return padding Current padding value in bps
     def get_deal_activation_padding(self) -> int:
         return self.call_contract(self.contract.functions.getDealActivationPadding())
 
-    # @notice Sets the deal activation padding (in percent)
-    # @dev Only callable by the admin
+    # @notice Updates the deal activation padding
+    # @param padding The new padding value in bps
     def set_deal_activation_padding(self, padding: int, signer: TxSigner) -> TxInfo:
         return self.sign_and_send_tx(self.contract.functions.setDealActivationPadding(padding), signer)
 
@@ -509,6 +510,12 @@ class PoRepMarket(ContractService):
     # @return The global evidence adapter address
     def get_global_evidence_adapter_address(self) -> EthAddress:
         return EthAddress(self.call_contract(self.contract.functions.getGlobalEvidenceAdapter()))
+
+    # @notice Sets the adapter assigned to newly created deals
+    # @dev Existing deals keep the adapter selected when they were created
+    # @param _globalEvidenceAdapter New default adapter address
+    def set_global_evidence_adapter(self, evidence_adapter_address: EthAddress, signer: TxSigner) -> TxInfo:
+        return self.sign_and_send_tx(self.contract.functions.setGlobalEvidenceAdapter(evidence_adapter_address), signer)
 
     # @notice Gets the validator factory contract address from storage
     # @return IValidatorFactory The validator factory contract address
@@ -551,8 +558,8 @@ class PoRepMarket(ContractService):
     # @notice Reads current evidence status for a deal through its assigned adapter
     # @param dealId The id of the deal
     # @return status Current evidence status
-    def current_evidence_status(self, deal_id: int) -> DataCapEvidenceStatus:
-        return DataCapEvidenceStatus.from_web3(self.call_contract(self.contract.functions.currentEvidenceStatus(deal_id)))
+    def current_evidence_status(self, deal_id: int) -> EvidenceStatus:
+        return EvidenceStatus.from_web3(self.call_contract(self.contract.functions.currentEvidenceStatus(deal_id)))
 
     # @notice Replaces an accepted deal's manifest and resizes its provider reservation
     # @dev Only callable by the admin before any evidence has been submitted.

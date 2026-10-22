@@ -25,6 +25,24 @@ class FileCoinPayAccount:
 
 
 @utils.json_dataclass()
+class FileCoinPayAccountInfoIfSettled:
+    funded_until_epoch: int
+    current_funds: int
+    available_funds: int
+    current_lockup_rate: int
+
+    @staticmethod
+    def from_web3(data) -> "FileCoinPayAccountInfoIfSettled":
+        # noinspection PyArgumentList
+        return FileCoinPayAccountInfoIfSettled(
+            funded_until_epoch=int(data[0]),
+            current_funds=int(data[1]),
+            available_funds=int(data[2]),
+            current_lockup_rate=int(data[3]),
+        )
+
+
+@utils.json_dataclass()
 class FileCoinPayOperatorApproval:
     is_approved: bool
     rate_allowance: int
@@ -88,23 +106,69 @@ class FileCoinPay(ContractService):
         super().__init__(contract_address or utils.get_env_required("FILECOIN_PAY", required_type=EthAddress.from_any),
                          self.abi_dir() / "FileCoinPay.json")
 
+    # @notice Deposits tokens from the message sender's account into `to`'s account.
+    # @param token The ERC20 token address to deposit.
+    # @param to The address whose account will be credited.
+    # @param amount The amount of tokens to deposit.
+    # @custom:constraint The message sender must have approved this contract to spend the requested amount via the ERC-20 token (`token`).
+    def deposit(self,
+                token: EthAddress,
+                to: EthAddress,
+                amount: int,
+                signer: TxSigner) -> TxInfo:
+        #
+        return self.sign_and_send_tx(self.contract.functions.deposit(token, to, amount), signer)
+
+    # @notice Updates the approval status and allowances for an operator on behalf of the message sender.
+    # @param token The ERC20 token address for which the approval is being set.
+    # @param operator The address of the operator whose approval is being modified.
+    # @param approved Whether the operator is approved (true) or not (false) to create new rails.
+    # @param rateAllowance The maximum payment rate the operator can set across all rails created by the operator
+    #        on behalf of the message sender. If this is less than the current payment rate,
+    #        the operator will only be able to reduce rates until they fall below the target.
+    # @param lockupAllowance The maximum amount of funds the operator can lock up on behalf of the
+    #        message sender towards future payments. If this exceeds the current total amount of funds
+    #        locked towards future payments, the operator will only be able to reduce future lockup.
+    # @param maxLockupPeriod The maximum number of epochs (blocks) the operator can lock funds for.
+    #        If this is less than the current lockup period for a rail, the operator will only be able to reduce the lockup period.
+    def set_operator_approval(self,
+                              token: EthAddress,
+                              operator: EthAddress,
+                              approved: bool,
+                              rate_allowance: int,
+                              lockup_allowance: int,
+                              max_lockup_period: int,
+                              signer: TxSigner) -> TxInfo:
+        #
+        return self.sign_and_send_tx(
+            self.contract.functions.setOperatorApproval(
+                token,
+                operator,
+                approved,
+                rate_allowance,
+                lockup_allowance,
+                max_lockup_period,
+            ),
+            signer,
+        )
+
     # @notice Deposits tokens using permit (EIP-2612) approval in a single transaction,
     #         while also setting operator approval.
     # @param token The ERC20 token address to deposit and for which the operator approval is being set.
-    #             Note: The token must support EIP-2612 permit functionality.
+    #        Note: The token must support EIP-2612 permit functionality.
     # @param to The address whose account will be credited (must be the permit signer).
     # @param amount The amount of tokens to deposit.
     # @param deadline Permit deadline (timestamp).
     # @param v,r,s Permit signature.
     # @param operator The address of the operator whose approval is being modified.
     # @param rate_allowance The maximum payment rate the operator can set across all rails created by the operator
-    #             on behalf of the message sender. If this is less than the current payment rate, the operator will
-    #             only be able to reduce rates until they fall below the target.
+    #        on behalf of the message sender. If this is less than the current payment rate, the operator will
+    #        only be able to reduce rates until they fall below the target.
     # @param lockup_allowance The maximum amount of funds the operator can lock up on behalf of the message sender
-    #             towards future payments. If this exceeds the current total amount of funds locked towards future payments,
-    #             the operator will only be able to reduce future lockup.
+    #        towards future payments. If this exceeds the current total amount of funds locked towards future payments,
+    #        the operator will only be able to reduce future lockup.
     # @param max_lockup_period The maximum number of epochs (blocks) the operator can lock funds for. If this is less than
-    #             the current lockup period for a rail, the operator will only be able to reduce the lockup period.
+    #        the current lockup period for a rail, the operator will only be able to reduce the lockup period.
     def deposit_with_permit_and_approve_operator(self,
                                                  token: EthAddress,
                                                  to: EthAddress,
@@ -214,17 +278,45 @@ class FileCoinPay(ContractService):
 
     # token => client => operator => Approval
     def get_operator_approval(self, token: EthAddress, client: EthAddress, operator: EthAddress) -> FileCoinPayOperatorApproval:
-        return FileCoinPayOperatorApproval.from_web3(self.call_contract(self.contract.functions.operatorApprovals(token, client, operator)))
+        return FileCoinPayOperatorApproval.from_web3(
+            self.call_contract(self.contract.functions.operatorApprovals(token, client, operator))
+        )
 
     # Internal balances
     # The self-balance collects network fees
     def get_account(self, token: EthAddress, owner: EthAddress) -> FileCoinPayAccount:
         return FileCoinPayAccount.from_web3(self.call_contract(self.contract.functions.accounts(token, owner)))
 
+    # @notice Gets information about an account - when it would go into debt, total balance, available balance, and lockup rate.
+    # @param token The token address to get account info for.
+    # @param owner The address of the account owner.
+    # @return fundedUntilEpoch The epoch at which the account would go into debt given current lockup rate and balance.
+    # @return currentFunds The current funds in the account.
+    # @return availableFunds The funds available after accounting for simulated lockup.
+    # @return currentLockupRate The current lockup rate per epoch.
+    def get_account_info_if_settled(self,
+                                    token: EthAddress,
+                                    owner: EthAddress) -> FileCoinPayAccountInfoIfSettled:
+        #
+        return FileCoinPayAccountInfoIfSettled.from_web3(
+            self.call_contract(self.contract.functions.getAccountInfoIfSettled(token, owner))
+        )
+
     # @notice Gets the current state of the target rail or reverts if the rail isn't active.
     # @param railId the ID of the rail.
     def get_rail(self, rail_id: int) -> FileCoinPayRailView:
         return FileCoinPayRailView.from_web3(self.call_contract(self.contract.functions.getRail(rail_id)))
+
+    # @notice Terminates a rail. Callable by the payer when their account lockup is fully settled, or by the operator.
+    # @param rail_id the ID of the rail.
+    def terminate_rail(self, rail_id: int, signer: TxSigner) -> TxInfo:
+        return self.sign_and_send_tx(self.contract.functions.terminateRail(rail_id), signer)
+
+    # @notice Settles a terminated rail up to its end epoch without consulting the validator and finalizes it.
+    # @dev Callable by the payer only after the rail end epoch has passed.
+    # @param rail_id the ID of the rail.
+    def settle_terminated_rail_without_validation(self, rail_id: int, signer: TxSigner) -> TxInfo:
+        return self.sign_and_send_tx(self.contract.functions.settleTerminatedRailWithoutValidation(rail_id), signer)
 
     # @notice Withdraws tokens from the caller's account to the caller's account, up to the amount of currently available tokens
     #     (the tokens not currently locked in rails).

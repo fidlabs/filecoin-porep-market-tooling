@@ -6,6 +6,7 @@ from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address, client_signer
+from cli.services.contracts.evidence_adapter import EvidenceType
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.filecoinpay_validator import FileCoinPayValidator
 from cli.services.contracts.porep_market import PoRepMarketDeal, PoRepMarketDealState, PoRepMarket
@@ -59,7 +60,11 @@ def init_deal(deal_id: int):
     _initialize_rail(deal.deal.deal_id)
     Web3Service().wait_for_pending_transactions(client_address())
 
-    click.echo(f"\nAll done! Run `{sys.argv[0]} client make-allocations {deal.deal.deal_id}` to make DDO allocations for this deal.")
+    if commands_utils.get_evidence_type(deal.deal.evidence_adapter_address) == EvidenceType.SECTOR_PLACEMENT:
+        click.echo(f"\nAll done! Run `{sys.argv[0]} client deposit-for-deals {deal.deal.deal_id}` to deposit funds for this deal. "
+                   f"No DDO allocations are needed, the Storage Provider proves the data placement directly.")
+    else:
+        click.echo(f"\nAll done! Run `{sys.argv[0]} client make-allocations {deal.deal.deal_id}` to make DDO allocations for this deal.")
 
 
 def _deploy_and_set_validator(deal_id: int):

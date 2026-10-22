@@ -10,6 +10,7 @@ from .pause_block_sp import pause_sp, unpause_sp, block_sp, unblock_sp
 from .propose_deal_for_offer import propose_deal_for_offer
 from .register_sps import register_db_sps, register_mocked_sps
 from .set_completion_padding import set_completion_padding
+from .set_global_evidence_adapter import set_global_evidence_adapter
 from .set_offer_active import set_offer_active
 from .set_payment_token import set_payment_token
 from .set_role import set_role, has_role
@@ -41,5 +42,6 @@ admin.add_command(get_sps)
 admin.add_command(register_db_sps)
 admin.add_command(register_mocked_sps)
 admin.add_command(set_completion_padding)
+admin.add_command(set_global_evidence_adapter)
 admin.add_command(set_offer_active)
 admin.add_command(get_offers)

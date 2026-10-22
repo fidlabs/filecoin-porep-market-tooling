@@ -1,7 +1,8 @@
 import enum
 
 from cli import utils
-from cli.services.contract_service import ContractService, TxInfo
+from cli.services.contract_service import TxInfo
+from cli.services.contracts.evidence_adapter import EvidenceAdapter
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import EthAddress, FilAddress
 
@@ -15,37 +16,6 @@ class DataCapTransferParams:
     to: FilAddress
     amount: BigInt
     operator_data: bytes
-
-
-# @title EvidenceTypes
-# @notice Shared evidence type constants for PoRepMarket
-class DataCapEvidenceType(enum.Enum):
-    NONE = 0
-    VERIF_REG_CLAIMS = 10
-
-    @staticmethod
-    def from_web3(s: str | int | None) -> "DataCapEvidenceType":
-        if s is None or s == "":
-            raise ValueError(f"Invalid evidence type: {s}")
-
-        s = str(s).strip().lower()
-
-        if s in ("0", "none"):
-            return DataCapEvidenceType.NONE
-        elif s in ("10", "verif_reg_claims"):
-            return DataCapEvidenceType.VERIF_REG_CLAIMS
-        else:
-            raise ValueError(f"Invalid evidence type: {s}")
-
-    @staticmethod
-    def to_string_list():
-        return [v.name for v in DataCapEvidenceType]
-
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return self.name
 
 
 # @title DataCapAllocationStatus
@@ -85,92 +55,9 @@ class DataCapAllocationStatus(enum.Enum):
         return self.name
 
 
-# @title EvidenceResult
-# @notice Shared evidence result type constants for PoRepMarket
-class DataCapEvidenceResult(enum.Enum):
-    NONE = 0
-    PARTIAL = 10
-    ACCEPTED = 20
-    REJECTED = 30
-    ACTIVE = 40
-    INACTIVE = 50
-    COVERED_BYTES_MISMATCH = 60
-
-    @staticmethod
-    def from_web3(s: str | int | None) -> "DataCapEvidenceResult":
-        if s is None or s == "":
-            raise ValueError(f"Invalid DataCap evidence result: {s}")
-
-        s = str(s).strip().lower()
-
-        if s in ("0", "none"):
-            return DataCapEvidenceResult.NONE
-        elif s in ("10", "partial"):
-            return DataCapEvidenceResult.PARTIAL
-        elif s in ("20", "accepted"):
-            return DataCapEvidenceResult.ACCEPTED
-        elif s in ("30", "rejected"):
-            return DataCapEvidenceResult.REJECTED
-        elif s in ("40", "active"):
-            return DataCapEvidenceResult.ACTIVE
-        elif s in ("50", "inactive"):
-            return DataCapEvidenceResult.INACTIVE
-        elif s in ("60", "covered_bytes_mismatch"):
-            return DataCapEvidenceResult.COVERED_BYTES_MISMATCH
-        else:
-            raise ValueError(f"Invalid DataCap evidence result: {s}")
-
-    @staticmethod
-    def to_string_list():
-        return [v.name for v in DataCapEvidenceResult]
-
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return self.name
-
-
-# @notice EvidenceStatus struct represents the status of evidence for a deal
-# @param activeCoveredBytes currently active bytes from adapter-checked evidence
-# @param lastEvidenceRefreshEpoch epoch of the last evidence refresh
-# @param reasonCode code representing the reason for the current status
-# @param result current result code based on submitted evidence
-# @param checkedClaims number of claims already checked in the current refresh sweep
-# @param totalClaims total number of claims that must be checked for the deal
-@utils.json_dataclass()
-class DataCapEvidenceStatus:
-    active_covered_bytes: int
-    last_evidence_refresh_epoch: int
-    reason_code: int
-    result: DataCapEvidenceResult
-    checked_claims: int
-    total_claims: int
-
-    @staticmethod
-    def from_web3(data) -> "DataCapEvidenceStatus":
-        # noinspection PyArgumentList
-        return DataCapEvidenceStatus(
-            active_covered_bytes=data[0],
-            last_evidence_refresh_epoch=data[1],
-            reason_code=data[2],
-            result=DataCapEvidenceResult.from_web3(data[3]),
-            checked_claims=data[4],
-            total_claims=data[5]
-        )
-
-
-class DataCapEvidenceAdapter(ContractService):
-    _DATACAP_EVIDENCE_ADAPTER_ADDRESS: EthAddress | None = None
-
-    def __init__(self, contract_address: EthAddress | FilAddress | None = None):
-        if not contract_address and not DataCapEvidenceAdapter._DATACAP_EVIDENCE_ADAPTER_ADDRESS:
-            from cli.services.contracts.porep_market import PoRepMarket
-            DataCapEvidenceAdapter._DATACAP_EVIDENCE_ADAPTER_ADDRESS = PoRepMarket().get_global_evidence_adapter_address()
-
-        # noinspection PyTypeChecker
-        super().__init__(contract_address or DataCapEvidenceAdapter._DATACAP_EVIDENCE_ADAPTER_ADDRESS,
-                         self.abi_dir() / "DataCapEvidenceAdapter.json")
+class DataCapEvidenceAdapter(EvidenceAdapter):
+    def __init__(self, contract_address: EthAddress | FilAddress):
+        super().__init__(contract_address, self.abi_dir() / "DataCapEvidenceAdapter.json")
 
     # @notice This function transfers DataCap tokens from the client to the storage provider
     # @dev This function can only be called by the client
@@ -240,25 +127,8 @@ class DataCapEvidenceAdapter(ContractService):
     def get_claim_ids(self, deal_id: int, offset: int, limit: int) -> tuple[list[int], int]:
         return self.call_contract(self.contract.functions.getClaimIds(deal_id, offset, limit))
 
-    # @notice Returns whether the adapter can still process new evidence
-    # @dev Returns false when the adapter is no longer operational, for example
-    # when the DataCap adapter can no longer accept allocations or claims
-    # @return True if the adapter can process new evidence, false if it is no longer operational
-    def is_operational(self) -> bool:
-        return self.call_contract(self.contract.functions.isOperational())
-
-    # @notice Getter for the evidence type
-    # @return The evidence type as uint8
-    def evidence_type(self) -> DataCapEvidenceType:
-        return DataCapEvidenceType.from_web3(self.call_contract(self.contract.functions.evidenceType()))
-
     # @notice custom getter to check if claim is terminated
     # @param claimId the id of the claim
     # @return isTerminated whether the claim is terminated
     def terminated_claims(self, claim_id: int) -> bool:
         return self.call_contract(self.contract.functions.terminatedClaims(claim_id))
-
-    # @notice Getter for the PoRepMarket contract address
-    # @return Address of the PoRepMarket contract
-    def get_porep_market_contract_address(self) -> EthAddress:
-        return self.call_contract(self.contract.functions.getPoRepMarketAddress())

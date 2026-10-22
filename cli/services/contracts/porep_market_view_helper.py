@@ -2,7 +2,7 @@ import re
 
 from cli import utils
 from cli.services.contract_service import ContractService
-from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceStatus
+from cli.services.contracts.evidence_adapter import EvidenceStatus
 from cli.services.contracts.porep_market import (
     PoRepMarketDeal,
     PoRepMarketSLIThresholds,
@@ -153,7 +153,7 @@ class PoRepMarketDealView:
     capacity: PoRepMarketDealCapacity
     payment: PoRepMarketDealPayment
     provider_organization_address: EthAddress
-    evidence_status: DataCapEvidenceStatus
+    evidence_status: EvidenceStatus
 
     def __post_init__(self):
         self.provider_organization_address = EthAddress(self.provider_organization_address)
@@ -170,7 +170,7 @@ class PoRepMarketDealView:
             capacity=PoRepMarketDealCapacity.from_web3(data[5]),
             payment=PoRepMarketDealPayment.from_web3(data[6]),
             provider_organization_address=EthAddress(data[7]),
-            evidence_status=DataCapEvidenceStatus.from_web3(data[8])
+            evidence_status=EvidenceStatus.from_web3(data[8])
         )
 
 
