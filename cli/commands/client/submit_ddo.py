@@ -14,19 +14,17 @@ from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.porep_market import (
     PoRepMarketDealState,
     PoRepMarketDealType,
-    PoRepMarket,
 )
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper, PoRepMarketDealView
 from cli.services.contracts.sector_evidence_adapter import SectorEvidenceAdapter
 from cli.services.curio_market_client import (
-    CurioMarketClient,
-    CurioMarketError,
     CurioMarketDiscovery,
+    find_curio_market_endpoint,
+    piece_identifier,
 )
 from cli.services.piece_set_commitment import PieceSet
 from cli.services.self_update import SelfUpdateService
-from cli.services.txsigner import TxSigner
-from cli.services.web3_service import Web3Service, EthAddress, FilAddress
+from cli.services.web3_service import EthAddress, FilAddress
 
 
 @click.command("submit-ddo")
@@ -124,7 +122,7 @@ def submit_ddo(deal_id: int,
 
         piece_cid_v2 = piece_cid_v1_to_v2(row.piece_cid, int(manifest_piece["fileSize"]))
         notification_payload = bytes(piece_set.notification_payload(deal_id, row.index))
-        identifier = _piece_identifier(deal_id, piece_cid_v2, client_signer())
+        identifier = piece_identifier(deal_id, piece_cid_v2, client_signer())
 
         pieces_to_submit.append({
             "row": row,
@@ -146,13 +144,7 @@ def submit_ddo(deal_id: int,
         return
 
     _curio_url = [curio_url] if curio_url else CurioMarketDiscovery.get_market_urls(deal.deal.provider_id)
-
-    curio = _find_curio_market_endpoint(
-        client_signer(),
-        _curio_url,
-        market_address,
-        skip_preflight,
-    )
+    curio = find_curio_market_endpoint(client_signer(), _curio_url, market_address, skip_preflight)
 
     click.echo(f"Storage Provider: {deal.deal.provider_id}\n"
                f"Curio endpoint: {curio.base_url}\n"
@@ -247,41 +239,6 @@ def _validate_deal(deal: PoRepMarketDealView):
                                    f"run `{sys.argv[0]} client init-deal {deal.deal.deal_id}` first.")
 
     commands_utils.ensure_deal_evidence_type(deal.deal, EvidenceType.SECTOR_PLACEMENT)
-
-
-def _find_curio_market_endpoint(signer: TxSigner,
-                                urls: list[str],
-                                market_address: EthAddress | None,
-                                skip_preflight: bool = False) -> CurioMarketClient:
-    #
-    errors = []
-
-    for url in urls:
-        try:
-            client = CurioMarketClient(url, signer)
-
-            if not skip_preflight:
-                client.preflight(market_address)
-
-            return client
-
-        except CurioMarketError as e:
-            errors.append(f"{url}: {e}")
-
-    raise click.ClickException("No usable Curio Market endpoint found:\n"
-                               + "\n".join(errors))
-
-
-def _piece_identifier(deal_id: int, piece_cid_v2: str, signer: TxSigner) -> str:
-    return CurioMarketClient.deterministic_ulid(
-        (
-            f"{Web3Service().get_chain_id()}:"
-            f"{str(PoRepMarket().address()).lower()}:"
-            f"{deal_id}:"
-            f"{piece_cid_v2}"
-            f"{signer.filecoin_address()}"
-        ).encode()
-    )
 
 
 def _print_plan(deal: PoRepMarketDealView,

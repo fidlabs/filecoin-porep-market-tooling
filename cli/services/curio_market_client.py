@@ -5,13 +5,50 @@ from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlsplit
 
+import click
 import requests
 from multiaddr import Multiaddr
 from requests import RequestException, Response, Session
 
+from cli.services.contracts.porep_market import PoRepMarket
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import ActorId, Web3Service
 from cli.services.web3_service import EthAddress, FilAddress
+
+
+def find_curio_market_endpoint(signer: TxSigner,
+                               urls: list[str],
+                               market_address: EthAddress | None,
+                               skip_preflight: bool = False) -> "CurioMarketClient":
+    #
+    errors = []
+
+    for url in urls:
+        try:
+            client = CurioMarketClient(url, signer)
+
+            if not skip_preflight:
+                client.preflight(market_address)
+
+            return client
+
+        except CurioMarketError as e:
+            errors.append(f"{url}: {e}")
+
+    raise click.ClickException("No usable Curio Market endpoint found:\n"
+                               + "\n".join(errors))
+
+
+def piece_identifier(deal_id: int, piece_cid_v2: str, signer: TxSigner) -> str:
+    return CurioMarketClient.deterministic_ulid(
+        (
+            f"{Web3Service().get_chain_id()}:"
+            f"{str(PoRepMarket().address()).lower()}:"
+            f"{deal_id}:"
+            f"{piece_cid_v2}:"
+            f"{signer.filecoin_address()}"
+        ).encode()
+    )
 
 
 class CurioMarketDiscovery:
