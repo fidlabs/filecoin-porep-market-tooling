@@ -63,10 +63,15 @@ class CurioMarketDiscovery:
         except Exception:
             return None
 
-        if "https" in protocols or "wss" in protocols:
+        if (
+                "https" in protocols or "wss" in protocols or
+                ("tls" in protocols and ("http" in protocols or "ws" in protocols))
+        ):
             scheme = "https"
+
         elif "http" in protocols or "ws" in protocols:
             scheme = "http"
+
         else:
             return None
 
@@ -200,23 +205,17 @@ class CurioMarketClient:
             data = response.json()
 
         except ValueError as e:
-            raise CurioMarketError(
-                f"Invalid JSON response: {response.text!r}",
-                response.status_code,
-            ) from e
+            raise CurioMarketError(f"Invalid JSON response: {response.text!r}", response.status_code) from e
 
         if not isinstance(data, dict):
-            raise CurioMarketError(
-                f"Unexpected JSON response: {data!r}",
-                response.status_code,
-            )
+            raise CurioMarketError(f"Unexpected JSON response: {data!r}", response.status_code)
 
         return data
 
     def get_products(self) -> list[str]:
         data = self._json(self._request("GET", "/products"))
-
         products = data.get("products")
+
         if not isinstance(products, list) or not all(isinstance(x, str) for x in products):
             raise CurioMarketError(f"Invalid products response: {data!r}")
 
@@ -233,8 +232,8 @@ class CurioMarketClient:
 
     def get_contracts(self) -> list[str]:
         data = self._json(self._request("GET", "/contracts"))
-
         contracts = data.get("contracts")
+
         if not isinstance(contracts, list) or not all(isinstance(x, str) for x in contracts):
             raise CurioMarketError(f"Invalid contracts response: {data!r}")
 
@@ -248,7 +247,7 @@ class CurioMarketClient:
             return self.get_deal_status(identifier)
 
         except CurioMarketError as e:
-            if e.status_code == 404:
+            if e.status_code in (401, 404):
                 return None
 
             raise
