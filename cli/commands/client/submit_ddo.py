@@ -37,10 +37,13 @@ from cli.services.web3_service import Web3Service, EthAddress, FilAddress
               help="Override Curio Market endpoint discovery. Intended for development/debugging.")
 @click.option("--print-only", is_flag=True, default=False,
               help="Print DDO submissions without sending them to Curio.")
+@click.option("--skip-preflight", is_flag=True, default=False,
+              help="Skip Curio preflight checks. Intended for development/debugging.")
 def submit_ddo(deal_id: int,
                local_manifest: str | None = None,
                curio_url: str | None = None,
-               print_only: bool = False):
+               print_only: bool = False,
+               skip_preflight: bool = False):
     """
     Submit PoRep Market deal pieces to the Storage Provider through Curio Market 2.0.
 
@@ -148,6 +151,7 @@ def submit_ddo(deal_id: int,
         client_signer(),
         _curio_url,
         market_address,
+        skip_preflight,
     )
 
     click.echo(f"Storage Provider: {deal.deal.provider_id}\n"
@@ -247,14 +251,17 @@ def _validate_deal(deal: PoRepMarketDealView):
 
 def _find_curio_market_endpoint(signer: TxSigner,
                                 urls: list[str],
-                                market_address: EthAddress | None) -> CurioMarketClient:
+                                market_address: EthAddress | None,
+                                skip_preflight: bool = False) -> CurioMarketClient:
     #
     errors = []
 
     for url in urls:
         try:
             client = CurioMarketClient(url, signer)
-            client.preflight(market_address)
+
+            if not skip_preflight:
+                client.preflight(market_address)
 
             return client
 
