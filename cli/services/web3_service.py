@@ -403,7 +403,7 @@ class Web3Service:
         sig_type = result.get("Type", 0)
 
         if sig_type != 3:
-            raise RuntimeError(f"Lotus returned signature type {sig_type!r} — expected 3 (SigTypeDelegated). "
+            raise RuntimeError(f"Lotus returned signature type {sig_type!r}; expected 3 (SigTypeDelegated). "
                                f"Use a delegated (f410) address for FEVM signing, not BLS (f3) or secp256k1 (f1).")
 
         data_b64 = result.get("Data")
