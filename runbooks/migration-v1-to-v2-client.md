@@ -14,16 +14,23 @@ After NV29 the claims can no longer be attached. Everything after step 3 has no 
 - FIL for gas in the client wallet.
 - USDFC in the client wallet. `init-deal` deposits the first month of each V2 deal into Filecoin Pay.
 - The pair list from us, grouped by SP: V1 deal → V2 deal, the V1 end date, and which SPs confirmed the extension.
-- To make your life easy, set up an alias, so that you can use `porep` rather than `uv run python porep_tooling_cli.py` or `python3 porep_tooling_cli.py`, depending on the installation process you used see [Installation](../README.md#installation): 
+- To make your life easy, set up an alias, so that you can use `porep` rather than `uv run python porep_tooling_cli.py` or `python3 porep_tooling_cli.py`,
+  depending on the installation process you used see [Installation](../README.md#installation):
+
 ```bash
 alias porep='uv run python porep_tooling_cli.py' 
 ```
-or 
+
+or
+
 ```bash
 alias porep='python3 porep_tooling_cli.py'
 ```
+
 ## Update the .env file
+
 Add the following 2 lines to the .env file
+
 ```bash
 POREP_MARKET_V1=0xBD669aBd1188F52e82aF114E17aCE2842DCc0Eb4
 POREP_MARKET_V1_CHAIN_ID=314
@@ -42,8 +49,7 @@ porep client finish-migration <V2> <V1>                # 4 finish
 
 1. **Check.** Sends nothing. It should end with `has no payment rail yet`.
    On any other error stop and send us the output: the V2 deal can still be fixed at this point.
-2. **Init.** Creates the payment rail and deposits the first month. It ends by suggesting `client make-allocations`:
-   don't run it on a migration deal, it would make the SP seal the data again.
+2. **Init.** Creates the payment rail and deposits the first month.
 3. **Adopt.** Attaches the V1 claims. Done when it prints `All N V1 claims are registered on V2 deal <V2>`.
    Large deals take a while: about 5 minutes to check the claims, then 1-3 minutes per batch of 100 claims.
    Run one adopt per deal at a time.
@@ -83,14 +89,14 @@ If a V2 deal will not be ACTIVE before its V1 deal's end date, ask us: we close 
 
 Send us the full output. These you can fix yourself:
 
-| Output contains | Do |
-| --- | --- |
+| Output contains                        | Do                                                                                         |
+|----------------------------------------|--------------------------------------------------------------------------------------------|
 | `Environment variable POREP_MARKET_V1` | copy `POREP_MARKET_V1` and `POREP_MARKET_V1_CHAIN_ID` from `.env.mainnet` into your `.env` |
-| `has no payment rail yet` | `porep client init-deal <V2>`, then re-run |
-| pending transaction | `porep client wait`, then re-run |
-| `already registered on V2 deal` | another adopt run for this deal is still going; let it finish, then re-run |
-| `429 Too Many Requests` | the RPC is rate limiting, re-run |
-| `Deposit ... with` | run the printed `client deposit-amount` command, then re-run |
+| `has no payment rail yet`              | `porep client init-deal <V2>`, then re-run                                                 |
+| pending transaction                    | `porep client wait`, then re-run                                                           |
+| `already registered on V2 deal`        | another adopt run for this deal is still going; let it finish, then re-run                 |
+| `429 Too Many Requests`                | the RPC is rate limiting, re-run                                                           |
+| `Deposit ... with`                     | run the printed `client deposit-amount` command, then re-run                               |
 
 ## Good to know
 
