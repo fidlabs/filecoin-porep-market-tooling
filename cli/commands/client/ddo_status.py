@@ -30,7 +30,7 @@ def ddo_status(deal_id: int, curio_url: str | None = None):
     }
 
     _curio_url = [curio_url] if curio_url else CurioMarketDiscovery.get_market_urls(deal.deal.provider_id)
-    curio = find_curio_market_endpoint(client_signer(), _curio_url, None, True)
+    curio = find_curio_market_endpoint(client_signer(), _curio_url, None)
 
     click.echo(f"Deal ID: {deal_id}\n"
                f"Storage Provider: {deal.deal.provider_id}\n"
