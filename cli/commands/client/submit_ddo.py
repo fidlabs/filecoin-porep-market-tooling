@@ -210,7 +210,9 @@ def submit_ddo(deal_id: int,
 
     click.echo(f"\nDone. "
                f"Submitted: {submitted}, "
-               f"already submitted: {already_submitted}.")
+               f"already submitted: {already_submitted}.\n"
+               f"Run `{sys.argv[0]} client ddo-status {deal_id}` to check the status of the submitted DDO deals.\n"
+               f"All done! Run `{sys.argv[0]} client deposit-for-deals {deal_id}` to deposit funds for this deal.")
 
 
 def _validate_deal(deal: PoRepMarketDealView):

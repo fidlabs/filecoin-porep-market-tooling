@@ -720,6 +720,6 @@ def propose_deal(signer: TxSigner,
             raise click.ClickException(f"Deal ID {deal_id} was created with evidence adapter {deal_view.deal.evidence_adapter_address} "
                                        f"instead of {evidence_adapter_address}, its manifest hash may not match the adapter; contact the admin.")
 
-        click.echo(f"Run `{sys.argv[0]} client init-deal {deal_id}` to initialize this deal.")
+        click.echo(f"All done! Run `{sys.argv[0]} client init-deal {deal_id}` to initialize this deal.")
 
     return tx.tx_hash
