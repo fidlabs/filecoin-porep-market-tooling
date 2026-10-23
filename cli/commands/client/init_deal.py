@@ -6,7 +6,6 @@ from cli import utils
 from cli.commands import utils as commands_utils
 from cli.commands.client import _utils as client_utils
 from cli.commands.client._client import client_address, client_signer
-from cli.services.contracts.evidence_adapter import EvidenceType
 from cli.services.contracts.filecoin_pay import FileCoinPay
 from cli.services.contracts.filecoinpay_validator import FileCoinPayValidator
 from cli.services.contracts.porep_market import PoRepMarketDeal, PoRepMarketDealState, PoRepMarket
@@ -60,11 +59,7 @@ def init_deal(deal_id: int):
     _initialize_rail(deal.deal.deal_id)
     Web3Service().wait_for_pending_transactions(client_address())
 
-    if commands_utils.get_evidence_type(deal.deal.evidence_adapter_address) == EvidenceType.SECTOR_PLACEMENT:
-        click.echo(f"\nAll done! Run `{sys.argv[0]} client deposit-for-deals {deal.deal.deal_id}` to deposit funds for this deal. "
-                   f"No DDO allocations are needed, the Storage Provider proves the data placement directly.")
-    else:
-        click.echo(f"\nAll done! Run `{sys.argv[0]} client make-allocations {deal.deal.deal_id}` to make DDO allocations for this deal.")
+    click.echo(f"\nAll done! Run `{sys.argv[0]} client submit-ddo {deal.deal.deal_id}` to submit the DDOs for the deal.")
 
 
 def _deploy_and_set_validator(deal_id: int):
@@ -86,10 +81,10 @@ def _deposit_and_approve_operator(deal_id: int):
 
     if not __get_validator_address_for_deal(deal.deal):
         raise click.ClickException(f"Validator not found for deal ID {deal.deal.deal_id}, cannot deposit and approve operator; "
-                                   f"run `{sys.argv[0]} client init-deal` {deal.deal.deal_id} again.")
+                                   f"run `{sys.argv[0]} client init-deal {deal.deal.deal_id}` again.")
 
     operator_approval = FileCoinPay().get_operator_approval(payment_token.address(),
-                                                            client_address(),
+                                                            deal.deal.client_address,
                                                             deal.deal.validator_address)
 
     if operator_approval.is_approved:
@@ -158,15 +153,15 @@ def _initialize_rail(deal_id: int):
 
     if not __get_validator_address_for_deal(deal.deal):
         raise click.ClickException(f"Validator not found for deal ID {deal.deal.deal_id}, cannot initialize rail; "
-                                   f"run `{sys.argv[0]} client init-deal` {deal.deal.deal_id} again.")
+                                   f"run `{sys.argv[0]} client init-deal {deal.deal.deal_id}` again.")
 
     operator_approval = FileCoinPay().get_operator_approval(deal.payment.payment_token,
-                                                            client_address(),
+                                                            deal.deal.client_address,
                                                             deal.deal.validator_address)
 
     if not operator_approval.is_approved:
         raise click.ClickException(f"Operator not approved for deal ID {deal.deal.deal_id}, cannot initialize rail; "
-                                   f"run `{sys.argv[0]} client init-deal` {deal.deal.deal_id} again.")
+                                   f"run `{sys.argv[0]} client init-deal {deal.deal.deal_id}` again.")
 
     if deal.deal.rail_id:
         click.echo(f"\nRail already initialized for deal ID {deal.deal.deal_id}: {deal.deal.rail_id}")

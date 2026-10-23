@@ -85,6 +85,7 @@ def client_signer() -> TxSigner:
 
 
 def _info():
+    # noinspection PyBroadException
     try:
         _client_address = client_address() if CLIENT_PRIVATE_KEY or CLIENT_LOTUS_WALLET or CLIENT_ADDRESS else None
 

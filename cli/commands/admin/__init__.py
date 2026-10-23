@@ -1,8 +1,8 @@
 from ._admin import admin, info, wait
+from .finalize_deal import finalize_deal
 from .get_db_offers import get_db_offers, get_mocked_offers
 from .get_db_sps import get_db_sps, get_mocked_sps
-from .finalize_deal import finalize_deal
-from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals
+from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals, get_deal_operator_approval
 from .get_offers import get_offers, get_offer
 from .get_payment_tokens import get_payment_tokens
 from .get_sps import get_sps
@@ -16,6 +16,7 @@ from .set_payment_token import set_payment_token
 from .set_role import set_role, has_role
 from .terminate_deal import terminate_deal
 
+admin.add_command(get_deal_operator_approval)
 admin.add_command(propose_deal_for_offer)
 admin.add_command(get_payment_tokens)
 admin.add_command(set_payment_token)

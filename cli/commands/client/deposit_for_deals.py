@@ -31,9 +31,9 @@ from cli.services.web3_service import EthAddress, Web3Service
 def deposit_for_deals(deal_id: int | None = None, months: int = 1):
     """
     Deposit funds to FileCoinPay account for all ACCEPTED/ACTIVE deals ready for deposit or a given deal ID.
+    ACCEPTED deal is ready for deposit when its payment is initialized and, for DataCap deals, DataCap posting is finished.
 
     \b
-    ACCEPTED deal is ready for deposit when its payment is initialized and, for DataCap deals, DataCap posting is finished.
     DEAL_ID - Optional deal ID to deposit funds for. If not provided, deposits for all ACCEPTED/ACTIVE deals ready for deposit.
     """
 
@@ -41,11 +41,14 @@ def deposit_for_deals(deal_id: int | None = None, months: int = 1):
 
     if deal_id is not None:
         deal = PoRepMarketViewHelper().get_deal_view(deal_id)
-        _ensure_deal_is_eligible_for_deposit(deal.deal)
+        _validate_deal(deal.deal)
+
         click.echo(f"Depositing for deal {deal}\n")
         deals_to_deposit_for = [deal]
     else:
-        deals_to_deposit_for = [deal for deal in commands_utils.get_client_deals(client_address()) if _is_deal_eligible_for_deposit(deal)]
+        deals_to_deposit_for = [deal for deal in commands_utils.get_client_deals(client_address())
+                                if _is_deal_eligible_for_deposit(deal)]
+
         click.echo(f"Found {len(deals_to_deposit_for)} ACCEPTED/ACTIVE deal(s) ready for deposit for client address {client_address()}")
 
         if not deals_to_deposit_for:
@@ -73,7 +76,7 @@ def deposit_for_whole_deal(deal_id: int):
     Web3Service().wait_for_pending_transactions(client_address())
 
     deal = PoRepMarketViewHelper().get_deal_view(deal_id)
-    _ensure_deal_is_eligible_for_deposit(deal.deal)
+    _validate_deal(deal.deal)
     click.echo(f"Depositing for deal {deal_id}\n")
 
     duration_in_months = deal.terms.duration_epochs // PoRepMarket().get_epochs_in_month()
@@ -82,28 +85,36 @@ def deposit_for_whole_deal(deal_id: int):
 
 def _is_deal_eligible_for_deposit(deal: PoRepMarketDeal) -> bool:
     try:
-        _ensure_deal_is_eligible_for_deposit(deal)
+        _validate_deal(deal)
         return True
     except click.ClickException:
         return False
 
 
-def _ensure_deal_is_eligible_for_deposit(deal: PoRepMarketDeal):
+def _validate_deal(deal: PoRepMarketDeal):
     if deal.client_address != client_address():
         raise click.ClickException(f"Deal ID {deal.deal_id} client address {deal.client_address} "
                                    f"does not match with connected client address {client_address()}.")
 
+    if deal.rail_id == 0:
+        raise click.ClickException(f"Deal ID {deal.deal_id} does not have a FileCoinPay rail set; "
+                                   f"run `{sys.argv[0]} client init-deal {deal.deal_id}` first.")
+
+    if not deal.validator_address:
+        raise click.ClickException(f"Deal ID {deal.deal_id} does not have a validator set; "
+                                   f"run `{sys.argv[0]} client init-deal {deal.deal_id}` first.")
+
     if deal.state == PoRepMarketDealState.ACCEPTED:
-        if deal.rail_id == 0 or not deal.validator_address:
-            raise click.ClickException(f"Deal payment not initialized; "
-                                       f"run `{sys.argv[0]} client init-deal` {deal.deal_id} first.")
+        if commands_utils.get_evidence_type(deal.evidence_adapter_address) == EvidenceType.VERIF_REG_CLAIMS:
+            if not DataCapEvidenceAdapter(deal.evidence_adapter_address).is_datacap_posting_finished(deal.deal_id):
+                raise click.ClickException(f"DataCap posting for deal ID {deal.deal_id} not finished")
 
-        elif commands_utils.get_evidence_type(deal.evidence_adapter_address) == EvidenceType.VERIF_REG_CLAIMS:
-            evidence_adapter = DataCapEvidenceAdapter(deal.evidence_adapter_address)
-
-            if not evidence_adapter.is_datacap_posting_finished(deal.deal_id):
-                raise click.ClickException(f"DataCap posting for deal ID {deal.deal_id} not finished; "
-                                           f"run `{sys.argv[0]} client make-allocations` {deal.deal_id} first.")
+            else:
+                # allow deposit for ACCEPTED VERIF_REG_CLAIMS deals with finished DataCap posting
+                return
+        else:
+            # allow deposit for SECTOR_PLACEMENT ACCEPTED deals
+            return
 
     elif deal.state != PoRepMarketDealState.ACTIVE:
         raise click.ClickException(f"Deal ID {deal.deal_id} is in state {deal.state} != ACCEPTED/ACTIVE")

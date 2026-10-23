@@ -10,6 +10,21 @@ from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelpe
 
 @click.command()
 @click.argument("deal_id", type=click.IntRange(min=1))
+def get_deal_operator_approval(deal_id: int):
+    """
+    Get deal FileCoin operator approval by deal ID.
+
+    DEAL_ID - Deal ID to fetch operator approval for.
+    """
+
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
+    click.echo(utils.json_pretty(FileCoinPay().get_operator_approval(deal.payment.payment_token,
+                                                                     deal.deal.client_address,
+                                                                     deal.deal.validator_address)))
+
+
+@click.command()
+@click.argument("deal_id", type=click.IntRange(min=1))
 def get_deal_manifest(deal_id: int):
     """
     Get deal manifest by deal ID.

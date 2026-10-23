@@ -111,7 +111,6 @@ class ContractService:
             # pylint: disable=broad-exception-caught
             except Exception:
                 # nop
-                # ruff: noqa: S112
                 continue
 
         return decoded_events
@@ -309,7 +308,10 @@ class ContractService:
     @classmethod
     @contextmanager
     def batch_confirmation(cls):
-        """Skip per-transaction prompts inside one explicitly confirmed batch."""
+        """
+        Skip per-transaction prompts inside one explicitly confirmed batch.
+        """
+
         token = cls._BATCH_CONFIRMED.set(True)
         try:
             yield
@@ -341,7 +343,7 @@ class ContractService:
             result, total = self.call_contract(func(*args, offset, limit))
             return result
 
-        if (offset is not None and limit is None) or (offset is None and limit is not None):
+        if (offset is None) != (limit is None):
             raise ValueError("call_contract_paginated: both offset and limit must be provided together")
 
         all_results = []
