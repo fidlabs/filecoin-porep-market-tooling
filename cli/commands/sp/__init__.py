@@ -1,6 +1,5 @@
 from cli.migration.sp import extend_deal_sectors
 from ._sp import info, sp, wait
-from .claim_allocations import claim_allocations
 from .get_allocations import get_allocations
 from .get_claims import get_claims
 from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals, get_deal_operator_approval
@@ -29,7 +28,6 @@ sp.add_command(get_deal_rail)
 sp.add_command(get_claims)
 sp.add_command(get_deal)
 sp.add_command(is_authorized)
-sp.add_command(claim_allocations)
 sp.add_command(info)
 sp.add_command(wait)
 sp.add_command(onboard_data)
