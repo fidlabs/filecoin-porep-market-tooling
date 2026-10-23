@@ -115,11 +115,7 @@ class CurioMarketDiscovery:
         if ":" in str(host):
             host = f"[{host}]"
 
-        default_port = (
-                               scheme == "https" and port == 443
-                       ) or (
-                               scheme == "http" and port == 80
-                       )
+        default_port = (scheme == "https" and port == 443) or (scheme == "http" and port == 80)
 
         if default_port:
             return f"{scheme}://{host}"
@@ -130,11 +126,10 @@ class CurioMarketDiscovery:
 class CurioMarketError(RuntimeError):
     def __init__(self, message: str, status_code: int | None = None):
         self.status_code = status_code
-        super().__init__(
-            f"Curio Market request failed"
-            f"{f' with HTTP {status_code}' if status_code is not None else ''}: "
-            f"{message}"
-        )
+
+        super().__init__(f"Curio Market request failed"
+                         f"{f' with HTTP {status_code}' if status_code is not None else ''}: "
+                         f"{message}")
 
 
 class CurioMarketClient:
@@ -177,19 +172,15 @@ class CurioMarketClient:
     def _auth_header(self, method: str, request_path: str) -> str:
         address_bytes = self._delegated_filecoin_address_bytes(self.signer.address())
 
-        timestamp = (
-            self._now()
-            .astimezone(timezone.utc)
-            .replace(second=0, microsecond=0)
-            .strftime("%Y-%m-%dT%H:%M:00Z")
-        )
+        timestamp = (self._now()
+                     .astimezone(timezone.utc)
+                     .replace(second=0, microsecond=0)
+                     .strftime("%Y-%m-%dT%H:%M:00Z"))
 
-        message = (
-                address_bytes
-                + method.upper().encode("utf-8")
-                + request_path.encode("utf-8")
-                + timestamp.encode("utf-8")
-        )
+        message = (address_bytes
+                   + method.upper().encode("utf-8")
+                   + request_path.encode("utf-8")
+                   + timestamp.encode("utf-8"))
 
         digest = hashlib.sha256(message).digest()
 
@@ -197,11 +188,9 @@ class CurioMarketClient:
         # 0x03 + 65-byte delegated signature
         signature = self.signer.sign_filecoin_message(digest)
 
-        return (
-            "CurioAuth delegated:"
-            f"{base64.b64encode(address_bytes).decode('ascii')}:"
-            f"{base64.b64encode(signature).decode('ascii')}"
-        )
+        return ("CurioAuth delegated:"
+                f"{base64.b64encode(address_bytes).decode('ascii')}:"
+                f"{base64.b64encode(signature).decode('ascii')}")
 
     def _request(self,
                  method: str,
@@ -219,13 +208,11 @@ class CurioMarketClient:
         }
 
         try:
-            response = self.session.request(
-                method=method,
-                url=url,
-                json=json_body,
-                headers=headers,
-                timeout=self.REQUEST_TIMEOUT_SECONDS,
-            )
+            response = self.session.request(method=method,
+                                            url=url,
+                                            json=json_body,
+                                            headers=headers,
+                                            timeout=self.REQUEST_TIMEOUT_SECONDS)
 
         except RequestException as e:
             raise CurioMarketError(str(e)) from e
@@ -377,20 +364,14 @@ class CurioMarketClient:
             },
         }
 
-        self._request(
-            "POST",
-            "/deal",
-            json_body=deal,
-        )
+        self._request("POST",
+                      "/deal",
+                      json_body=deal)
 
     @staticmethod
     def deterministic_ulid(seed: bytes) -> str:
         alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
-
-        entropy = int.from_bytes(
-            hashlib.sha256(seed).digest()[:10],
-            "big",
-        )
+        entropy = int.from_bytes(hashlib.sha256(seed).digest()[:10], "big")
 
         # timestamp = 0, entropy = deterministic 80 bits
         value = entropy

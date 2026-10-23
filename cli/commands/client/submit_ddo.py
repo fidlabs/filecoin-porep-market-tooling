@@ -177,6 +177,9 @@ def submit_ddo(deal_id: int,
                 raise click.ClickException(f"DDO deal {identifier} for piece {row.piece_cid} "
                                            f"already exists in Curio but failed: {error or 'unknown error'}.")
 
+            if not ddo_status or not status:
+                raise click.ClickException(f"Unexpected Curio status response for DDO deal {identifier}: {existing_deal}")
+
             click.echo(f"[{index}/{len(pieces_to_submit)}] "
                        f"{row.piece_cid}: already submitted "
                        f"({identifier}, status: {status})")

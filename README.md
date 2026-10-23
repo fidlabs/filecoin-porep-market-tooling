@@ -192,7 +192,7 @@ Anyone can check progress without a wallet with `migration-status`.
 7. Deposit FileCoinPay funds for the deal:
 
     ```bash
-    python3 ./porep_tooling_cli.py client deposit_for_deals <deal-id>
+    python3 ./porep_tooling_cli.py client deposit-for-deals <deal-id>
     ```
 
 8. Optional - for a **private** deal, sign an EIP-712 retrieval voucher so a third-party wallet can retrieve the data (used
