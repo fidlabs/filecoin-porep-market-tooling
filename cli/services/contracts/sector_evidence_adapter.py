@@ -20,8 +20,7 @@ class SectorManifestReceipt:
     accepted_bytes: int
 
     def __post_init__(self):
-        if self.provider_id is not None:
-            self.provider_id = ActorId(self.provider_id)
+        self.provider_id = ActorId(self.provider_id) if self.provider_id else None
 
     @staticmethod
     def from_web3(data) -> "SectorManifestReceipt":

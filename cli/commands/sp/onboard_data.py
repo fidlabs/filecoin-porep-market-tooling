@@ -7,11 +7,15 @@ from pathlib import Path
 
 import click
 import humanfriendly
+from hexbytes import HexBytes
 
 from cli import utils
 from cli.commands import utils as commands_utils
+from cli.services.contracts.evidence_adapter import EvidenceType
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
-from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
+from cli.services.contracts.porep_market_view_helper import PoRepMarketDealView, PoRepMarketViewHelper
+from cli.services.contracts.sector_evidence_adapter import SectorEvidenceAdapter
+from cli.services.piece_set_commitment import PieceSet
 from cli.services.self_update import SelfUpdateService
 
 
@@ -102,11 +106,9 @@ def _write_manifest_file(manifest: list[dict], output_dir: Path, deal_id: int) -
 @click.option("--port", default=7777, type=click.IntRange(min=1, max=65535), show_default=True,
               help="Port to use for .car files download.")
 @click.option("--force", is_flag=True, default=False,
-              help="Force download even if all allocations are claimed.  [default: false]")
+              help="Force download even if all DDO pieces are placed.  [default: false]")
 @click.option("--no-summary", is_flag=True, default=False,
               help="Don't print the initial download summary.  [default: false]")
-@click.option("--claim-allocations", type=click.Choice(["curio", "boost"], case_sensitive=False),
-              help="Claim allocation(s) for each piece right after download using specified software.  [default: none]")
 @click.pass_context
 # TODO LATER add commP files verification after download
 def onboard_data(ctx,
@@ -132,37 +134,31 @@ def onboard_data(ctx,
     """
 
     SelfUpdateService.check_and_prompt(manual=False)
-
     aria2c_path = _get_aria2c_path()
 
     click.echo("Fetching deal details...")
     deal = PoRepMarketViewHelper().get_deal_view(deal_id)
-
-    if deal.deal.state not in (PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE):
-        raise click.ClickException(f"Deal ID {deal_id} is in state {deal.deal.state}, expected ACCEPTED or ACTIVE")
-
-    deal_allocations = commands_utils.get_deal_allocations(deal.deal)
-    deal_claims = commands_utils.get_deal_claims(deal.deal)
-    allocations_not_claimed = {allocation_id: alloc for allocation_id, alloc in deal_allocations.items() if str(allocation_id) not in deal_claims}
-    cids_claimed = [claim.get("Data", {}).get("/") for claim in deal_claims.values()]
-
-    if deal_claims and not allocations_not_claimed and not force:
-        click.echo(f"All {len(deal_claims)} allocations for deal ID {deal_id} are claimed; no need to download the data. Use --force to download anyway.")
-        return
-
-    if not deal_claims and not allocations_not_claimed:
-        raise click.ClickException(f"No allocations found for deal ID {deal_id} but deal in {deal.deal.state} state.")
-
-    click.echo(f"Found {len(allocations_not_claimed)} allocations not claimed and {len(deal_claims)} claims for deal ID {deal_id}, "
-               f"{len(deal_allocations) + len(deal_claims)} total")
-
     manifest, _ = commands_utils.fetch_manifest(deal.data.manifest_location, show_manifest=False, retries=10)
     pieces = manifest[0]["pieces"]
-    pieces_claimed = [piece for piece in pieces if piece["pieceCid"] in cids_claimed]
-    pieces_to_download = [piece for piece in pieces if piece not in pieces_claimed]
 
-    if pieces_claimed and not force:
-        click.echo(f"Skipping download of {len(pieces_claimed)} already claimed pieces. Use --force to download them anyway.")
+    _validate_deal(deal, manifest)
+
+    evidence_adapter = SectorEvidenceAdapter(deal.deal.evidence_adapter_address)
+    cids_done = {row.piece_cid for row in PieceSet(pieces).rows
+                 if evidence_adapter.is_piece_accepted(deal.deal.deal_id, row.index)}
+
+    if len(cids_done) == len(pieces) and not force:
+        click.echo(f"All {len(cids_done)} pieces of deal ID {deal_id} are placed; no need to download the data. Use --force to download anyway.")
+        return
+
+    click.echo(f"Found {len(pieces) - len(cids_done)} pieces not placed and {len(cids_done)} placed for deal ID {deal_id}, "
+               f"{len(pieces)} total")
+
+    pieces_done = [piece for piece in pieces if piece["pieceCid"] in cids_done]
+    pieces_to_download = [piece for piece in pieces if piece not in pieces_done]
+
+    if pieces_done and not force:
+        click.echo(f"Skipping download of {len(pieces_done)} already placed pieces. Use --force to download them anyway.")
 
     _output_dir = Path(output_dir).resolve()
     _output_dir.mkdir(parents=True, exist_ok=True)
@@ -206,3 +202,20 @@ def onboard_data(ctx,
 
     finally:
         aria2_file.unlink(missing_ok=True)
+
+
+def _validate_deal(deal: PoRepMarketDealView, manifest: list[dict]):
+    commands_utils.ensure_deal_evidence_type(deal.deal, EvidenceType.SECTOR_PLACEMENT)
+
+    if deal.deal.state not in (PoRepMarketDealState.ACCEPTED, PoRepMarketDealState.ACTIVE):
+        raise click.ClickException(f"Deal ID {deal.deal.deal_id} is in state {deal.deal.state}, expected ACCEPTED or ACTIVE")
+
+    piece_set = PieceSet(manifest[0]["pieces"])
+
+    if piece_set.commitment() != deal.data.manifest_hash:
+        raise click.ClickException(f"Manifest piece-set commitment {piece_set.commitment().to_0x_hex()} does not match deal ID "
+                                   f"{deal.deal.deal_id} manifest hash {HexBytes(deal.data.manifest_hash).to_0x_hex()}")
+
+    if piece_set.size_bytes != deal.terms.requested_size_bytes:
+        raise click.ClickException(f"Manifest pieces size {piece_set.size_bytes} does not match deal ID {deal.deal.deal_id} "
+                                   f"requested size {deal.terms.requested_size_bytes}")
