@@ -11,6 +11,7 @@ from hexbytes import HexBytes
 
 from cli import utils
 from cli.commands import utils as commands_utils
+from cli.services.cid_converter import piece_cid_v1_to_v2
 from cli.services.contracts.evidence_adapter import EvidenceType
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketDealView, PoRepMarketViewHelper
@@ -54,22 +55,17 @@ def _write_aria2c_input_file(pieces: list[dict], download_host: str, output_dir:
 
     with open(aria2_file, "w", encoding="utf-8") as f:
         for piece in pieces:
-            storage_path = piece["storagePath"]
-            output_file = (output_dir / storage_path).resolve()
-            piece_name = storage_path.removesuffix(".car")
-
-            # disallow path traversal outside of the output directory
-            if output_dir not in output_file.parents:
-                raise click.ClickException(f"Invalid manifest piece storagePath: {storage_path}")
-
-            download_url = f"{download_host}/piece/{piece_name}"
+            piece_cid_v2 = piece_cid_v1_to_v2(piece["pieceCid"], piece["fileSize"])
+            output_file = (output_dir / piece_cid_v2).resolve()
+            storage_path = piece["storagePath"].removesuffix(".car")
+            download_url = f"{download_host}/piece/{storage_path}"
 
             f.write(f"{download_url}\n")
             f.write(f"  out={output_file.name}\n")
             f.write(f"  dir={output_file.parent}\n")
 
             if not no_summary:
-                click.echo(f"  {download_url} -> {output_file}")
+                click.echo(f"  {download_url} -> {output_file} ({humanfriendly.format_size(piece['fileSize'])})")
 
     if not no_summary:
         click.echo("(use --no-summary to skip this summary)")
