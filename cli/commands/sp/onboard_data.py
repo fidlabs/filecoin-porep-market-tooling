@@ -11,6 +11,7 @@ from hexbytes import HexBytes
 
 from cli import utils
 from cli.commands import utils as commands_utils
+from cli.services.cid_converter import piece_cid_v1_to_v2
 from cli.services.contracts.evidence_adapter import EvidenceType
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketDealView, PoRepMarketViewHelper
@@ -202,6 +203,41 @@ def onboard_data(ctx,
 
     finally:
         aria2_file.unlink(missing_ok=True)
+
+    linked = _link_piece_cid_v2_names(pieces, _output_dir)
+
+    if linked:
+        click.echo(f"\nNamed {linked} downloaded piece(s) also by piece CID v2 (<pieceCidV2>.car), as Curio requests the offline data "
+                   f"of `client submit-ddo` deals.")
+
+
+# Files are saved under the manifest storagePath (piece CID v1), but Curio requests the offline data of DDO deals submitted with
+# `client submit-ddo` by piece CID v2. Add a <pieceCidV2>.car hard link next to each downloaded piece (a symlink where hard links
+# are not supported); existing links are kept, so re-running is safe.
+def _link_piece_cid_v2_names(pieces: list[dict], output_dir: Path) -> int:
+    linked = 0
+
+    for piece in pieces:
+        output_file = (output_dir / piece["storagePath"]).resolve()
+
+        if output_dir not in output_file.parents or not output_file.is_file():
+            continue
+
+        v2_file = output_file.with_name(f"{piece_cid_v1_to_v2(piece['pieceCid'], int(piece['fileSize']))}.car")
+
+        if v2_file.exists():
+            if not v2_file.samefile(output_file):
+                click.echo(f"WARNING: {v2_file} already exists and is not {output_file}; left as is")
+            continue
+
+        try:
+            os.link(output_file, v2_file)
+        except OSError:
+            v2_file.symlink_to(output_file.name)
+
+        linked += 1
+
+    return linked
 
 
 def _validate_deal(deal: PoRepMarketDealView, manifest: list[dict]):
