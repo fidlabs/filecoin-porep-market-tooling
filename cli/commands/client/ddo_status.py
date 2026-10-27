@@ -30,7 +30,7 @@ def ddo_status(deal_id: int, curio_url: str | None = None):
                f"Storage Provider: {deal.deal.provider_id}\n"
                f"Curio endpoint: {curio.base_url}\n")
 
-    for index, piece in enumerate(manifest[0]["pieces"]):
+    for index, piece in enumerate(manifest[0]["pieces"], start=1):
         piece_cid_v2 = piece_cid_v1_to_v2(piece["pieceCid"], piece["fileSize"])
         identifier = piece_identifier(deal_id, piece_cid_v2, client_signer())
 
