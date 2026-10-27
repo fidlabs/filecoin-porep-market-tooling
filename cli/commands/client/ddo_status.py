@@ -40,7 +40,7 @@ def ddo_status(deal_id: int, curio_url: str | None = None):
         error = ddo_status.get("errorMsg") if ddo_status else None
 
         message = (f"[{index}/{total_pieces}] "
-                   f"CIDv1: {piece["pieceCid"]} -> CIDv2: {piece_cid_v2} ({identifier}): {status.lower()}")
+                   f"CIDv1: {piece['pieceCid']} -> CIDv2: {piece_cid_v2} ({identifier}): {status.lower()}")
 
         if error:
             message += f" - {error}"
