@@ -19,7 +19,8 @@ from cli.services.web3_service import EthAddress, FilAddress
 def find_curio_market_endpoint(signer: TxSigner,
                                urls: list[str],
                                market_address: EthAddress | None,
-                               skip_preflight: bool = False) -> "CurioMarketClient":
+                               skip_preflight: bool = False,
+                               data_source: str = "offline") -> "CurioMarketClient":
     #
     errors = []
 
@@ -28,7 +29,7 @@ def find_curio_market_endpoint(signer: TxSigner,
             client = CurioMarketClient(url, signer)
 
             if not skip_preflight:
-                client.preflight(market_address)
+                client.preflight(market_address, data_source)
 
             return client
 
@@ -276,7 +277,7 @@ class CurioMarketClient:
 
             raise
 
-    def preflight(self, market_address: EthAddress | None = None):
+    def preflight(self, market_address: EthAddress | None = None, data_source: str = "offline"):
         products = self.get_products()
         sources = self.get_sources()
 
@@ -286,8 +287,8 @@ class CurioMarketClient:
         if "retrieval_v1" not in products:
             raise CurioMarketError("SP does not support retrieval_v1")
 
-        if "offline" not in sources:
-            raise CurioMarketError("SP does not support offline data source")
+        if data_source not in sources:
+            raise CurioMarketError(f"SP does not support {data_source} data source")
 
         if market_address is not None:
             contracts = self.get_contracts()
@@ -296,18 +297,21 @@ class CurioMarketClient:
             if str(market_address).lower() not in supported_contracts:
                 raise CurioMarketError(f"Market contract {market_address} is not enabled by the SP")
 
-    def submit_offline_ddo(self,
-                           provider: ActorId | FilAddress,
-                           piece_cid_v2: str,
-                           duration_epochs: int,
-                           identifier: str,
-                           notification_address: FilAddress | None = None,
-                           notification_payload: bytes | None = None,
-                           market_address: EthAddress | None = None,
-                           market_deal_id: int | None = None,
-                           start_epoch: int | None = None,
-                           indexing: bool = True,
-                           announce_payload: bool = True):
+    # Submits a DDO deal for one piece. Without http_urls the data is offline: the SP imports it. With http_urls Curio downloads
+    # it from those URLs itself (in order, the later ones as fallbacks).
+    def submit_ddo(self,
+                   provider: ActorId | FilAddress,
+                   piece_cid_v2: str,
+                   duration_epochs: int,
+                   identifier: str,
+                   notification_address: FilAddress | None = None,
+                   notification_payload: bytes | None = None,
+                   market_address: EthAddress | None = None,
+                   market_deal_id: int | None = None,
+                   start_epoch: int | None = None,
+                   indexing: bool = True,
+                   announce_payload: bool = True,
+                   http_urls: list[str] | None = None):
         #
         if duration_epochs <= 0:
             raise ValueError("duration_epochs must be positive")
@@ -352,7 +356,9 @@ class CurioMarketClient:
                 "format": {
                     "car": {},
                 },
-                "source_offline": {},
+                **({"source_http": {"urls": [{"url": url, "headers": {}, "priority": priority, "fallback": priority > 0}
+                                             for priority, url in enumerate(http_urls)]}}
+                   if http_urls else {"source_offline": {}}),
             },
             "products": {
                 "ddo_v1": ddo,

@@ -216,6 +216,76 @@ Anyone can check progress without a wallet with `migration-status`.
     python3 ./porep_tooling_cli.py client --help
     ```
 
+## Repairs (re-onboard a dataset from another SP)
+
+When an SP stops storing a deal's data, the client repairs it with a new deal: a **new SP**, matched by the market like for
+any other deal, gets the data from a **healthy SP** that still serves the same dataset. No keys are shared, and nothing needs
+to be exchanged outside the CLI and the chain.
+
+**Finding the healthy SP:** other providers' ACTIVE, PUBLIC deals for the same dataset (the same pieces: sector placement
+and DataCap deals of the dataset both count) with storage evidence on-chain, whose advertised HTTP piece endpoint (cid.contact,
+else the miner's on-chain multiaddrs) serves every piece. Each candidate is checked and priced with
+[large-paid-retrievals](https://github.com/fidlabs/large-paid-retrievals) (LPR) `retrieval-client fetch --dry-run`, which
+sends nothing and downloads nothing; free sources are preferred, then the cheapest. Build `retrieval-client` (no wallet key
+is needed for quotes) and put it in `PATH` or set `RETRIEVAL_CLIENT_PATH`:
+
+```bash
+git clone https://github.com/fidlabs/large-paid-retrievals && cd large-paid-retrievals
+CGO_ENABLED=0 go build -o bin/retrieval-client ./cmd/retrieval-client
+```
+
+**Client:**
+
+```bash
+python3 ./porep_tooling_cli.py client repair <repaired-deal-id>
+```
+
+This finds the healthy SP and shows its quote, proposes a deal for the same manifest with the repaired deal's terms
+(`--price-per-tib-per-month` / `--duration-months` override them), waits a few minutes for the matched SP to accept
+(`--wait-minutes`). Once it has accepted:
+
+1. **paid source only:** deposits the quoted retrieval cost into the FileCoinPay account of the new SP's payee (an LPR
+   sp-proxy only accepts payment from the wallet that downloads, so the client can't pay the healthy SP directly),
+2. `client init-deal`,
+3. `client submit-ddo`: for a free source with `--source-url <healthy SP>`, so the new SP's Curio downloads the pieces
+   itself and the new SP has nothing to do; for a paid source as offline data, for the new SP to download (below),
+4. `client deposit-for-deals` for the new deal.
+
+The retrieval deposit can only be returned by the SP, so it is never made before the SP accepts; earlier deposits to that payee since the deal was proposed are checked first
+(it refuses if they can't be checked or already cover the cost: `--allow-unverified-history` / `--allow-repeat-deposit`).
+`client pay-repair-retrieval <new-deal-id>` runs the deposit step on its own, e.g. to top it up.
+
+The command is resumable. The new deal's manifest URL carries a marker naming the repaired deal,
+`<manifest URL>#fcss-repair-of=<repaired-deal-id>` (a URL fragment is never sent to the server); a re-run finds that deal
+on-chain and continues where it stopped, without proposing or depositing twice, and once it is ACTIVE reports the repair as
+done. Other deals for the dataset, such as its other original copy, are never taken for the repair deal;
+`--repair-deal <deal-id>` continues a named unmarked one after a confirmation. `--source-url` sets the healthy SP.
+
+**New SP, for a paid source:**
+
+```bash
+python3 ./porep_tooling_cli.py sp onboard-data <new-deal-id> --output-dir <dir> \
+  --downloader lpr --payee-key-file ./payee.key
+```
+
+It finds the healthy SP itself (`--host` / `--port` override it), quotes the pieces still to download, and only starts once
+the client's deposits, less what the payee has spent on retrievals since the deal was proposed, cover the quote; otherwise
+it stops with `Waiting for client funding: quote …, available …, short …` (`--allow-unfunded-retrieval` downloads anyway,
+paying the difference from the payee's own funds). The key must be the deal payee's (a regular `0x` wallet with a little FIL
+for gas), in a `chmod 600` file. Downloaded pieces are saved under their manifest `storagePath` and also named
+`<pieceCidV2>.car`, the name Curio requests the offline data of `client submit-ddo` deals by.
+
+Limitations:
+
+- Only **USDFC** deals can be repaired: LPR sp-proxies settle in USDFC (`SP_PROXY_PAY_TOKEN_ADDRESS` overrides the token on
+  local devnets).
+- Only **PUBLIC** deals: LPR only serves private deals to their owner.
+- The payee's FileCoinPay account also collects the SP's deal earnings, and LPR has no spend cap: if the sp-proxy's price
+  rises during a download, `retrieval-client` covers the difference from those funds.
+- The funding check counts all of the client's deposits to the payee and all of the payee's retrieval payments since the
+  deal was proposed, so concurrent repairs between the same client and SP share one budget.
+- LPR can't sign through a Lotus wallet, so a paid download needs the payee key as a plain key file on the downloading host.
+
 ## Developing new CLI commands
 
 - See files in `cli/commands` for examples of how to implement new commands.

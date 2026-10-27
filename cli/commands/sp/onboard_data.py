@@ -11,6 +11,9 @@ from hexbytes import HexBytes
 
 from cli import utils
 from cli.commands import utils as commands_utils
+from cli.commands.repair_utils import find_healthy_source, get_retrieval_client_path
+from cli.commands.sp._repair_download import download_with_lpr
+from cli.services.cid_converter import piece_cid_v1_to_v2
 from cli.services.contracts.evidence_adapter import EvidenceType
 from cli.services.contracts.porep_market import PoRepMarket, PoRepMarketDealState
 from cli.services.contracts.porep_market_view_helper import PoRepMarketDealView, PoRepMarketViewHelper
@@ -102,13 +105,23 @@ def _write_manifest_file(manifest: list[dict], output_dir: Path, deal_id: int) -
 @click.option("--output-dir", type=click.Path(file_okay=False), required=True,
               help="Directory to save downloaded pieces.")
 @click.option("--host",
-              help="Host to use for .car files download.  [default: same host as manifest URL]")
+              help="Host to use for .car files download.  [default: same host as manifest URL; with --downloader lpr: a healthy "
+                   "SP found from other providers' deals for the same dataset]")
 @click.option("--port", default=7777, type=click.IntRange(min=1, max=65535), show_default=True,
               help="Port to use for .car files download.")
 @click.option("--force", is_flag=True, default=False,
               help="Force download even if all DDO pieces are placed.  [default: false]")
 @click.option("--no-summary", is_flag=True, default=False,
               help="Don't print the initial download summary.  [default: false]")
+@click.option("--downloader", type=click.Choice(["aria2", "lpr"], case_sensitive=False), default="aria2", show_default=True,
+              help="aria2 for a free HTTP piece server; lpr for a repair from another SP's large-paid-retrievals sp-proxy, with "
+                   "retrieval-client, paid from the deal payee's FileCoinPay account funded by the client (`client pay-repair-retrieval`).")
+@click.option("--payee-key-file", envvar="SP_PAYEE_KEY_FILE", show_envvar=True, type=click.Path(exists=True, dir_okay=False),
+              help="For paid lpr downloads: file with the private key of the deal's payee address, passed to retrieval-client.  "
+                   "[default: FILPAY_PRIVATE_KEY env var]")
+@click.option("--allow-unfunded-retrieval", is_flag=True, default=False,
+              help="For paid lpr downloads: download even if the client's repair deposits don't cover the retrieval quote, or can't be "
+                   "checked; the payee's own funds pay the rest.  [default: false]")
 @click.pass_context
 # TODO LATER add commP files verification after download
 def onboard_data(ctx,
@@ -118,14 +131,19 @@ def onboard_data(ctx,
                  host: str | None = None,
                  force: bool = False,
                  no_summary: bool = False,
-                 claim_allocations: str | None = None):
+                 claim_allocations: str | None = None,
+                 downloader: str = "aria2",
+                 payee_key_file: str | None = None,
+                 allow_unfunded_retrieval: bool = False):
     """
     \b
-    Download data for a deal using aria2 downloader.
+    Download data for a deal using aria2 downloader or, for a repair from another SP's large-paid-retrievals sp-proxy,
+    retrieval-client (--downloader lpr): a paid download only starts once the client's deposits into the deal payee's
+    FileCoinPay account (`client pay-repair-retrieval`) cover the quote, and a free one needs no payee key.
 
     \b
-    Unknown [OPTIONS] are passed directly to aria2c, allowing for flexible configuration.
-    See aria2c --help for available options.
+    Unknown [OPTIONS] are passed directly to aria2c / retrieval-client fetch, allowing for flexible configuration.
+    See aria2c --help / retrieval-client fetch --help for available options.
 
     DEAL_ID - The ID of the deal to download pieces for.
 
@@ -134,7 +152,10 @@ def onboard_data(ctx,
     """
 
     SelfUpdateService.check_and_prompt(manual=False)
-    aria2c_path = _get_aria2c_path()
+    aria2c_path = _get_aria2c_path() if downloader == "aria2" else None
+
+    if downloader == "lpr":
+        get_retrieval_client_path()  # fail before anything else if retrieval-client is missing
 
     click.echo("Fetching deal details...")
     deal = PoRepMarketViewHelper().get_deal_view(deal_id)
@@ -169,6 +190,16 @@ def onboard_data(ctx,
 
     parsed_url = commands_utils.validate_and_parse_url(host or deal.data.manifest_location)
     download_host = f"{parsed_url.scheme or 'http'}://{parsed_url.hostname}:{port}"
+
+    if downloader == "lpr":
+        if not host:
+            download_host = find_healthy_source(pieces, {deal.deal.provider_id}).base_url
+
+        download_with_lpr(ctx, deal, pieces_to_download if not force else pieces, download_host, _output_dir, no_summary,
+                          payee_key_file, allow_unfunded_retrieval)
+        _add_piece_cid_v2_names(pieces, _output_dir)
+        return
+
     aria2_file = _write_aria2c_input_file(pieces_to_download if not force else pieces, download_host, _output_dir, no_summary)
 
     try:
@@ -202,6 +233,45 @@ def onboard_data(ctx,
 
     finally:
         aria2_file.unlink(missing_ok=True)
+
+    _add_piece_cid_v2_names(pieces, _output_dir)
+
+
+def _add_piece_cid_v2_names(pieces: list[dict], output_dir: Path):
+    linked = _link_piece_cid_v2_names(pieces, output_dir)
+
+    if linked:
+        click.echo(f"\nNamed {linked} downloaded piece(s) also by piece CID v2 (<pieceCidV2>.car), as Curio requests the offline data "
+                   f"of `client submit-ddo` deals.")
+
+
+# Files are saved under the manifest storagePath (piece CID v1), but Curio requests the offline data of DDO deals submitted with
+# `client submit-ddo` by piece CID v2. Add a <pieceCidV2>.car hard link next to each downloaded piece (a symlink where hard links
+# are not supported); existing links are kept, so re-running is safe.
+def _link_piece_cid_v2_names(pieces: list[dict], output_dir: Path) -> int:
+    linked = 0
+
+    for piece in pieces:
+        output_file = (output_dir / piece["storagePath"]).resolve()
+
+        if output_dir not in output_file.parents or not output_file.is_file():
+            continue
+
+        v2_file = output_file.with_name(f"{piece_cid_v1_to_v2(piece['pieceCid'], int(piece['fileSize']))}.car")
+
+        if v2_file.exists():
+            if not v2_file.samefile(output_file):
+                click.echo(f"WARNING: {v2_file} already exists and is not {output_file}; left as is")
+            continue
+
+        try:
+            os.link(output_file, v2_file)
+        except OSError:
+            v2_file.symlink_to(output_file.name)
+
+        linked += 1
+
+    return linked
 
 
 def _validate_deal(deal: PoRepMarketDealView, manifest: list[dict]):
