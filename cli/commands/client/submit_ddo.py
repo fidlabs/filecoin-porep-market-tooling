@@ -37,16 +37,21 @@ from cli.services.web3_service import EthAddress, FilAddress
               help="Print DDO submissions without sending them to Curio.")
 @click.option("--skip-preflight", is_flag=True, default=False,
               help="Skip Curio preflight checks. Intended for development/debugging.")
+@click.option("--source-url",
+              help="Base URL of an HTTP piece server holding the data (e.g. another SP's https://host:port): Curio downloads each piece "
+                   "from <url>/piece/<pieceCid> itself.  [default: offline, the SP imports the data, see `sp onboard-data`]")
 def submit_ddo(deal_id: int,
                local_manifest: str | None = None,
                curio_url: str | None = None,
                print_only: bool = False,
-               skip_preflight: bool = False):
+               skip_preflight: bool = False,
+               source_url: str | None = None):
     """
     Submit PoRep Market deal pieces to the Storage Provider through Curio Market 2.0.
 
-    Each manifest piece is submitted as an offline DDO deal with the same
+    Each manifest piece is submitted as a DDO deal with the same
     FIP-0109 notification payload produced by `sp get-piece-notifications`.
+    The data is offline (the SP imports it) unless --source-url is given.
 
     \b
     DEAL_ID - PoRep Market deal ID.
@@ -60,6 +65,11 @@ def submit_ddo(deal_id: int,
 
     deal = PoRepMarketViewHelper().get_deal_view(deal_id)
     _validate_deal(deal)
+
+    if source_url:
+        # the SP's Curio fetches this URL: same private-address guard as for manifests
+        source_url = source_url.rstrip("/")
+        commands_utils.validate_and_parse_url(source_url)
 
     if local_manifest:
         manifest, _ = commands_utils.fetch_local_manifest(Path(local_manifest).resolve(), quiet=True)
@@ -129,6 +139,7 @@ def submit_ddo(deal_id: int,
             "pieceCidV2": piece_cid_v2,
             "identifier": identifier,
             "notificationPayload": notification_payload,
+            "sourceUrl": f"{source_url}/piece/{row.piece_cid}" if source_url else None,
         })
 
     click.echo(f"Deal ID {deal_id}: "
@@ -144,12 +155,13 @@ def submit_ddo(deal_id: int,
         return
 
     _curio_url = [curio_url] if curio_url else CurioMarketDiscovery.get_market_urls(deal.deal.provider_id)
-    curio = find_curio_market_endpoint(client_signer(), _curio_url, market_address, skip_preflight)
+    curio = find_curio_market_endpoint(client_signer(), _curio_url, market_address, skip_preflight, "http" if source_url else "offline")
 
     click.echo(f"Storage Provider: {deal.deal.provider_id}\n"
                f"Curio endpoint: {curio.base_url}\n"
                f"Market address: {market_address}\n"
-               f"Notification address: {notification_address}")
+               f"Notification address: {notification_address}\n"
+               f"Data source: {source_url + '/piece/<pieceCid>' if source_url else 'offline (the SP imports the data)'}")
 
     utils.confirm(f"Submit {len(pieces_to_submit)} DDO deal(s) to "
                   f"{deal.deal.provider_id}?",
@@ -187,7 +199,7 @@ def submit_ddo(deal_id: int,
             already_submitted += 1
             continue
 
-        curio.submit_offline_ddo(
+        curio.submit_ddo(
             provider=deal.deal.provider_id,
             piece_cid_v2=piece["pieceCidV2"],
             duration_epochs=deal.terms.duration_epochs,
@@ -202,6 +214,8 @@ def submit_ddo(deal_id: int,
 
             indexing=True,
             announce_payload=(deal.deal.deal_type == PoRepMarketDealType.PUBLIC),
+
+            http_urls=[piece["sourceUrl"]] if piece["sourceUrl"] else None,
         )
 
         click.echo(f"[{index}/{len(pieces_to_submit)}] "
@@ -214,7 +228,8 @@ def submit_ddo(deal_id: int,
     click.echo(f"\nDone. "
                f"Submitted: {submitted}, "
                f"already submitted: {already_submitted}.\n"
-               f"Run `{sys.argv[0]} client ddo-status {deal_id}` to check the status of the submitted DDO deals.\n"
+               + (f"Curio downloads the data from {source_url} itself; the SP does not need to run `sp onboard-data`.\n" if source_url else "")
+               + f"Run `{sys.argv[0]} client ddo-status {deal_id}` to check the status of the submitted DDO deals.\n"
                f"All done! Run `{sys.argv[0]} client deposit-for-deals {deal_id}` to deposit funds for this deal.")
 
 
@@ -264,6 +279,7 @@ def _print_plan(deal: PoRepMarketDealView,
                 "pieceIndex": piece["row"].index,
                 "identifier": piece["identifier"],
                 "notificationPayload": HexBytes(piece["notificationPayload"]).to_0x_hex(),
+                **({"sourceUrl": piece["sourceUrl"]} if piece["sourceUrl"] else {}),
             }
             for piece in pieces
         ]
