@@ -6,6 +6,7 @@ from .deposit_for_deals import deposit_for_deals, deposit_for_whole_deal
 from .get_deals import get_deal, get_deal_manifest, get_deal_rail, get_deals, get_deal_operator_approval
 from .get_filecoinpay_account import get_filecoinpay_account
 from .init_deal import init_deal
+from .pay_repair_retrieval import pay_repair_retrieval
 from .propose_deal import propose_deal, propose_deal_mocked
 from .sign_retrieval_voucher import sign_retrieval_voucher
 from .submit_ddo import submit_ddo
@@ -27,6 +28,7 @@ client.add_command(get_filecoinpay_account)
 client.add_command(propose_deal)
 client.add_command(propose_deal_mocked)
 client.add_command(init_deal)
+client.add_command(pay_repair_retrieval)
 client.add_command(deposit_for_deals)
 client.add_command(deposit_for_whole_deal)
 client.add_command(withdraw_from_filecoinpay)
