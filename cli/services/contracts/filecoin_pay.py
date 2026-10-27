@@ -237,6 +237,38 @@ class FileCoinPay(ContractService):
         )
 
     # token => client => operator => Approval
+    # @notice Sums DepositRecorded amounts of `token` deposited by `from_address` into the `to_address` account
+    #     within the inclusive block range.
+    def get_deposited_amount(self, token: EthAddress, from_address: EthAddress, to_address: EthAddress, from_block: int, to_block: int) -> int:
+        # filter only by token on-chain: some RPC providers hang on eth_getLogs with all indexed topics set
+        logs = self.contract.events.DepositRecorded().get_logs(from_block=from_block, to_block=to_block, argument_filters={"token": token})
+        return sum(int(log.args.amount) for log in logs
+                   if EthAddress(log.args["from"]) == from_address and EthAddress(log.args["to"]) == to_address)
+
+    # @notice IDs of all `token` rails paid from the `payer` account (paged getRailsForPayerAndToken).
+    #     A page can hold fewer than `page_size` rails, even none, as the contract skips finalized rails within it.
+    def get_payer_rail_ids(self, token: EthAddress, payer: EthAddress, page_size: int = 100) -> list[int]:
+        rail_ids = []
+        offset = 0
+
+        while True:
+            results, next_offset, total = self.call_contract(self.contract.functions.getRailsForPayerAndToken(payer, token, offset, page_size))
+            rail_ids += [int(result[0]) for result in results]
+
+            if int(next_offset) >= int(total) or int(next_offset) <= offset:
+                return rail_ids
+
+            offset = int(next_offset)
+
+    # @notice Sums the gross one-time payments (net payee amount + operator commission + network fee, i.e. what left the payer's
+    #     account) on the given rails within the inclusive block range.
+    def get_one_time_payments(self, rail_ids: list[int], from_block: int, to_block: int) -> int:
+        # RPC providers cap the topics per filter, so many rails are filtered here instead
+        filters = {"railId": rail_ids} if len(rail_ids) <= 50 else None
+        logs = self.contract.events.RailOneTimePaymentProcessed().get_logs(from_block=from_block, to_block=to_block, argument_filters=filters)
+        return sum(int(log.args.netPayeeAmount) + int(log.args.operatorCommission) + int(log.args.networkFee)
+                   for log in logs if int(log.args.railId) in rail_ids)
+
     def get_operator_approval(self, token: EthAddress, client: EthAddress, operator: EthAddress) -> FileCoinPayOperatorApproval:
         return FileCoinPayOperatorApproval.from_web3(
             self.call_contract(self.contract.functions.operatorApprovals(token, client, operator))
