@@ -15,6 +15,7 @@ from web3 import Web3
 
 from cli import utils
 from cli._cli import is_dry_run
+from cli.services.cid_converter import piece_cid_v1_to_v2
 from cli.services.contracts.datacap_evidence_adapter import DataCapEvidenceAdapter
 from cli.services.contracts.erc20_contract import ERC20Contract
 from cli.services.contracts.evidence_adapter import EvidenceType
@@ -29,8 +30,19 @@ from cli.services.contracts.porep_market import (
 )
 from cli.services.contracts.porep_market_view_helper import PoRepMarketViewHelper
 from cli.services.contracts.sector_evidence_adapter import SectorEvidenceAdapter
-from cli.services.contracts.sp_registry import SPRegistry, SPRegistryProviderInput, SPRegistryProviderView, SPRegistryOfferInput
+from cli.services.contracts.sp_registry import (
+    SPRegistry,
+    SPRegistryProviderInput,
+    SPRegistryProviderView,
+    SPRegistryOfferInput
+)
 from cli.services.contracts.validator_factory import ValidatorFactory
+from cli.services.curio_market_client import (
+    CurioMarketDiscovery,
+    find_curio_market_endpoint,
+    piece_identifier,
+    CurioMarketClient
+)
 from cli.services.piece_set_commitment import PieceSet
 from cli.services.txsigner import TxSigner
 from cli.services.web3_service import ActorId, EthAddress, FilAddress, Web3Service
@@ -723,3 +735,44 @@ def propose_deal(signer: TxSigner,
         click.echo(f"All done! Run `{sys.argv[0]} client init-deal {deal_id}` to initialize this deal.")
 
     return tx.tx_hash
+
+
+def ddo_status(deal_id: int,
+               signer: TxSigner,
+               curio_url: str | None = None,
+               client_address: FilAddress | None = None):
+    #
+    deal = PoRepMarketViewHelper().get_deal_view(deal_id)
+    manifest, _ = fetch_manifest(deal.data.manifest_location, show_manifest=False, quiet=True, retries=10)
+    _client_address = client_address or deal.deal.client_address.to_filecoin_address()
+
+    curio = (find_curio_market_endpoint(signer,
+                                        CurioMarketDiscovery.get_market_urls(deal.deal.provider_id),
+                                        market_address=None)
+             if not curio_url
+             else CurioMarketClient(curio_url, signer))
+
+    click.echo(f"Deal ID: {deal_id}\n"
+               f"Storage Provider: {deal.deal.provider_id}\n"
+               f"Curio endpoint: {curio.base_url}\n"
+               f"Client adress: {_client_address}\n"
+               f"Manifest location: {deal.data.manifest_location}\n")
+
+    total_pieces = len(manifest[0]["pieces"])
+
+    for index, piece in enumerate(manifest[0]["pieces"], start=1):
+        piece_cid_v2 = piece_cid_v1_to_v2(piece["pieceCid"], piece["fileSize"])
+        identifier = piece_identifier(deal_id, piece_cid_v2, _client_address)
+
+        status_result = curio.get_deal_status_or_none(identifier)
+        ddo_status = (status_result.get("ddo_v1") or {}) if status_result else None
+        status = (ddo_status.get("status") or "unknown") if ddo_status else "not found / unauthorized"
+        error = ddo_status.get("errorMsg") if ddo_status else None
+
+        message = (f"[{index}/{total_pieces}] "
+                   f"CIDv1: {piece['pieceCid']} -> CIDv2: {piece_cid_v2} ({identifier}): {status.lower()}")
+
+        if error:
+            message += f" - {error}"
+
+        click.echo(message)

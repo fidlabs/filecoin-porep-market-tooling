@@ -39,14 +39,14 @@ def find_curio_market_endpoint(signer: TxSigner,
                                + "\n".join(errors))
 
 
-def piece_identifier(deal_id: int, piece_cid_v2: str, signer: TxSigner) -> str:
+def piece_identifier(deal_id: int, piece_cid_v2: str, client_address: FilAddress) -> str:
     return CurioMarketClient.deterministic_ulid(
         (
             f"{Web3Service().get_chain_id()}:"
             f"{str(PoRepMarket().address()).lower()}:"
             f"{deal_id}:"
             f"{piece_cid_v2}:"
-            f"{signer.filecoin_address()}"
+            f"{client_address}"
         ).encode()
     )
 

@@ -262,11 +262,10 @@ def Mbps_to_Bps(Mbps: int) -> int:
 
 # noinspection PyPep8Naming,PyShadowingNames
 # pylint: disable=invalid-name
-def price_per_TiB_tokens_to_per_sector_wei(
-        price_per_TiB_tokens: float,
-        payment_token_decimals: int,
-        sector_size_bytes: int,
-) -> int:
+def price_per_TiB_tokens_to_per_sector_wei(price_per_TiB_tokens: float,
+                                           payment_token_decimals: int,
+                                           sector_size_bytes: int) -> int:
+    #
     TIB_BYTES = 1024 ** 4  # 1 TiB in bytes
 
     if sector_size_bytes <= 0:
