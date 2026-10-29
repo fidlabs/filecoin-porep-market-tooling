@@ -122,7 +122,7 @@ def submit_ddo(deal_id: int,
 
         piece_cid_v2 = piece_cid_v1_to_v2(row.piece_cid, manifest_piece["fileSize"])
         notification_payload = bytes(piece_set.notification_payload(deal_id, row.index))
-        identifier = piece_identifier(deal_id, piece_cid_v2, client_signer().filecoin_address())
+        identifier = piece_identifier(deal_id, piece_cid_v2)
 
         pieces_to_submit.append({
             "row": row,
