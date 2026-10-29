@@ -739,12 +739,10 @@ def propose_deal(signer: TxSigner,
 
 def ddo_status(deal_id: int,
                signer: TxSigner,
-               curio_url: str | None = None,
-               client_address: FilAddress | None = None):
+               curio_url: str | None = None):
     #
     deal = PoRepMarketViewHelper().get_deal_view(deal_id)
     manifest, _ = fetch_manifest(deal.data.manifest_location, show_manifest=False, quiet=True, retries=10)
-    _client_address = client_address or deal.deal.client_address.to_filecoin_address()
 
     curio = (find_curio_market_endpoint(signer,
                                         CurioMarketDiscovery.get_market_urls(deal.deal.provider_id),
@@ -755,14 +753,13 @@ def ddo_status(deal_id: int,
     click.echo(f"Deal ID: {deal_id}\n"
                f"Storage Provider: {deal.deal.provider_id}\n"
                f"Curio endpoint: {curio.base_url}\n"
-               f"Client adress: {_client_address}\n"
                f"Manifest location: {deal.data.manifest_location}\n")
 
     total_pieces = len(manifest[0]["pieces"])
 
     for index, piece in enumerate(manifest[0]["pieces"], start=1):
         piece_cid_v2 = piece_cid_v1_to_v2(piece["pieceCid"], piece["fileSize"])
-        identifier = piece_identifier(deal_id, piece_cid_v2, _client_address)
+        identifier = piece_identifier(deal_id, piece_cid_v2)
 
         status_result = curio.get_deal_status_or_none(identifier)
         ddo_status = (status_result.get("ddo_v1") or {}) if status_result else None
