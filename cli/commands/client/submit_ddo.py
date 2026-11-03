@@ -120,12 +120,11 @@ def submit_ddo(deal_id: int,
             raise click.ClickException(f"Cannot find manifest metadata for canonical piece "
                                        f"{row.piece_cid} with size {row.padded_size}")
 
-        file_size = int(manifest_piece["fileSize"])
-        implied_piece_size = padded_piece_size_for_payload(file_size)
+        implied_piece_size = padded_piece_size_for_payload(manifest_piece["fileSize"])
 
         if implied_piece_size != row.padded_size:
             raise click.ClickException(
-                f"Piece {row.piece_cid}: fileSize {file_size} implies "
+                f"Piece {row.piece_cid}: fileSize {manifest_piece['fileSize']} implies "
                 f"piece size {implied_piece_size}, but manifest pieceSize "
                 f"is {row.padded_size}"
             )
@@ -230,7 +229,7 @@ def submit_ddo(deal_id: int,
                f"already submitted: {already_submitted}.\n"
                + (f"Curio downloads the data from {source_url} itself; the SP does not need to run `sp onboard-data`.\n" if source_url else "")
                + f"Run `{sys.argv[0]} client ddo-status {deal_id}` to check the status of the submitted DDO deals.\n"
-               f"All done! Run `{sys.argv[0]} client deposit-for-deals {deal_id}` to deposit funds for this deal.")
+                 f"All done! Run `{sys.argv[0]} client deposit-for-deals {deal_id}` to deposit funds for this deal.")
 
 
 def _validate_deal(deal: PoRepMarketDealView):
