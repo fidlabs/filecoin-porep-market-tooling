@@ -70,7 +70,7 @@ class SubmitDdoSourceUrlTests(unittest.TestCase):
                   patch.object(MODULE.commands_utils, "fetch_manifest", lambda *args, **kwargs: ([{"pieces": PIECES}], b"")),
                   patch.object(MODULE, "SectorEvidenceAdapter", lambda address: adapter),
                   patch.object(MODULE, "client_signer", MagicMock),
-                  patch.object(MODULE, "piece_identifier", lambda deal_id, cid, signer: f"id-{cid[-6:]}")):
+                  patch.object(MODULE, "piece_identifier", lambda deal_id, cid: f"id-{cid[-6:]}")):
             p.start()
             self.addCleanup(p.stop)
 
