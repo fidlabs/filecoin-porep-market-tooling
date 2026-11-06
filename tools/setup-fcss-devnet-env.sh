@@ -258,9 +258,6 @@ ARIA2C_PATH=${ARIA2C_PATH}
 # Default: docker wrapper (Curio runs in container on FCSS-devnet).
 CURIO_PATH=${CURIO_CLI}
 
-# Needed for sp claim-allocations boost command, path for boostd binary, leave empty to use PATH lookup
-BOOSTD_PATH=
-
 # Enables dry-run mode, which only simulates transactions without broadcasting them to the network
 DRY_RUN=false
 
