@@ -92,8 +92,9 @@ def get_retrieval_client_path() -> str:
     except Exception as e:
         click.echo("retrieval-client not found. Please install large-paid-retrievals retrieval-client: repairs use it for quotes and paid downloads.\n"
                    "See https://github.com/fidlabs/large-paid-retrievals#for-dataset-consumers for installation instructions:\n"
-                   "  git clone https://github.com/fidlabs/large-paid-retrievals && cd large-paid-retrievals && "
-                   "go build -o bin/retrieval-client ./cmd/retrieval-client\n"
+                   "  git clone https://github.com/fidlabs/large-paid-retrievals &&"
+                   "  cd large-paid-retrievals && "
+                   "  go build -o bin/retrieval-client ./cmd/retrieval-client\n"
                    "Set the RETRIEVAL_CLIENT_PATH environment variable if retrieval-client is installed but not in PATH.\n")
 
         raise click.ClickException(f"{retrieval_client_path} not found:\n{e}") from e
