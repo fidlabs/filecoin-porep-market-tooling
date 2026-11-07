@@ -264,8 +264,9 @@ class FileCoinPay(ContractService):
     #         account) on the given rails within the inclusive block range.
     def get_one_time_payments(self, rail_ids: list[int], from_block: int, to_block: int) -> int:
         # RPC providers cap the topics per filter, so many rails are filtered here instead
-        rail_ids = list(set(rail_ids))
+        rail_ids = set(rail_ids)
         filters = {"railId": rail_ids} if len(rail_ids) <= 50 else None
+
         logs = self.contract.events.RailOneTimePaymentProcessed().get_logs(from_block=from_block, to_block=to_block, argument_filters=filters)
 
         return sum(int(log.args.netPayeeAmount) + int(log.args.operatorCommission) + int(log.args.networkFee)
