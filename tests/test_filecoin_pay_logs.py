@@ -54,7 +54,7 @@ class FileCoinPayLogTests(unittest.TestCase):
         pay = filecoin_pay(logs={"RailOneTimePaymentProcessed": [entries]})
         self.assertEqual(pay.get_one_time_payments([7], 100, 200), 100)
         _, kwargs = pay.contract.events.RailOneTimePaymentProcessed.return_value.get_logs.call_args
-        self.assertEqual(kwargs["argument_filters"], {"railId": [7]})
+        self.assertEqual(kwargs["argument_filters"], {"railId": {7}})
 
     def test_many_rails_are_filtered_locally(self):
         rails = list(range(60))
